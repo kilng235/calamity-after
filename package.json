@@ -1,0 +1,23 @@
+{
+  "name": "calamity-after-standalone",
+  "version": "0.1.0",
+  "description": "灾厄之后·重制版 - 独立前端游戏",
+  "main": "index.html",
+  "scripts": {
+    "serve": "python -m http.server 8080",
+    "convert": "cd data-source && node tools/convert-yaml-to-js.js",
+    "report": "npm run convert && cat docs/reports/data-quality-report.md"
+  },
+  "keywords": [
+    "rpg",
+    "d20",
+    "calamity",
+    "standalone",
+    "game"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "js-yaml": "^5.4.1"
+  }
+}

@@ -1,0 +1,282 @@
+<DataSyncProtocol>
+
+# 数据同步协议（变量更新规则与字段定义）
+
+## 0. 职责边界
+
+- 本协议定义"命令如何合法落地变量"：可写根路径、字段类型/范围、别名表、联动纪律。
+- 标签结构、正文行规则、命令顺序，统一以「输出格式」为准。
+- 命令只维护前台已成事实的可写状态；长期剧情承接、世界后台演变收束到「结算协议」的剧情规划环节，不在这里直接维护。
+
+---
+
+## 1. 可写根路径（AI 权限白名单）
+
+AI 只可写以下 11 个顶层根：
+
+- **character**（角色基础）
+- **attributes**（六维属性）
+- **backgrounds**（背景特长数组）
+- **fatePoints**（命运点）
+- **hp**（生命值）
+- **equipment**（装备 10 槽位）
+- **inventory**（背包数组）
+- **currency**（金币）
+- **progress**（进度：位置/已完成任务/已解锁地点）
+- **relationships**（关系对象：NPC 名 → {好感度, 关系状态, ...}）
+- **gameTime**（灾厄纪年：年/月/日/时/分/季节）
+- **tone**（剧情基调字符串）
+
+**本地保留域（AI 一律不可写）**：
+- **stats**（统计：总检定数/成功数/大成功/大失败/战斗胜场/死亡次数）
+- **meta**（元数据：版本/创建时间/存档时间/游戏时长）
+
+白名单外命令一律拒绝并记录警告。
+
+---
+
+## 2. 字段类型与范围表
+
+### 2.1 character（角色基础）
+
+| 字段 | 类型 | 范围 | 默认值 | 说明 |
+|---|---|---|---|---|
+| name | string | - | '旅行者' | 角色名 |
+| race | string | - | '人类' | 种族 |
+| gender | string | '男'/'女' | '男' | 性别 |
+| age | number | 1-999 | 25 | 年龄 |
+| level | number | ≥1 | 1 | 等级 |
+| exp | number | ≥0 | 0 | 当前经验 |
+| expToNextLevel | number | ≥1 | 100 | 升级所需经验 |
+| proficiencyBonus | number | ≥0 | 2 | 熟练加值（4级/次+1） |
+| ac | number | ≥0 | 10 | 护甲等级（10+敏捷调整值+装备AC） |
+
+### 2.2 attributes（六维属性）
+
+| 字段 | 类型 | 范围 | 默认值 |
+|---|---|---|---|
+| 力量 | number | 1-30 | 10 |
+| 敏捷 | number | 1-30 | 10 |
+| 体质 | number | 1-30 | 10 |
+| 感知 | number | 1-30 | 10 |
+| 智力 | number | 1-30 | 10 |
+| 魅力 | number | 1-30 | 10 |
+
+调整值计算公式：`Math.floor((属性值 - 10) / 2)`
+
+### 2.3 backgrounds（背景特长）
+
+- **类型**：`string[]`（数组）
+- **示例**：`["佣兵", "野外求生者"]`
+- **写入**：`push 背景特长 = "炼金学徒"`
+
+### 2.4 fatePoints（命运点）
+
+| 字段 | 类型 | 范围 | 默认值 | 说明 |
+|---|---|---|---|---|
+| current | number | 0-max | 1 | 当前命运点 |
+| max | number | ≥0 | 1 | 上限（固定 1，不积累） |
+| lastRefreshDate | string/null | - | null | 上次刷新日期（游戏日） |
+
+**刷新规则**：每游戏日恢复 1 点，上限 1。消耗时 `add 命运点 = -1`（引擎兜底钳制不会变负）。
+
+### 2.5 hp（生命值）
+
+| 字段 | 类型 | 范围 | 默认值 |
+|---|---|---|---|
+| current | number | 0-max | 10 |
+| max | number | ≥1 | 10 |
+
+**升级加成**：每升一级 `max` +5，`current` 同步+5（引擎后处理）。
+
+### 2.6 equipment（装备 10 槽位）
+
+槽位名（所有值均可为 `null` 或装备对象）：
+
+- **mainHand**（主手）
+- **offHand**（副手）
+- **body**（身体护甲）
+- **head**（头部）
+- **hands**（手部）
+- **legs**（腿部）
+- **feet**（脚部）
+- **shoulders**（肩部）
+- **accessory1**（饰品1）
+- **accessory2**（饰品2）
+
+装备对象字段示例：
+```json
+{
+  "name": "铁剑",
+  "type": "weapon",
+  "damage": "1d6",
+  "durability": 50,
+  "maxDurability": 50
+}
+```
+
+### 2.7 inventory（背包）
+
+- **类型**：`object[]`（对象数组）
+- **字段**：`{ name: string, type: string, count?: number, ... }`
+- **写入**：`push 背包 = {"name":"治疗药水","type":"consumable","count":2}`
+- **删除**：`delete 背包[0]`（索引从 0 起）
+
+### 2.8 currency（金币）
+
+| 字段 | 类型 | 范围 | 默认值 |
+|---|---|---|---|
+| gold | number | ≥0 | 50 |
+
+单一金币制（金币非负，引擎钳制）。
+
+### 2.9 progress（进度）
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| currentLocation | string | '锈钉镇' | 当前位置 |
+| completedQuests | string[] | [] | 已完成任务 ID 数组 |
+| unlockedLocations | string[] | ['锈钉镇'] | 已解锁地点数组 |
+| backstory | string | '' | 角色背景故事 |
+
+### 2.10 relationships（关系）
+
+- **类型**：`object`（对象，键为 NPC 名）
+- **值字段示例**：
+  ```json
+  {
+    "好感度": 10,
+    "关系状态": "熟人",
+    "人情": 0,
+    "记忆": "..."
+  }
+  ```
+- **写入**：`set 关系.老约翰.好感度 = 5`（深合并）
+- **范围**：`好感度` 建议 -100 至 100（引擎钳制）
+
+### 2.11 gameTime（灾厄纪年）
+
+| 字段 | 类型 | 范围 | 默认值 |
+|---|---|---|---|
+| year | number | 1-999 | 303 |
+| month | number | 1-12 | 5 |
+| day | number | 1-31 | 12 |
+| hour | number | 0-23 | 14 |
+| minute | number | 0-59 | 0 |
+| season | string | 春/夏/秋/冬 | '春' |
+
+**时间推进口径**：按「结算协议」规定（通常 1 互动 = 15-30 分钟）。
+
+### 2.12 tone（剧情基调）
+
+- **类型**：`string`
+- **用途**：一两个词概括当前氛围（如"紧张"/"温馨"/"诡异"），供 BGM 与叙事风格参考。
+
+---
+
+## 3. 中文别名表
+
+| 中文别名 | 规范路径 |
+|---|---|
+| 金币 / 金钱 / 资金 | currency.gold |
+| 生命值 / 生命 / HP | hp.current |
+| 生命上限 / HP上限 / 最大生命 | hp.max |
+| 命运点 | fatePoints.current |
+| 命运点上限 | fatePoints.max |
+| 经验 / 经验值 | character.exp |
+| 升级经验 | character.expToNextLevel |
+| 等级 | character.level |
+| 名字 / 姓名 | character.name |
+| 种族 | character.race |
+| 性别 | character.gender |
+| 年龄 | character.age |
+| 熟练加值 | character.proficiencyBonus |
+| AC / 护甲等级 | character.ac |
+| 属性.力量 / 属性.敏捷 / ... | attributes.力量 / attributes.敏捷 / ... |
+| 背景特长 / 特质 | backgrounds |
+| 装备.主手 / 装备.mainHand | equipment.mainHand |
+| 背包 / 物品列表 | inventory |
+| 位置 / 当前位置 / 所在地 | progress.currentLocation |
+| 已完成任务 | progress.completedQuests |
+| 已解锁地点 | progress.unlockedLocations |
+| 关系.{NPC名}.好感度 | relationships.{NPC名}.好感度 |
+| 时间.年 / 年份 | gameTime.year |
+| 时间.月 / 月份 | gameTime.month |
+| 时间.日 / 日期 / 日 | gameTime.day |
+| 时间.时 / 小时 / 时 | gameTime.hour |
+| 时间.分 / 分钟 / 分 | gameTime.minute |
+| 时间.季节 / 季节 | gameTime.season |
+| 基调 / 剧情基调 / 叙事基调 | tone |
+
+**精确组合优先**：`角色.名字` → `character.name`（避免泛化拼接出中文字段名）。
+
+---
+
+## 4. 联动纪律（命令后自动校准）
+
+以下规则在命令全部应用后统一执行（本地收口钳制）：
+
+### 4.1 经验与升级
+
+- `exp` 超过 `expToNextLevel` 时连续升级：
+  - `exp -= expToNextLevel`
+  - `expToNextLevel = floor(expToNextLevel × 1.5)`
+  - `level += 1`
+  - `hp.max += 5`，`hp.current += 5`（升级奖励生命）
+  - 每 4 级：`proficiencyBonus += 1`
+
+### 4.2 数值钳制
+
+- **hp.current** ∈ `[0, hp.max]`
+- **fatePoints.current** ∈ `[0, fatePoints.max]`（上限固定 1）
+- **currency.gold** ≥ 0（非负）
+- **attributes.{六维}** ∈ `[1, 30]`
+- **relationships.{NPC}.好感度** 建议 `[-100, 100]`（引擎钳制）
+
+### 4.3 时间规范化
+
+- **year** ∈ `[1, 999]`
+- **month** ∈ `[1, 12]`
+- **day** ∈ `[1, 31]`（简化历法，不校验 2 月 31 日）
+- **hour** ∈ `[0, 23]`
+- **minute** ∈ `[0, 59]`
+- **season** ∈ `['春','夏','秋','冬']`
+
+### 4.4 AC 重算
+
+基础 `AC = 10 + 敏捷调整值`；装备加成由战斗系统在用时叠加（本地 equipment-system 计算）。
+
+### 4.5 背包条目形状
+
+`inventory` 数组每个元素必须是对象，至少含 `name` 字段；缺失时本地补全默认形状。
+
+---
+
+## 5. 命令写作纪律
+
+### 5.1 正文写了什么，命令就同步什么
+
+- 正文未发生的事不提前写命令。
+- 命令保持最小路径更新：`set 时间.时 = 15`，不写 `set gameTime = {...}`。
+- 一条命令只改一个明确路径，必须能逐条映射"正文事实 → 变量变化"。
+
+### 5.2 对象创建先整后分
+
+- 写 `关系.老约翰.好感度` 前，若 `关系.老约翰` 未定义，先 `set 关系.老约翰 = {"好感度":0}`。
+- 数组索引更新前，确保数组已有该元素。
+
+### 5.3 失败改道
+
+- 若候选命令不合法，必须先改写剧情为可执行分支，再输出合法命令。
+- 若证据不足，只保留可证部分，让命令停留在已确认事实内。
+- 若无合法命令，`<命令>` 标签内写 `无`，但正文必须体现"条件不足未执行"。
+
+---
+
+## 6. 协议边界
+
+- 时间推进口径以「结算协议」为准。
+- 数值公式与战力公式分别以对应专项协议为准（「经验与成长」/「战斗规则」/「属性系统」）。
+- 检定/战斗的结果展示在 `<check>` / `<battle>` 标签，数值落地在 `<命令>` 区。
+
+</DataSyncProtocol>

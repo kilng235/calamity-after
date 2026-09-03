@@ -1,0 +1,2001 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>灾厄之后·重制版</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Cinzel+Decorative:wght@400;700&family=Noto+Serif+SC:wght@400;700&display=swap');
+
+  :root{
+    --parchment:#d8c8a0;
+    --parchment-dark:#c4b088;
+    --parchment-light:#e8dcc0;
+    --ink:#2a1e10;
+    --ink-light:#4a3820;
+    --ink-faded:#6a5838;
+    --gold:#b8942a;
+    --gold-bright:#d4aa38;
+    --gold-glow:rgba(184,148,42,0.3);
+    --gold-light:#e8c860;
+    --leather:#3a2818;
+    --leather-dark:#2a1c10;
+    --leather-light:#5a4028;
+    --red-ink:#8a2a1a;
+    --blue-ink:#1a3a6a;
+    --rune:#7a6020;
+    --rune-glow:rgba(184,148,42,0.15);
+    --danger:#8a2a1a;
+    --amber:#a07828;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+
+  body{
+    background:#1a1510;
+    background-image:
+      radial-gradient(ellipse 80% 40% at 50% 110%,rgba(180,80,30,0.15) 0%,transparent 60%),
+      radial-gradient(ellipse 60% 30% at 50% 100%,rgba(200,120,40,0.08) 0%,transparent 70%),
+      radial-gradient(ellipse at 30% 40%,rgba(90,64,40,0.15) 0%,transparent 50%),
+      radial-gradient(ellipse at 70% 70%,rgba(60,40,20,0.1) 0%,transparent 50%);
+    color:var(--ink);
+    font-family:"Noto Serif SC","Songti SC","SimSun",serif;
+    line-height:1.7;padding:20px;
+    min-height:100vh;
+    position:relative;overflow-x:hidden;
+  }
+  /* 远景慢速余烬粒子层 */
+  body::before{
+    content:'';position:fixed;top:0;left:0;right:0;bottom:0;
+    pointer-events:none;z-index:1;opacity:0.4;
+    background-image:
+      radial-gradient(circle at 10% 20%,rgba(200,160,60,0.3) 1px,transparent 1.5px),
+      radial-gradient(circle at 30% 60%,rgba(220,180,80,0.2) 1px,transparent 1.5px),
+      radial-gradient(circle at 55% 30%,rgba(180,140,40,0.25) 1px,transparent 1.5px),
+      radial-gradient(circle at 75% 70%,rgba(200,160,60,0.2) 1px,transparent 1.5px),
+      radial-gradient(circle at 90% 45%,rgba(220,180,80,0.15) 1px,transparent 1.5px),
+      radial-gradient(circle at 20% 85%,rgba(180,140,40,0.2) 1px,transparent 1.5px),
+      radial-gradient(circle at 65% 15%,rgba(200,160,60,0.25) 1px,transparent 1.5px),
+      radial-gradient(circle at 85% 85%,rgba(220,180,80,0.18) 1px,transparent 1.5px);
+    animation:emberDrift 20s ease-in-out infinite alternate;
+  }
+  @keyframes emberDrift{
+    0%{transform:translateY(0) translateX(0)}
+    100%{transform:translateY(-20px) translateX(10px)}
+  }
+
+  /* ── 皮革封面（外层容器） ── */
+  .book-cover{
+    max-width:720px;margin:0 auto;
+    background:
+      linear-gradient(135deg,var(--leather-light) 0%,var(--leather) 30%,var(--leather-dark) 70%,var(--leather) 100%);
+    border:3px solid var(--leather-dark);
+    border-radius:4px;
+    padding:16px 20px;
+    box-shadow:
+      0 4px 20px rgba(0,0,0,0.7),
+      inset 0 1px 0 rgba(255,255,255,0.05),
+      inset 0 -1px 0 rgba(0,0,0,0.3);
+    position:relative;z-index:10;
+  }
+  .book-cover::before{
+    content:'';position:absolute;top:0;left:0;right:0;bottom:0;
+    background:
+      repeating-conic-gradient(rgba(0,0,0,0.02) 0% 25%,transparent 0% 50%) 0 0/4px 4px,
+      radial-gradient(circle at 50% 12%,rgba(184,148,42,0.03) 0%,transparent 20%);
+    pointer-events:none;border-radius:4px;
+  }
+  .book-cover::after{
+    content:'';position:absolute;top:0;left:-2px;bottom:0;width:8px;
+    background:linear-gradient(90deg,
+      rgba(0,0,0,0.3) 0%,
+      rgba(255,255,255,0.03) 40%,
+      rgba(255,255,255,0.05) 50%,
+      rgba(0,0,0,0.15) 60%,
+      rgba(0,0,0,0.25) 100%);
+    border-radius:2px 0 0 2px;
+    pointer-events:none;
+  }
+  /* 金属铆钉 */
+  .rivet{
+    position:absolute;width:12px;height:12px;border-radius:50%;
+    background:radial-gradient(circle at 35% 35%,#a08860,#6a5030 50%,#3a2818);
+    border:1px solid #2a1c10;
+    box-shadow:0 1px 3px rgba(0,0,0,0.5),inset 0 1px 1px rgba(255,220,150,0.2);
+    z-index:10;
+  }
+  .rivet.tl{top:8px;left:8px}.rivet.tr{top:8px;right:8px}
+  .rivet.bl{bottom:8px;left:8px}.rivet.br{bottom:8px;right:8px}
+
+  /* 视图容器：路由切换显隐 */
+  .view{display:none}
+  .view.active{display:block}
+
+  /* ── 羊皮纸页面 ── */
+  .page{
+    display:none;
+    background:var(--parchment);
+    background-image:
+      radial-gradient(ellipse 80px 60px at 15% 20%,rgba(140,100,50,0.10) 0%,transparent 70%),
+      radial-gradient(ellipse 60px 80px at 85% 35%,rgba(120,80,40,0.08) 0%,transparent 65%),
+      radial-gradient(ellipse 100px 50px at 70% 75%,rgba(140,100,50,0.07) 0%,transparent 60%),
+      radial-gradient(ellipse 50px 70px at 25% 65%,rgba(100,70,30,0.06) 0%,transparent 60%),
+      radial-gradient(ellipse 40px 40px at 50% 90%,rgba(120,80,40,0.05) 0%,transparent 70%),
+      radial-gradient(ellipse 30px 25px at 90% 88%,rgba(100,70,30,0.08) 0%,transparent 70%),
+      radial-gradient(ellipse at 25% 25%,rgba(180,160,120,0.3) 0%,transparent 50%),
+      radial-gradient(ellipse at 75% 75%,rgba(160,140,100,0.2) 0%,transparent 50%),
+      radial-gradient(ellipse at 50% 50%,rgba(200,180,140,0.15) 0%,transparent 70%);
+    border:1px solid var(--parchment-dark);
+    padding:32px 28px 24px;
+    position:relative;
+    box-shadow:
+      inset 0 0 30px rgba(120,100,60,0.15),
+      inset 0 0 80px rgba(100,80,40,0.08),
+      inset 15px 0 25px -15px rgba(80,50,20,0.12),
+      inset -15px 0 25px -15px rgba(80,50,20,0.12),
+      inset 0 15px 25px -15px rgba(80,50,20,0.10),
+      inset 0 -15px 25px -15px rgba(80,50,20,0.14);
+    min-height:70vh;
+  }
+  .page.active{display:block;animation:pageOpen .6s ease-out}
+  @keyframes pageOpen{
+    0%{opacity:0;transform:rotateY(-5deg) scale(0.97)}
+    100%{opacity:1;transform:rotateY(0) scale(1)}
+  }
+  .page::before{
+    content:'';position:absolute;top:0;left:0;right:0;bottom:0;
+    background:repeating-conic-gradient(rgba(100,80,50,0.015) 0% 25%,transparent 0% 50%) 0 0/3px 3px;
+    pointer-events:none;z-index:1;
+  }
+  .page::after{
+    content:'';position:absolute;top:0;left:0;bottom:0;width:20px;
+    background:linear-gradient(90deg,rgba(80,60,30,0.15),transparent);
+    pointer-events:none;z-index:1;
+  }
+  /* 烛光摇曳遮罩 */
+  .page .candle-glow{
+    position:absolute;top:0;left:0;right:0;bottom:0;
+    pointer-events:none;z-index:2;
+    background:
+      radial-gradient(ellipse 120px 80px at 85% 15%,rgba(255,200,100,0.06) 0%,transparent 60%),
+      radial-gradient(ellipse 80px 100px at 10% 85%,rgba(255,180,60,0.04) 0%,transparent 60%);
+    animation:candleFlicker 4s ease-in-out infinite;
+    mix-blend-mode:soft-light;
+  }
+  @keyframes candleFlicker{
+    0%,100%{opacity:0.7;transform:scale(1)}
+    20%{opacity:0.9;transform:scale(1.02) translateY(-1px)}
+    40%{opacity:0.6;transform:scale(0.98) translateY(1px)}
+    60%{opacity:0.85;transform:scale(1.01)}
+    80%{opacity:0.75;transform:scale(0.99) translateY(-0.5px)}
+  }
+
+  /* ── 手抄本装饰边框 ── */
+  .manuscript-border{
+    position:absolute;top:8px;left:8px;right:8px;bottom:8px;
+    border:1px solid var(--gold);
+    pointer-events:none;opacity:0.4;z-index:2;
+  }
+  .manuscript-border::before{
+    content:'';position:absolute;top:3px;left:3px;right:3px;bottom:3px;
+    border:1px solid var(--gold);opacity:0.3;
+  }
+  .corner-ornament{
+    position:absolute;width:24px;height:24px;opacity:0.35;
+    color:var(--gold);font-size:16px;line-height:24px;text-align:center;
+    font-family:"Cinzel Decorative",serif;z-index:3;
+  }
+  .corner-ornament.tl{top:2px;left:4px}.corner-ornament.tr{top:2px;right:4px}
+  .corner-ornament.bl{bottom:2px;left:4px}.corner-ornament.br{bottom:2px;right:4px}
+
+  /* ── 装饰分隔 ── */
+  .deco-line{
+    text-align:center;font-size:0.7em;letter-spacing:4px;
+    margin-bottom:8px;user-select:none;color:var(--gold);opacity:0.5;
+  }
+  .divider{
+    height:1px;margin:20px 30px;border:none;position:relative;
+    background:linear-gradient(90deg,
+      transparent 0%,var(--gold) 15%,var(--gold-bright) 50%,var(--gold) 85%,transparent 100%);
+    opacity:0.4;
+  }
+  .divider::after{
+    content:'❖';position:absolute;top:-9px;left:50%;transform:translateX(-50%);
+    color:var(--gold);font-size:12px;opacity:0.6;
+    text-shadow:0 0 6px var(--gold-glow);
+    background:var(--parchment);padding:0 8px;
+  }
+
+  /* ── 标题 ── */
+  h1{
+    font-family:"Cinzel Decorative","Noto Serif SC",serif;
+    color:var(--gold);font-size:1.6em;margin-bottom:4px;text-align:center;
+    letter-spacing:6px;
+    text-shadow:0 1px 0 rgba(0,0,0,0.1),0 0 8px var(--gold-glow);
+    animation:titleGlow 6s ease-in-out infinite;
+  }
+  @keyframes titleGlow{
+    0%,100%{text-shadow:0 1px 0 rgba(0,0,0,0.1),0 0 8px var(--gold-glow)}
+    50%{text-shadow:0 1px 0 rgba(0,0,0,0.1),0 0 16px rgba(184,148,42,0.4)}
+  }
+  .subtitle{
+    text-align:center;font-size:0.75em;color:var(--ink-faded);
+    letter-spacing:3px;margin-bottom:12px;font-style:italic;
+  }
+
+  /* ── 按钮 ── */
+  .btn{
+    display:block;width:100%;
+    border:1px solid var(--gold);border-radius:2px;
+    padding:12px 16px;font-size:0.95em;
+    font-family:"Cinzel","Noto Serif SC",serif;
+    cursor:pointer;margin-top:16px;letter-spacing:2px;
+    background:linear-gradient(180deg,rgba(184,148,42,0.12) 0%,rgba(184,148,42,0.04) 100%);
+    color:var(--ink-light);
+    text-shadow:0 1px 0 rgba(255,255,255,0.3);
+    box-shadow:0 1px 3px rgba(0,0,0,0.1);
+    transition:all .2s;position:relative;overflow:hidden;
+    text-align:center;text-decoration:none;
+  }
+  .btn:hover{
+    background:linear-gradient(180deg,rgba(184,148,42,0.2) 0%,rgba(184,148,42,0.08) 100%);
+    border-color:var(--gold-bright);
+    box-shadow:0 1px 3px rgba(0,0,0,0.1),0 0 10px var(--gold-glow);
+    color:var(--gold);
+  }
+  .btn:active{transform:translateY(1px);box-shadow:none}
+  .btn.primary{color:var(--gold);border-width:2px}
+  .btn.disabled{opacity:0.4;cursor:not-allowed}
+  .btn .ripple{
+    position:absolute;border-radius:50%;
+    background:radial-gradient(circle,rgba(232,200,96,0.5) 0%,rgba(184,148,42,0.3) 40%,transparent 70%);
+    transform:scale(0);animation:rippleAnim .6s ease-out forwards;
+    pointer-events:none;
+  }
+  @keyframes rippleAnim{
+    to{transform:scale(4);opacity:0}
+  }
+
+  /* ── 通用内容样式（帮助等页面） ── */
+  .page h2{
+    font-family:"Cinzel","Noto Serif SC",serif;
+    color:var(--ink-light);font-size:1.0em;margin:22px 0 12px;
+    padding:6px 14px 6px 16px;
+    border-left:3px solid var(--gold);
+    letter-spacing:2px;position:relative;
+    background:linear-gradient(90deg,rgba(184,148,42,0.08) 0%,transparent 100%);
+    border-radius:0 2px 2px 0;
+  }
+  .page p{margin-bottom:10px;color:var(--ink-light);font-size:0.9em}
+  .page code{color:var(--gold);font-family:monospace}
+
+  .footer-note{
+    text-align:center;font-size:0.65em;color:rgba(232,220,184,0.3);
+    margin-top:14px;letter-spacing:2px;
+  }
+
+  /* ══════════ 登记册向导（迁自 start-screen） ══════════ */
+  p{color:var(--ink);font-size:0.92em;margin-bottom:10px;text-indent:2em}
+
+  label{
+    display:block;font-size:0.85em;margin:12px 0 4px;
+    color:var(--ink-faded);letter-spacing:1px;
+    font-family:"Cinzel","Noto Serif SC",serif;
+  }
+  input[type=text],input[type=number],select,textarea{
+    width:100%;
+    background:rgba(255,250,240,0.5);
+    color:var(--ink);
+    border:none;border-bottom:1px solid var(--parchment-dark);
+    padding:6px 8px;
+    font-family:"Noto Serif SC",serif;font-size:0.92em;
+    transition:border-color .2s;
+  }
+  input[type=text]:focus,input[type=number]:focus,select:focus,textarea:focus{
+    outline:none;border-bottom-color:var(--gold);
+    box-shadow:0 1px 0 var(--gold-glow);
+  }
+  input[type=text]::placeholder{color:var(--ink-faded);opacity:0.5;font-style:italic}
+  select{
+    cursor:pointer;appearance:none;-webkit-appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6' fill='%23b8942a'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 8px center;padding-right:26px;
+    background-color:rgba(255,250,240,0.5);
+  }
+  select option{background:var(--parchment);color:var(--ink)}
+
+  .race-hint{
+    font-size:0.82em;color:var(--ink-faded);margin-top:4px;padding-left:8px;
+    border-left:2px solid var(--gold);margin-left:2px;font-style:italic;
+  }
+  .race-hint:empty{display:none}
+
+  .pts-ok{color:var(--ink)}
+  .pts-low{color:var(--amber)}
+  .pts-zero{color:var(--danger)}
+
+  .info-line{
+    background:rgba(180,160,120,0.12);
+    border:1px solid var(--parchment-dark);border-left:3px solid var(--gold);
+    padding:10px 14px;margin:12px 0;font-size:0.88em;color:var(--ink-light);
+  }
+
+  .talent-panel{
+    background:rgba(180,160,120,0.08);
+    border:1px solid var(--parchment-dark);
+    padding:10px 14px;margin-top:6px;display:grid;grid-template-columns:repeat(3,1fr);gap:2px 10px;
+  }
+  .tag-option{font-size:0.84em;color:var(--ink)}
+  .tag-option label{cursor:pointer;margin:3px 0;display:flex;align-items:center;gap:6px;transition:color .15s}
+  .tag-option label:hover{color:var(--gold)}
+  .tag-option input[type=checkbox]{
+    appearance:none;-webkit-appearance:none;
+    width:13px;height:13px;border:1px solid var(--parchment-dark);border-radius:1px;
+    background:rgba(255,250,240,0.6);cursor:pointer;position:relative;flex-shrink:0;
+  }
+  .tag-option input[type=checkbox]:checked{background:var(--gold);border-color:var(--gold-bright)}
+  .tag-option input[type=checkbox]:checked::after{
+    content:'✦';position:absolute;top:-2px;left:1px;font-size:10px;color:var(--parchment-light);
+  }
+  .tag-btn{font-size:0.84em}
+
+  textarea.out{
+    width:100%;height:180px;margin-top:12px;
+    font-family:"Noto Serif SC",serif;font-size:0.82em;
+    color:var(--ink-faded);background:rgba(255,250,240,0.4);
+    border:1px solid var(--parchment-dark);
+  }
+
+  /* 属性行 */
+  .attr-row{display:flex;align-items:center;gap:10px;margin:10px 0;padding:6px 8px;
+    position:relative;border-radius:2px;
+    background:linear-gradient(90deg,rgba(180,160,120,0.05) 0%,rgba(180,160,120,0.02) 50%,transparent 100%);
+    border:1px solid transparent;transition:border-color .2s,background .2s;
+  }
+  .attr-row:hover{
+    border-color:rgba(184,148,42,0.15);
+    background:linear-gradient(90deg,rgba(180,160,120,0.08) 0%,rgba(180,160,120,0.03) 50%,transparent 100%);
+  }
+  .attr-row span.name{
+    width:52px;color:var(--ink-light);font-weight:bold;
+    font-family:"Cinzel","Noto Serif SC",serif;
+    letter-spacing:3px;font-size:0.9em;position:relative;
+  }
+  .attr-row span.name::after{
+    content:'❖';position:absolute;right:-4px;top:50%;transform:translateY(-50%);
+    font-size:0.5em;color:var(--gold);opacity:0.3;
+  }
+  .attr-row .slider-wrap{flex:1;position:relative;height:20px;display:flex;align-items:center;}
+  .attr-row .slider-wrap::before{
+    content:'';position:absolute;top:50%;left:0;right:0;height:1px;transform:translateY(-50%);
+    background:repeating-linear-gradient(90deg,
+      transparent 0,transparent 7px,
+      rgba(184,148,42,0.12) 7px,rgba(184,148,42,0.12) 8px);
+    pointer-events:none;
+  }
+  .attr-row .slider-wrap::after{
+    content:'';position:absolute;top:50%;left:0;right:0;height:3px;transform:translateY(-50%);
+    background:
+      radial-gradient(circle at 0% 50%,var(--gold) 1px,transparent 1.5px),
+      radial-gradient(circle at 33.3% 50%,var(--gold) 1px,transparent 1.5px),
+      radial-gradient(circle at 46.7% 50%,var(--gold-bright) 1.5px,transparent 2px),
+      radial-gradient(circle at 80% 50%,var(--gold) 1px,transparent 1.5px),
+      radial-gradient(circle at 100% 50%,var(--gold) 1px,transparent 1.5px);
+    pointer-events:none;opacity:0.4;
+  }
+  .attr-row input[type=range]{
+    flex:1;-webkit-appearance:none;appearance:none;height:3px;
+    background:linear-gradient(90deg,
+      var(--parchment-dark) 0%,
+      var(--gold) var(--fill,0%),
+      var(--parchment-dark) var(--fill,0%),
+      var(--parchment-dark) 100%);
+    outline:none;cursor:pointer;opacity:0.85;
+    position:relative;z-index:2;border-radius:2px;
+  }
+  .attr-row input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;
+    width:18px;height:18px;cursor:pointer;
+    background:
+      radial-gradient(circle at 35% 30%,rgba(255,248,220,0.9) 0%,transparent 40%),
+      radial-gradient(circle at 40% 35%,var(--gold-light) 0%,var(--gold) 45%,var(--rune) 100%);
+    border-radius:50%;border:2px solid var(--leather);
+    box-shadow:0 2px 6px rgba(0,0,0,0.35),0 0 8px var(--gold-glow),inset 0 -1px 2px rgba(0,0,0,0.2);
+    transition:transform .15s,box-shadow .15s;
+  }
+  .attr-row input[type=range]::-webkit-slider-thumb:hover{
+    transform:scale(1.15);
+    box-shadow:0 2px 8px rgba(0,0,0,0.4),0 0 16px rgba(184,148,42,0.5),0 0 30px rgba(184,148,42,0.2),inset 0 -1px 2px rgba(0,0,0,0.2);
+  }
+  .attr-row span.val{
+    width:36px;text-align:center;color:var(--ink);font-weight:bold;font-size:1em;
+    font-family:"Cinzel",serif;transition:color .2s,text-shadow .2s;position:relative;
+  }
+  .attr-row span.val.flash{
+    color:var(--gold-bright);
+    text-shadow:0 0 10px var(--gold-glow),0 0 20px rgba(184,148,42,0.3);
+    animation:valPulse .3s ease-out;
+  }
+  @keyframes valPulse{0%{transform:scale(1)}50%{transform:scale(1.15)}100%{transform:scale(1)}}
+  .attr-row span.mod{width:42px;text-align:center;color:var(--ink-faded);font-size:0.85em;font-family:"Cinzel",serif;}
+  .attr-row span.mod.neg{color:var(--danger)}
+
+  /* 世界观段落 */
+  .lore-p{
+    position:relative;padding-left:20px;text-indent:0!important;
+    opacity:0;transform:translateY(8px);animation:loreIn .7s ease-out forwards;
+    line-height:1.9;
+  }
+  .lore-p:nth-of-type(1){animation-delay:.2s}
+  .lore-p:nth-of-type(2){animation-delay:.4s}
+  .lore-p:nth-of-type(3){animation-delay:.6s}
+  .lore-p:nth-of-type(4){animation-delay:.8s}
+  .lore-p::before{
+    content:'❧';position:absolute;left:0;top:2px;
+    color:var(--gold);font-size:0.8em;opacity:0.5;
+  }
+  .lore-p:first-of-type::first-letter{
+    font-family:"Cinzel Decorative","Noto Serif SC",serif;
+    font-size:3.6em;float:left;line-height:0.9;
+    padding:4px 10px 2px 0;margin-left:-2px;color:var(--gold-bright);
+    text-shadow:0 0 10px var(--gold-glow),0 1px 0 rgba(0,0,0,0.15);
+    background:linear-gradient(135deg,var(--gold-light) 0%,var(--gold) 50%,var(--rune) 100%);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  }
+  @keyframes loreIn{to{opacity:1;transform:translateY(0)}}
+
+  .crest{text-align:center;margin:8px 0 12px;opacity:0.25;font-size:2em;line-height:1;text-shadow:0 1px 0 rgba(0,0,0,0.1);color:var(--gold);}
+  .status-bar{
+    display:flex;justify-content:space-between;align-items:center;
+    font-size:0.68em;color:var(--ink-faded);letter-spacing:1px;
+    padding:4px 0;margin-bottom:6px;
+    border-bottom:1px solid rgba(184,148,42,0.2);
+    font-family:"Cinzel","Noto Serif SC",serif;
+  }
+  .page-num{
+    text-align:center;font-size:0.7em;color:var(--ink-faded);
+    margin-top:8px;font-family:"Cinzel",serif;letter-spacing:2px;opacity:0.4;
+  }
+  .page .footer{
+    text-align:center;font-size:0.65em;color:var(--ink-faded);
+    margin-top:20px;padding-top:10px;letter-spacing:2px;
+    border-top:1px solid var(--parchment-dark);opacity:0.5;
+    font-family:"Cinzel","Noto Serif SC",serif;
+  }
+
+  /* 粒子画布 */
+  #ember-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9998;opacity:0.5}
+
+  /* ══════════ 设置页（迁自 settings.html） ══════════ */
+  input[type=password]{
+    width:100%;
+    background:rgba(255,250,240,0.5);
+    color:var(--ink);
+    border:none;border-bottom:1px solid var(--parchment-dark);
+    padding:6px 8px;
+    font-family:"Noto Serif SC",serif;font-size:0.92em;
+    transition:border-color .2s;position:relative;z-index:3;
+  }
+  input[type=password]:focus{
+    outline:none;border-bottom-color:var(--gold);
+    box-shadow:0 1px 0 var(--gold-glow);
+  }
+  .hint{
+    font-size:0.8em;color:var(--ink-faded);margin-top:4px;padding-left:8px;
+    border-left:2px solid var(--gold);font-style:italic;
+    position:relative;z-index:3;
+  }
+  .check-row{
+    display:flex;align-items:center;gap:8px;margin:10px 0;
+    font-size:0.9em;position:relative;z-index:3;
+  }
+  .check-row input[type=checkbox]{
+    appearance:none;-webkit-appearance:none;
+    width:15px;height:15px;border:1px solid var(--parchment-dark);border-radius:1px;
+    background:rgba(255,250,240,0.6);cursor:pointer;position:relative;flex-shrink:0;
+  }
+  .check-row input[type=checkbox]:checked{background:var(--gold);border-color:var(--gold-bright)}
+  .check-row input[type=checkbox]:checked::after{
+    content:'✦';position:absolute;top:-3px;left:1px;font-size:11px;color:var(--parchment-light);
+  }
+  .radio-row{
+    display:flex;gap:18px;margin:6px 0;flex-wrap:wrap;
+    font-size:0.88em;position:relative;z-index:3;
+  }
+  .radio-row label{
+    display:flex;align-items:center;gap:6px;margin:0;cursor:pointer;
+    font-family:"Noto Serif SC",serif;letter-spacing:0;color:var(--ink);
+  }
+  .radio-row input[type=radio]{
+    appearance:none;-webkit-appearance:none;
+    width:14px;height:14px;border:1px solid var(--parchment-dark);border-radius:50%;
+    background:rgba(255,250,240,0.6);cursor:pointer;position:relative;flex-shrink:0;
+  }
+  .radio-row input[type=radio]:checked{border-color:var(--gold);background:var(--gold)}
+  .radio-row input[type=radio]:checked::after{
+    content:'';position:absolute;top:3px;left:3px;width:6px;height:6px;
+    border-radius:50%;background:var(--parchment-light);
+  }
+  .inline-btn{
+    display:inline-block;width:auto;
+    border:1px solid var(--gold);border-radius:2px;
+    padding:7px 16px;font-size:0.84em;
+    font-family:"Cinzel","Noto Serif SC",serif;
+    cursor:pointer;letter-spacing:2px;
+    background:linear-gradient(180deg,rgba(184,148,42,0.12) 0%,rgba(184,148,42,0.04) 100%);
+    color:var(--ink-light);
+    transition:all .2s;position:relative;z-index:3;
+  }
+  .inline-btn:hover{
+    background:linear-gradient(180deg,rgba(184,148,42,0.2) 0%,rgba(184,148,42,0.08) 100%);
+    border-color:var(--gold-bright);color:var(--gold);
+  }
+  .inline-btn:active{transform:translateY(1px)}
+  .btn-row{display:flex;gap:12px;position:relative;z-index:3}
+  .btn-row .btn{flex:1}
+  .feedback{
+    font-size:0.84em;margin-top:8px;min-height:1.4em;
+    position:relative;z-index:3;letter-spacing:1px;
+  }
+  .feedback.ok{color:#3a6a2a}
+  .feedback.err{color:var(--danger)}
+  .preset-select{
+    width:100%;margin-top:6px;padding:8px 10px;
+    font-family:"Noto Serif SC",serif;font-size:0.88em;
+    background:rgba(255,250,240,0.6);color:var(--ink);
+    border:1px solid var(--parchment-dark);border-radius:2px;
+    position:relative;z-index:3;
+  }
+  .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 16px;position:relative;z-index:3}
+
+  /* ══════════ 游戏视图（迁自 game.html，全出血三栏） ══════════ */
+  #view-game{position:fixed;inset:0;z-index:50;background:#1a1510;display:none}
+  #view-game.active{display:block}
+  #view-game .game-exit{
+    position:fixed;top:12px;right:16px;z-index:60;
+    font-family:"Cinzel","Noto Serif SC",serif;font-size:0.75em;
+    color:var(--gold-bright);background:rgba(0,0,0,0.5);
+    border:1px solid var(--gold);border-radius:2px;
+    padding:6px 14px;cursor:pointer;letter-spacing:2px;
+    transition:all .2s;
+  }
+  #view-game .game-exit:hover{background:rgba(184,148,42,0.25);box-shadow:0 0 10px var(--gold-glow)}
+
+  .game-container{
+    display:grid;
+    grid-template-columns:280px 1fr 280px;
+    grid-template-rows:60px 1fr 80px;
+    height:100vh;gap:0;position:relative;
+  }
+  .top-bar{
+    grid-column:1/4;
+    background:linear-gradient(135deg,var(--leather-light) 0%,var(--leather) 30%,var(--leather-dark) 70%,var(--leather) 100%);
+    border-bottom:2px solid var(--gold);
+    display:flex;justify-content:space-between;align-items:center;
+    padding:0 20px;color:var(--gold-bright);
+    font-family:"Cinzel","Noto Serif SC",serif;
+    box-shadow:0 4px 20px rgba(0,0,0,0.7),inset 0 1px 0 rgba(255,255,255,0.05),inset 0 -1px 0 rgba(0,0,0,0.3);
+    position:relative;
+  }
+  .player-name{font-size:20px;font-weight:700;letter-spacing:3px;text-shadow:0 1px 0 rgba(0,0,0,0.3),0 0 8px var(--gold-glow);display:flex;align-items:center;gap:10px}
+  .status-items{display:flex;gap:30px;font-size:14px;align-items:center}
+  .status-item{display:flex;align-items:center;gap:8px}
+  .ui-icon{width:18px;height:18px;object-fit:contain;vertical-align:middle;filter:drop-shadow(0 0 3px rgba(0,0,0,0.5))}
+  .hp-bar{width:130px;height:20px;background:url('img/ui/ui-hp-frame.png') center/100% 100% no-repeat;border-radius:7px;overflow:hidden;box-shadow:inset 0 1px 3px rgba(0,0,0,0.5),0 0 6px rgba(0,0,0,0.4);position:relative;padding:4px 7px}
+  .hp-fill{height:100%;background:linear-gradient(90deg,#4caf50,#8bc34a);transition:width 0.3s;box-shadow:0 0 6px rgba(76,175,80,0.5);position:relative;overflow:hidden}
+  .left-panel{background:var(--parchment-dark);border-right:2px solid var(--leather);overflow-y:auto;padding:15px}
+  .panel-section{margin-bottom:20px;background:var(--parchment);
+    background-image:radial-gradient(ellipse 80px 60px at 15% 20%,rgba(140,100,50,0.10) 0%,transparent 70%),
+      radial-gradient(ellipse 60px 80px at 85% 35%,rgba(120,80,40,0.08) 0%,transparent 65%),
+      radial-gradient(ellipse 100px 50px at 70% 75%,rgba(140,100,50,0.07) 0%,transparent 60%),
+      radial-gradient(ellipse at 25% 25%,rgba(180,160,120,0.3) 0%,transparent 50%),
+      radial-gradient(ellipse at 75% 75%,rgba(160,140,100,0.2) 0%,transparent 50%);
+    padding:12px;border-radius:4px;border:1px solid var(--parchment-dark);position:relative;
+    box-shadow:inset 0 0 30px rgba(120,100,60,0.15),inset 0 0 80px rgba(100,80,40,0.08)}
+  .panel-title{font-family:"Cinzel","Noto Serif SC",serif;font-size:16px;font-weight:700;color:var(--gold);margin-bottom:10px;padding-bottom:5px;border-bottom:1px solid var(--gold);letter-spacing:2px;text-shadow:0 1px 0 rgba(0,0,0,0.1)}
+  .panel-title::before{content:'✦';margin-right:6px;color:var(--gold-bright)}
+  .attr-list{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px}
+  .attr-item{background:var(--parchment-light);padding:6px 10px;border-radius:2px;display:flex;justify-content:space-between;border:1px solid var(--parchment-dark);font-family:"Cinzel","Noto Serif SC",serif;letter-spacing:1px}
+  .attr-item span:first-child{color:var(--ink-light);font-weight:700}
+  .attr-item span:last-child{color:var(--gold);font-weight:700}
+  #equipment-list,#inventory-list{font-size:13px}
+  #equipment-list div,#inventory-list div{margin-bottom:5px;padding:4px 8px;background:rgba(180,160,120,0.08);border-left:2px solid var(--gold);font-family:"Cinzel","Noto Serif SC",serif}
+  .center-area{background:var(--parchment);
+    background-image:radial-gradient(ellipse 80px 60px at 15% 20%,rgba(140,100,50,0.10) 0%,transparent 70%),
+      radial-gradient(ellipse 60px 80px at 85% 35%,rgba(120,80,40,0.08) 0%,transparent 65%),
+      radial-gradient(ellipse 100px 50px at 70% 75%,rgba(140,100,50,0.07) 0%,transparent 60%),
+      radial-gradient(ellipse at 25% 25%,rgba(180,160,120,0.3) 0%,transparent 50%),
+      radial-gradient(ellipse at 75% 75%,rgba(160,140,100,0.2) 0%,transparent 50%);
+    display:flex;flex-direction:column;overflow:hidden;position:relative}
+  .narrative-display{flex:1;overflow-y:auto;padding:20px;font-size:15px;line-height:1.8;position:relative;z-index:3}
+  .narrative-display p{color:var(--ink);margin-bottom:10px;text-indent:2em}
+  .narrative-display .narrative-header{text-align:center;color:var(--gold-bright);font-size:18px;margin-bottom:20px;font-family:"Cinzel Decorative","Noto Serif SC",serif;letter-spacing:4px;text-shadow:0 1px 0 rgba(0,0,0,0.1),0 0 8px var(--gold-glow)}
+  .right-panel{background:var(--parchment-dark);border-left:2px solid var(--leather);overflow-y:auto;padding:15px}
+  .action-btn{display:block;width:100%;border:1px solid var(--gold);border-radius:2px;padding:11px 16px;margin-bottom:10px;font-size:14px;font-family:"Cinzel","Noto Serif SC",serif;cursor:pointer;letter-spacing:2px;background:linear-gradient(180deg,rgba(184,148,42,0.12) 0%,rgba(184,148,42,0.04) 100%);color:var(--ink-light);text-shadow:0 1px 0 rgba(255,255,255,0.3);box-shadow:0 1px 3px rgba(0,0,0,0.1);transition:all .2s;position:relative;overflow:hidden;text-align:center}
+  .action-btn:hover{background:linear-gradient(180deg,rgba(184,148,42,0.2) 0%,rgba(184,148,42,0.08) 100%);border-color:var(--gold-bright);box-shadow:0 1px 3px rgba(0,0,0,0.1),0 0 10px var(--gold-glow);color:var(--gold)}
+  .bottom-bar{grid-column:1/4;background:linear-gradient(135deg,var(--leather-light) 0%,var(--leather) 30%,var(--leather-dark) 70%,var(--leather) 100%);border-top:2px solid var(--gold);padding:15px 20px;display:flex;gap:10px;align-items:center}
+  .input-box{flex:1;padding:12px;background:rgba(255,250,240,0.5);border:none;border-bottom:1px solid var(--parchment-dark);font-family:"Noto Serif SC",serif;font-size:14px;color:var(--ink)}
+  .input-box:focus{outline:none;border-bottom-color:var(--gold);box-shadow:0 1px 0 var(--gold-glow)}
+  .input-box::placeholder{color:var(--ink-faded);opacity:0.5;font-style:italic}
+  .send-btn{padding:12px 24px;border:1px solid var(--gold);border-radius:2px;font-family:"Cinzel","Noto Serif SC",serif;font-size:14px;font-weight:700;letter-spacing:2px;background:linear-gradient(180deg,rgba(184,148,42,0.12) 0%,rgba(184,148,42,0.04) 100%);color:var(--ink-light);cursor:pointer;transition:all .2s}
+  .send-btn:hover{background:linear-gradient(180deg,rgba(184,148,42,0.2) 0%,rgba(184,148,42,0.08) 100%);border-color:var(--gold-bright);box-shadow:0 0 10px var(--gold-glow);color:var(--gold)}
+  #view-game ::-webkit-scrollbar{width:8px;height:8px}
+  #view-game ::-webkit-scrollbar-track{background:var(--parchment-dark)}
+  #view-game ::-webkit-scrollbar-thumb{background:var(--gold);border-radius:4px}
+  #view-game ::-webkit-scrollbar-thumb:hover{background:var(--gold-bright)}
+</style>
+</head>
+<body>
+
+<canvas id="ember-canvas"></canvas>
+
+<div class="book-cover">
+  <div class="rivet tl"></div><div class="rivet tr"></div>
+  <div class="rivet bl"></div><div class="rivet br"></div>
+
+  <!-- ═══ 页面：封面（首页） ═══ -->
+  <section id="view-home" class="page active">
+    <div class="candle-glow"></div>
+    <div class="manuscript-border"></div>
+    <div class="corner-ornament tl">✦</div><div class="corner-ornament tr">✦</div>
+    <div class="corner-ornament bl">✦</div><div class="corner-ornament br">✦</div>
+
+    <div style="text-align:center;padding:30px 0 10px;position:relative;z-index:5;">
+      <div class="deco-line">✦ ❖ ✦ ❖ ✦</div>
+      <h1>灾厄之后</h1>
+      <div class="subtitle">废土重生 · DND 5E 规则 · 独立卷宗</div>
+      <div class="deco-line">✦ ❖ ✦ ❖ ✦</div>
+      <hr class="divider">
+
+      <div style="max-width:380px;margin:0 auto;">
+        <a href="#" class="btn primary" id="btn-continue-game">▶ 继续冒险</a>
+        <a href="#" class="btn" id="btn-new-game">✦ 翻开新的登记册</a>
+
+        <hr class="divider">
+
+        <a href="#" class="btn" data-route="settings">⚙ 设置</a>
+        <a href="#" class="btn" data-route="help">? 冒险指南</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 页面：登记册（两页向导，迁自 start-screen） ═══ -->
+  <section id="view-create" class="view">
+
+    <!-- ── 子页 1：世界观 ── -->
+    <div class="page active" id="create-p1">
+      <div class="candle-glow"></div>
+      <div class="manuscript-border"></div>
+      <div class="corner-ornament tl">❧</div><div class="corner-ornament tr">❧</div>
+      <div class="corner-ornament bl">❧</div><div class="corner-ornament br">❧</div>
+
+      <div class="status-bar">
+        <span>圣火骑士团 · 联合登记处</span>
+        <span>灾厄 300 年</span>
+      </div>
+      <div class="crest">⚔</div>
+      <div class="deco-line">─── ✦ ───</div>
+      <h1>灾厄之后</h1>
+      <div class="subtitle">—— After the Calamity ——</div>
+      <hr class="divider">
+      <h2>◈ 世界观</h2>
+      <p class="lore-p">三百年前，诸神黄昏——所有神明同时陨落，七日七夜天空燃烧。王国崩塌，文明倒退，魔法紊乱，空间撕裂，生物变异。</p>
+      <p class="lore-p">废墟上，五大势力各据一方：圣火骑士团守护旧神遗火，自由佣兵联盟为金币而战，深渊之子追寻灾厄真相，漂泊者议会游走护弱，旧日遗民挖掘文明遗产。</p>
+      <p class="lore-p">灾厄中，八个异世界种族坠入此界——矮人、精灵、羊人、虎族、犬人、灵耳族、兔耳族、猫人，如今与人类共存于灰烬废土。</p>
+      <p class="lore-p">故事始于灾厄 300 年，锈钉镇——五大势力交汇的边境小镇。你，将是下一个踏入这个破碎世界的人。</p>
+      <hr class="divider">
+      <button class="btn" onclick="switchCreatePage(2)">◈ 确认，翻开登记册 ◈</button>
+      <a href="#" class="btn" data-route="home" style="opacity:0.7">❮ 合上扉页，返回封面</a>
+      <div class="footer">圣火骑士团 · 联合登记处 · 灾厄 300 年</div>
+      <div class="page-num">— ⅰ —</div>
+    </div>
+
+    <!-- ── 子页 2：角色登记 ── -->
+    <div class="page" id="create-p2">
+      <div class="candle-glow"></div>
+      <div class="manuscript-border"></div>
+      <div class="corner-ornament tl">❧</div><div class="corner-ornament tr">❧</div>
+      <div class="corner-ornament bl">❧</div><div class="corner-ornament br">❧</div>
+
+      <div class="status-bar">
+        <span>冒险者登记档案</span>
+        <span>Archivum</span>
+      </div>
+      <div class="deco-line">─── ✦ ───</div>
+      <h1>冒险者登记</h1>
+      <div class="subtitle">—— Adventurer Archivum ——</div>
+      <hr class="divider">
+
+      <h2>◈ Ⅰ. 基本信息</h2>
+      <label>◈ 姓名</label>
+      <input type="text" id="name" placeholder="例：铁根·卡兹 / 无名者" oninput="generateOutput()">
+      <label>◈ 性别</label>
+      <select id="gender" onchange="generateOutput()">
+        <option value="男">男</option>
+        <option value="女">女</option>
+        <option value="其他">其他</option>
+      </select>
+      <label>◈ 年龄 (16~80)</label>
+      <input type="number" id="age" min="16" max="80" value="25" oninput="generateOutput()">
+      <label>◈ 种族</label>
+      <select id="race" onchange="updateRaceHint();generateOutput()">
+        <option value="人类">人类 [天赋：魅力]</option>
+        <option value="矮人">矮人 [天赋：力量]</option>
+        <option value="精灵">精灵 [天赋：智力]</option>
+        <option value="羊人">羊人 [天赋：力量]</option>
+        <option value="虎族">虎族 [天赋：力量]</option>
+        <option value="犬人">犬人 [天赋：敏捷]</option>
+        <option value="灵耳族">灵耳族 [天赋：敏捷]</option>
+        <option value="兔耳族">兔耳族 [天赋：力量]</option>
+        <option value="猫人">猫人 [天赋：敏捷]</option>
+      </select>
+      <div class="race-hint" id="raceHint"></div>
+      <label>◈ 身份</label>
+      <select id="identity" onchange="generateOutput()">
+        <option value="佣兵">佣兵</option>
+        <option value="拾荒者">拾荒者</option>
+        <option value="学者">学者</option>
+        <option value="猎人">猎人</option>
+        <option value="商贩">商贩</option>
+        <option value="工匠">工匠</option>
+        <option value="医师">医师</option>
+      </select>
+      <label>◈ 特质 (最多 2 项，相关检定获优势)</label>
+      <div class="tag-select">
+        <button type="button" class="btn tag-btn" onclick="toggleTraitPanel()" id="traitBtn">[ 展开特质铭刻 ]</button>
+        <div class="talent-panel" id="talentPanel" style="display:none">
+          <div style="grid-column:1/-1;margin-bottom:4px;color:var(--ink-faded);font-size:0.8em;border:none;padding:0;font-style:normal">◈ 最多铭刻 2 项；第 3 项将自动消除</div>
+          <div class="tag-option"><label><input type="checkbox" class="trait-cb" value="武艺" onchange="onTraitChange()"> 武艺（武器/徒手）</label></div>
+          <div class="tag-option"><label><input type="checkbox" class="trait-cb" value="潜行" onchange="onTraitChange()"> 潜行（隐蔽）</label></div>
+          <div class="tag-option"><label><input type="checkbox" class="trait-cb" value="巧手" onchange="onTraitChange()"> 巧手（开锁/偷窃）</label></div>
+          <div class="tag-option"><label><input type="checkbox" class="trait-cb" value="攀爬" onchange="onTraitChange()"> 攀爬（攀越）</label></div>
+          <div class="tag-option"><label><input type="checkbox" class="trait-cb" value="警觉" onchange="onTraitChange()"> 警觉（追踪/侦查/聆听）</label></div>
+          <div class="tag-option"><label><input type="checkbox" class="trait-cb" value="医疗" onchange="onTraitChange()"> 医疗（急救）</label></div>
+          <div class="tag-option"><label><input type="checkbox" class="trait-cb" value="学识" onchange="onTraitChange()"> 学识（鉴定/魔法）</label></div>
+          <div class="tag-option"><label><input type="checkbox" class="trait-cb" value="工艺" onchange="onTraitChange()"> 工艺（锻造/炼金）</label></div>
+          <div class="tag-option"><label><input type="checkbox" class="trait-cb" value="交涉" onchange="onTraitChange()"> 交涉（说服/交易）</label></div>
+        </div>
+        <div class="race-hint" id="traitSummary">◈ 未铭刻特质（相关检定无优势）</div>
+      </div>
+
+      <hr class="divider">
+      <h2>◈ Ⅱ. 六维属性 <span style="font-size:0.75em;color:var(--ink-faded);font-weight:normal">[基础8 · 18点 · 范围3~18]</span></h2>
+      <div class="info-line">◈ 剩余可分配：<span id="pointsLeft" class="pts-ok" style="font-weight:bold">18</span> 点 <span style="color:var(--ink-faded);font-size:0.85em">[拖动魔晶分配，超出自动回退]</span></div>
+      <div class="attr-row"><span class="name">力量</span><div class="slider-wrap"><input type="range" id="str" min="3" max="18" value="8" oninput="updateAttr('str')"></div><span class="val" id="strV">8</span><span class="mod" id="strM">-1</span></div>
+      <div class="attr-row"><span class="name">敏捷</span><div class="slider-wrap"><input type="range" id="dex" min="3" max="18" value="8" oninput="updateAttr('dex')"></div><span class="val" id="dexV">8</span><span class="mod" id="dexM">-1</span></div>
+      <div class="attr-row"><span class="name">体质</span><div class="slider-wrap"><input type="range" id="con" min="3" max="18" value="8" oninput="updateAttr('con')"></div><span class="val" id="conV">8</span><span class="mod" id="conM">-1</span></div>
+      <div class="attr-row"><span class="name">感知</span><div class="slider-wrap"><input type="range" id="wis" min="3" max="18" value="8" oninput="updateAttr('wis')"></div><span class="val" id="wisV">8</span><span class="mod" id="wisM">-1</span></div>
+      <div class="attr-row"><span class="name">智力</span><div class="slider-wrap"><input type="range" id="int" min="3" max="18" value="8" oninput="updateAttr('int')"></div><span class="val" id="intV">8</span><span class="mod" id="intM">-1</span></div>
+      <div class="attr-row"><span class="name">魅力</span><div class="slider-wrap"><input type="range" id="cha" min="3" max="18" value="8" oninput="updateAttr('cha')"></div><span class="val" id="chaV">8</span><span class="mod" id="chaM">-1</span></div>
+      <div class="info-line">◈ HP: 100/100 ｜ MP: <span id="mp">40</span> ｜ AC: <span id="ac">9</span> ｜ 负重: <span id="load">26</span>kg</div>
+
+      <hr class="divider">
+      <h2>◈ Ⅲ. 档案输出</h2>
+      <p style="font-size:0.8em;color:var(--ink-faded);text-indent:0">◈ 确认无误后，铭刻档案进入废土。</p>
+      <textarea class="out" id="out" readonly></textarea>
+      <button class="btn copy" onclick="createCharacter()">◈ 铭刻档案并发送 ◈</button>
+      <a href="#" class="btn" data-route="home" style="opacity:0.7">❮ 返回封面</a>
+      <div class="footer">圣火骑士团 · 联合登记处 · 愿遗火照亮你的路</div>
+      <div class="page-num">— ⅱ —</div>
+    </div>
+  </section>
+
+  <!-- ═══ 页面：冒险（迁自 game.html，全屏三栏） ═══ -->
+  <section id="view-game" class="view">
+    <button class="game-exit" onclick="navigate('home')">❮ 合上卷轴，返回封面</button>
+    <div class="game-container">
+      <!-- 顶部状态栏 -->
+      <div class="top-bar">
+        <div class="player-name" id="player-name">
+          <span>冒险者</span>
+        </div>
+        <div class="status-items">
+          <div class="status-item">
+            <div class="hp-bar">
+              <div class="hp-fill" id="hp-fill" style="width: 100%;"></div>
+            </div>
+            <span id="hp-text">30/30</span>
+          </div>
+          <div class="status-item">
+            <span class="ui-icon">🪙</span>
+            <span id="gold-text">50</span>
+          </div>
+          <div class="status-item">
+            <span class="ui-icon">🌟</span>
+            <span id="fate-points">1/1</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 左侧面板 -->
+      <div class="left-panel">
+        <div class="panel-section">
+          <div class="panel-title">角色信息</div>
+          <div style="font-size: 13px; margin-bottom: 10px;">
+            <div><strong>种族：</strong><span id="char-race">人类</span></div>
+            <div><strong>等级：</strong><span id="char-level">1</span></div>
+            <div><strong>经验：</strong><span id="char-exp">0/100</span></div>
+          </div>
+        </div>
+        <div class="panel-section">
+          <div class="panel-title">六维属性</div>
+          <div class="attr-list" id="attr-list"></div>
+        </div>
+        <div class="panel-section">
+          <div class="panel-title">装备</div>
+          <div id="equipment-list" style="font-size: 13px;"></div>
+        </div>
+        <div class="panel-section">
+          <div class="panel-title">背包</div>
+          <div id="inventory-list" style="font-size: 13px;"><div style="color: var(--ink-faded);">空</div></div>
+        </div>
+      </div>
+
+      <!-- 中间正文区 -->
+      <div class="center-area">
+        <div class="narrative-display" id="narrative-display">
+          <div class="narrative-header">✦ 灾厄之后 ✦</div>
+        </div>
+      </div>
+
+      <!-- 右侧面板 -->
+      <div class="right-panel">
+        <div class="panel-section">
+          <div class="panel-title">快捷操作</div>
+          <button class="action-btn" onclick="openInventory()">◈ 打开背包</button>
+          <button class="action-btn" onclick="navigate('settings')">◈ 设置</button>
+        </div>
+        <div class="panel-section">
+          <div class="panel-title">战斗信息</div>
+          <div id="combat-info" style="font-size: 13px;">
+            <div style="color: var(--ink-faded);">当前无战斗</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 底部输入栏 -->
+      <div class="bottom-bar">
+        <input type="text" class="input-box" id="input-box" placeholder="输入你的行动..."
+          onkeypress="if(event.key==='Enter'&&!event.shiftKey) sendMessage()">
+        <button class="send-btn" onclick="sendMessage()">发送</button>
+        <button class="send-btn" onclick="rollDice()">🎲</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 页面：设置（迁自 settings.html） ═══ -->
+  <section id="view-settings" class="view">
+    <div class="page active">
+      <div class="candle-glow"></div>
+      <div class="manuscript-border"></div>
+      <div class="corner-ornament tl">✦</div><div class="corner-ornament tr">✦</div>
+      <div class="corner-ornament bl">✦</div><div class="corner-ornament br">✦</div>
+      <div style="position:relative;z-index:5;">
+        <div class="deco-line">─── ✦ ───</div>
+        <h1>⚙ 卷宗设置</h1>
+        <div class="subtitle">—— Arcanum Configuratum ——</div>
+        <hr class="divider">
+
+        <h2>◈ Ⅰ. AI 配置</h2>
+        <div class="field-grid">
+          <div>
+            <label>◈ API 类型</label>
+            <select id="api-type">
+              <option value="openai">OpenAI 兼容接口</option>
+              <option value="gemini">Google Gemini</option>
+            </select>
+          </div>
+          <div>
+            <label>◈ 流式模式</label>
+            <select id="stream-mode">
+              <option value="stream">流式（打字机效果）</option>
+              <option value="non-stream">非流式（整段返回）</option>
+            </select>
+          </div>
+        </div>
+        <label>◈ 接口地址 Endpoint</label>
+        <input type="text" id="endpoint" placeholder="例：https://api.openai.com/v1">
+        <div class="field-grid">
+          <div>
+            <label>◈ API 密钥</label>
+            <input type="password" id="api-key" placeholder="sk-...">
+          </div>
+          <div>
+            <label>◈ 模型 Model</label>
+            <input type="text" id="model" list="model-list" placeholder="gpt-4o / gemini-pro ...">
+            <datalist id="model-list"></datalist>
+          </div>
+        </div>
+        <button type="button" class="inline-btn" onclick="fetchModelList()">⟳ 拉取模型列表</button>
+        <button type="button" class="inline-btn" onclick="testConnection()">⚡ 测试连接</button>
+        <button type="button" class="inline-btn" onclick="togglePreset()">⌘ 切换设置</button>
+        <div id="preset-container" style="display:none"></div>
+        <div class="feedback" id="api-feedback"></div>
+
+        <button type="button" class="inline-btn" onclick="sendTestMsg()">📨 发送测试消息</button>
+        <div class="feedback" id="test-result" style="min-height:2.6em"></div>
+
+        <label>◈ 温度 Temperature <span id="temp-val" style="color:var(--gold)">0.9</span></label>
+        <input type="range" id="temperature" min="0" max="2" step="0.05" value="0.9"
+               style="width:100%;accent-color:var(--gold)"
+               oninput="document.getElementById('temp-val').textContent=this.value">
+
+        <div class="field-grid" style="margin-top:8px">
+          <div>
+            <label>◈ 最大输出 Token</label>
+            <input type="number" id="max-output-tokens" min="100" max="128000" step="100" value="18000">
+          </div>
+          <div>
+            <label>◈ 上下文窗口 Token</label>
+            <input type="number" id="max-context-tokens" min="1000" max="2000000" step="1000" value="500000">
+          </div>
+        </div>
+
+        <div class="field-grid">
+          <div>
+            <label>◈ Top P <input type="checkbox" id="top-p-enabled" style="accent-color:var(--gold);vertical-align:middle"> 启用</label>
+            <input type="number" id="top-p" min="0" max="1" step="0.01" value="1">
+          </div>
+          <div>
+            <label>◈ Top K <input type="checkbox" id="top-k-enabled" style="accent-color:var(--gold);vertical-align:middle"> 启用</label>
+            <input type="number" id="top-k" min="0" max="500" step="1" value="200">
+          </div>
+          <div>
+            <label>◈ 频率惩罚 <input type="checkbox" id="freq-pen-enabled" style="accent-color:var(--gold);vertical-align:middle"> 启用</label>
+            <input type="number" id="freq-penalty" min="-2" max="2" step="0.05" value="0.3">
+          </div>
+          <div>
+            <label>◈ 存在惩罚 <input type="checkbox" id="pres-pen-enabled" style="accent-color:var(--gold);vertical-align:middle"> 启用</label>
+            <input type="number" id="pres-penalty" min="-2" max="2" step="0.05" value="0.2">
+          </div>
+        </div>
+        <div class="hint">惩罚与 Top P/Top K 默认不启用（勾选后才随请求发送）。</div>
+
+        <div class="check-row">
+          <input type="checkbox" id="cors-enabled">
+          <label for="cors-enabled" style="margin:0">启用 CORS 代理（网页直连被拦时勾选）</label>
+        </div>
+        <input type="text" id="cors-proxy" placeholder="代理地址（默认已内置 Worker）">
+        <div class="hint">本地 file:// 或 APK 环境默认关闭代理；网页部署时可能需要开启。</div>
+
+        <hr class="divider">
+        <h2>◈ Ⅱ. 显示设置</h2>
+        <label>◈ 正文模式（AI 集成后生效）</label>
+        <div class="radio-row">
+          <label><input type="radio" name="narrative-mode" value="raw"> 原始格式</label>
+          <label><input type="radio" name="narrative-mode" value="beautified" checked> 美化格式</label>
+          <label><input type="radio" name="narrative-mode" value="hidden"> 隐藏标签</label>
+        </div>
+
+        <label>◈ 正文字号 <span id="font-val" style="color:var(--gold)">15px</span></label>
+        <input type="range" id="font-size" min="12" max="22" step="1" value="15"
+               style="width:100%;accent-color:var(--gold)"
+               oninput="document.getElementById('font-val').textContent=this.value+'px'">
+
+        <div class="check-row">
+          <input type="checkbox" id="fx-particles" checked>
+          <label for="fx-particles" style="margin:0">金色魔法粉尘粒子</label>
+        </div>
+        <div class="check-row">
+          <input type="checkbox" id="fx-candlelight" checked>
+          <label for="fx-candlelight" style="margin:0">烛光摇曳</label>
+        </div>
+        <div class="check-row">
+          <input type="checkbox" id="fx-sound">
+          <label for="fx-sound" style="margin:0">音效 <span style="color:var(--ink-faded);font-size:0.85em">（未实装）</span></label>
+        </div>
+
+        <hr class="divider">
+        <h2>◈ Ⅲ. 游戏设置</h2>
+        <div class="check-row">
+          <input type="checkbox" id="autosave" checked>
+          <label for="autosave" style="margin:0">自动存档</label>
+        </div>
+        <label>◈ 自动存档间隔（分钟）</label>
+        <input type="number" id="autosave-interval" min="1" max="60" value="5">
+
+        <hr class="divider">
+        <h2>◈ Ⅳ. 向量化记忆（可选）</h2>
+        <div class="check-row">
+          <input type="checkbox" id="emb-enabled">
+          <label for="emb-enabled" style="margin:0">启用向量召回 <span style="color:var(--ink-faded);font-size:0.85em">（召回语义相关的历史摘要）</span></label>
+        </div>
+        <label>◈ Embedding 地址</label>
+        <input type="text" id="emb-endpoint" placeholder="https://api.siliconflow.cn/v1">
+        <div class="field-grid">
+          <div>
+            <label>◈ Embedding 密钥</label>
+            <input type="password" id="emb-key" placeholder="独立 Key，不复用主 API Key">
+          </div>
+          <div>
+            <label>◈ 模型名称</label>
+            <input type="text" id="emb-model" placeholder="BAAI/bge-m3">
+          </div>
+        </div>
+        <label>◈ 重排模型 Rerank</label>
+        <input type="text" id="emb-rerank" placeholder="BAAI/bge-reranker-v2-m3">
+        <button type="button" class="inline-btn" onclick="testEmbedding()">🔌 测试 Embedding 连接</button>
+        <div class="feedback" id="emb-feedback"></div>
+
+        <div class="hint">⚠️ 所有密钥仅保存在浏览器本地，不会上传到任何服务器。</div>
+
+        <div class="btn-row">
+          <button class="btn" onclick="saveAll()">◈ 铭刻设置 ◈</button>
+          <button class="btn" onclick="navigate('home')">◈ 返回封面 ◈</button>
+        </div>
+
+        <div class="footer">圣火骑士团 · 机要室 · 愿遗火照亮你的路</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 页面：冒险指南 ═══ -->
+  <section id="view-help" class="page">
+    <div class="candle-glow"></div>
+    <div class="manuscript-border"></div>
+    <div class="corner-ornament tl">✦</div><div class="corner-ornament tr">✦</div>
+    <div class="corner-ornament bl">✦</div><div class="corner-ornament br">✦</div>
+    <div style="position:relative;z-index:5;">
+      <div class="deco-line">✦ ❖ ✦</div>
+      <h1>冒险指南</h1>
+      <hr class="divider">
+
+      <h2>◈ 游戏玩法</h2>
+      <p>在输入框写下你的行动，AI 将生成详细剧情回应。感知、运动、调查等检定会以框线卡片形式呈现在正文中。</p>
+
+      <h2>◈ 检定与战斗</h2>
+      <p>检定卡采用手抄本框线风格（<code>╔═╗</code>），显示骰值、调整值、DC 与结果；战斗卡按回合展示攻击、命中、伤害与重击。</p>
+
+      <h2>◈ 状态追踪</h2>
+      <p>AI 通过 <code>&lt;命令&gt;</code> 标签自动更新你的金币、HP、经验、时间与 NPC 关系，全部由本地命令引擎结算，数值权威在代码侧。</p>
+
+      <h2>◈ 开始冒险</h2>
+      <p>1. 首次游玩：在「封面」点击「翻开新的登记册」创建角色<br>
+         2. 已有角色：点击「继续冒险」直接进入<br>
+         3. 配置 API：进入「设置」填写你的 LLM 端点与密钥</p>
+
+      <hr class="divider">
+      <a href="#" class="btn" data-route="home" style="max-width:300px;margin:0 auto;opacity:0.7">❮ 合上指南，返回封面</a>
+    </div>
+  </section>
+</div>
+
+<div class="footer-note">灾厄之后 · 重制版独立项目 · ALPHA</div>
+
+<script>
+'use strict';
+
+// ============ 路由系统 ============
+const VIEWS = ['home', 'create', 'game', 'settings', 'help'];
+
+function navigate(route) {
+  if (!VIEWS.includes(route)) route = 'home';
+
+  VIEWS.forEach(function(v) {
+    var view = document.getElementById('view-' + v);
+    if (view) view.classList.remove('active');
+  });
+
+  var target = document.getElementById('view-' + route);
+  if (target) target.classList.add('active');
+
+  // 视图初始化钩子
+  if (route === 'settings' && typeof initSettings === 'function') {
+    initSettings();
+  }
+  if (route === 'game' && typeof initGameView === 'function') {
+    // 让 <script type=module> 先加载完再初始化
+    setTimeout(initGameView, 30);
+  }
+  if (route === 'create') {
+    // 每次翻开登记册都从世界观页开始
+    var p1 = document.getElementById('create-p1'), p2 = document.getElementById('create-p2');
+    if (p1 && p2) { p1.classList.add('active'); p2.classList.remove('active'); }
+    if (typeof updateAttr === 'function' && typeof generateOutput === 'function') {
+      updateAttr(); generateOutput(); updateRaceHint();
+    }
+  }
+
+  if (window.location.hash !== '#' + route) {
+    window.location.hash = route;
+  }
+  window.scrollTo(0, 0);
+}
+
+function handleHashChange() {
+  navigate(window.location.hash.replace('#', '') || 'home');
+}
+
+// ============ 存档检查 ============
+function hasExistingCharacter() {
+  try {
+    var data = JSON.parse(localStorage.getItem('calamity-game-state') || 'null');
+    return data && data.character && data.character.name && data.character.name !== '旅行者';
+  } catch (e) { return false; }
+}
+
+function updateHomeButtons() {
+  var continueBtn = document.getElementById('btn-continue-game');
+  if (!continueBtn) return;
+  if (hasExistingCharacter()) {
+    continueBtn.classList.remove('disabled');
+    continueBtn.textContent = '▶ 继续冒险';
+  } else {
+    continueBtn.classList.add('disabled');
+    continueBtn.textContent = '▶ 继续冒险（尚无卷宗）';
+  }
+}
+
+// ============ 涟漪效果 ============
+function attachRipple(root) {
+  (root || document).querySelectorAll('.btn').forEach(function(btn) {
+    if (btn.dataset.rippleBound) return;
+    btn.dataset.rippleBound = '1';
+    btn.addEventListener('click', function(e) {
+      var rect = btn.getBoundingClientRect();
+      var ripple = document.createElement('span');
+      ripple.className = 'ripple';
+      var size = Math.max(rect.width, rect.height);
+      ripple.style.width = ripple.style.height = size + 'px';
+      ripple.style.left = (e.clientX - rect.left - size / 2) + 'px';
+      ripple.style.top = (e.clientY - rect.top - size / 2) + 'px';
+      btn.appendChild(ripple);
+      setTimeout(function() { ripple.remove(); }, 600);
+    });
+  });
+}
+
+// ============ 初始化 ============
+window.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('[data-route]').forEach(function(el) {
+    el.addEventListener('click', function(e) {
+      e.preventDefault();
+      navigate(el.dataset.route);
+    });
+  });
+
+  var continueBtn = document.getElementById('btn-continue-game');
+  if (continueBtn) {
+    continueBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      if (continueBtn.classList.contains('disabled')) {
+        navigate('create');
+        return;
+      }
+      navigate('game');
+    });
+  }
+
+  var newGameBtn = document.getElementById('btn-new-game');
+  if (newGameBtn) {
+    newGameBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      if (hasExistingCharacter()) {
+        if (!confirm('已有冒险卷宗，翻开新的登记册将覆盖现有存档。\n\n确定继续吗？')) return;
+        localStorage.removeItem('calamity-game-state');
+        localStorage.removeItem('character');
+      }
+      navigate('create');
+    });
+  }
+
+  window.addEventListener('hashchange', handleHashChange);
+  updateHomeButtons();
+  attachRipple();
+
+  var initialHash = window.location.hash.replace('#', '');
+  navigate(VIEWS.includes(initialHash) ? initialHash : 'home');
+});
+</script>
+
+<!-- ══════════ 登记册向导脚本（迁自 start-screen） ══════════ -->
+<script>
+'use strict';
+
+var TOTAL_POINTS = 18, BASE = 8;
+var attrIds = ['str', 'dex', 'con', 'wis', 'int', 'cha'];
+var raceHints = {
+  人类: '适应力：跨种族社交/跨势力交涉不劣势',
+  矮人: '锻造之心：锻造/鉴定/负重相关检定优势',
+  精灵: '自然之眼：草本/魔法鉴定/暗视相关检定优势',
+  羊人: '山地步兵：攀爬/耐力/行军相关检定优势',
+  虎族: '猎手：视觉追踪/近战搏斗检定优势',
+  犬人: '嗅觉追踪/信使任务相关检定优势',
+  灵耳族: '耳语机巧：听觉定位/精密操作检定优势',
+  兔耳族: '超级跳跃：跳跃/闪避/斥候侦查相关检定优势',
+  猫人: '夜目+猫步：夜间行动/潜行/平衡检定优势'
+};
+
+function switchCreatePage(n) {
+  var from = document.getElementById('create-p1'), to = document.getElementById('create-p2');
+  from.classList.remove('active'); to.classList.add('active');
+  to.style.animation = 'none'; void to.offsetWidth;
+  to.style.animation = 'pageOpen .6s ease-out';
+  window.scrollTo(0, 0);
+}
+
+function mod(v) { return Math.floor((v - 10) / 2); }
+function modStr(v) { var m = mod(v); return (m > 0 ? '+' : '') + m; }
+
+function getTraits() {
+  var cbs = document.querySelectorAll('.trait-cb'), arr = [];
+  for (var i = 0; i < cbs.length; i++) { if (cbs[i].checked) arr.push(cbs[i].value); }
+  return arr.join(',');
+}
+
+function toggleTraitPanel() {
+  var p = document.getElementById('talentPanel');
+  p.style.display = (p.style.display === 'none') ? 'grid' : 'none';
+}
+
+function onTraitChange() {
+  var cbs = document.querySelectorAll('.trait-cb'), checked = [], over = null;
+  for (var i = 0; i < cbs.length; i++) {
+    if (cbs[i].checked) { checked.push(cbs[i]); if (checked.length > 2) over = cbs[i]; }
+  }
+  if (over) over.checked = false;
+  var t = getTraits();
+  document.getElementById('traitSummary').textContent = t ? '◈ 已铭刻：' + t : '◈ 未铭刻特质（相关检定无优势）';
+  generateOutput();
+}
+
+function usedPoints() {
+  var s = 0;
+  for (var i = 0; i < attrIds.length; i++) { s += parseInt(document.getElementById(attrIds[i]).value) - BASE; }
+  return s;
+}
+
+function updatePointsColor() {
+  var left = Math.max(0, TOTAL_POINTS - usedPoints()), el = document.getElementById('pointsLeft');
+  el.textContent = left;
+  el.className = left > 6 ? 'pts-ok' : left > 0 ? 'pts-low' : 'pts-zero';
+}
+
+function updateAttr(cur) {
+  if (cur) {
+    var el = document.getElementById(cur), v = parseInt(el.value);
+    var otherUsed = usedPoints() - (v - BASE), maxAllowed = BASE + (TOTAL_POINTS - otherUsed);
+    if (v > maxAllowed) v = maxAllowed; if (v < 3) v = 3; el.value = v;
+  }
+  for (var i = 0; i < attrIds.length; i++) {
+    var id = attrIds[i], el2 = document.getElementById(id), val = parseInt(el2.value);
+    document.getElementById(id + 'V').textContent = val;
+    var mEl = document.getElementById(id + 'M'), m = Math.floor((val - 10) / 2);
+    mEl.textContent = (m > 0 ? '+' : '') + m;
+    mEl.className = 'mod' + (m < 0 ? ' neg' : '');
+    // 金色填充进度
+    var pct = ((val - 3) / (18 - 3)) * 100;
+    el2.style.setProperty('--fill', pct + '%');
+  }
+  updatePointsColor();
+  var dex = parseInt(document.getElementById('dex').value), str = parseInt(document.getElementById('str').value);
+  document.getElementById('ac').textContent = 10 + Math.floor((dex - 10) / 2);
+  document.getElementById('load').textContent = 10 + str * 2;
+  document.getElementById('mp').textContent = parseInt(document.getElementById('int').value) * 5;
+  generateOutput();
+}
+
+function updateRaceHint() {
+  var el = document.getElementById('raceHint'), t = raceHints[document.getElementById('race').value] || '';
+  el.textContent = t ? '◈ ' + t : '';
+}
+
+function generateOutput() {
+  var name = document.getElementById('name').value || '无名者', gender = document.getElementById('gender').value,
+      age = document.getElementById('age').value || 25, race = document.getElementById('race').value,
+      identity = document.getElementById('identity').value, traits = getTraits(),
+      str = document.getElementById('str').value, dex = document.getElementById('dex').value,
+      con = document.getElementById('con').value, wis = document.getElementById('wis').value,
+      int_ = document.getElementById('int').value, cha = document.getElementById('cha').value,
+      ac = 10 + mod(dex), load = 10 + str * 2;
+  var out = '【登记档案】\n'
+    + '姓名: ' + name + ' ｜ 种族: ' + race + ' ｜ 身份: ' + identity + ' ｜ 性别: ' + gender + ' ｜ 年龄: ' + age + '\n'
+    + '[六维] 力量' + str + '(' + modStr(str) + ') 敏捷' + dex + '(' + modStr(dex) + ') 体质' + con + '(' + modStr(con) + ') 感知' + wis + '(' + modStr(wis) + ') 智力' + int_ + '(' + modStr(int_) + ') 魅力' + cha + '(' + modStr(cha) + ')\n'
+    + 'HP: 100/100 ｜ MP: ' + int_ * 5 + ' ｜ AC: ' + ac + ' ｜ 负重: ' + load + 'kg ｜ 金币: 15\n'
+    + (traits ? '[特质] ' + traits + '\n' : '')
+    + '[初始装备] 铁剑（主手）';
+  document.getElementById('out').value = out;
+}
+
+function createCharacter() {
+  generateOutput();
+
+  // 统一写 gameData 结构（calamity-game-state，唯一真源）
+  var name = document.getElementById('name').value || '无名者';
+  var gender = document.getElementById('gender').value;
+  var race = document.getElementById('race').value;
+  var age = parseInt(document.getElementById('age').value) || 25;
+  var attributes = {
+    力量: parseInt(document.getElementById('str').value),
+    敏捷: parseInt(document.getElementById('dex').value),
+    体质: parseInt(document.getElementById('con').value),
+    智力: parseInt(document.getElementById('int').value),
+    感知: parseInt(document.getElementById('wis').value),
+    魅力: parseInt(document.getElementById('cha').value)
+  };
+  var ac = parseInt(document.getElementById('ac').textContent);
+
+  var gameData = {
+    character: { name: name, race: race, gender: gender, age: age, level: 1, exp: 0, expToNextLevel: 100, proficiencyBonus: 2, ac: ac },
+    attributes: attributes,
+    backgrounds: getTraits() ? getTraits().split(',') : [],
+    fatePoints: { current: 1, max: 1, lastRefreshDate: null },
+    hp: { current: 30, max: 30 },
+    equipment: {
+      mainHand: { name: '铁剑', type: 'weapon' },
+      offHand: null, body: null, head: null, hands: null,
+      legs: null, feet: null, shoulders: null, accessory1: null, accessory2: null
+    },
+    inventory: [],
+    currency: { gold: 50 },
+    progress: {
+      currentLocation: '锈钉镇',
+      completedQuests: [],
+      unlockedLocations: ['锈钉镇'],
+      backstory: document.getElementById('out').value
+    },
+    relationships: {},
+    gameTime: { year: 303, month: 5, day: 12, hour: 8, minute: 0, season: '春' },
+    tone: '',
+    stats: { totalChecks: 0, successfulChecks: 0, criticalSuccesses: 0, criticalFailures: 0, combatsWon: 0, deaths: 0 },
+    meta: { version: '1.0.0', createdAt: Date.now(), lastSavedAt: Date.now(), playTime: 0 }
+  };
+  localStorage.setItem('calamity-game-state', JSON.stringify(gameData));
+
+  // deprecated：旧版兼容键（game.html 迁移逻辑用）
+  var legacyCharacter = {
+    name: name, gender: gender, age: age, race: race,
+    attributes: attributes,
+    hp: { current: 30, max: 30 },
+    ac: ac, gold: 50, exp: 0, level: 1, proficiencyBonus: 2,
+    equipment: { mainHand: { name: '铁剑', type: 'weapon' } },
+    inventory: [],
+    backstory: document.getElementById('out').value
+  };
+  localStorage.setItem('character', JSON.stringify(legacyCharacter));
+
+  // 按钮反馈
+  var btn = document.querySelector('.btn.copy'), orig = btn.textContent;
+  btn.textContent = '◈ 已铭刻于记忆 ◈';
+  btn.style.background = 'rgba(184,148,42,0.2)';
+
+  // 刷新首页按钮状态
+  if (typeof updateHomeButtons === 'function') updateHomeButtons();
+
+  // 铭刻完成，翻入冒险卷轴（SPA 内切换）
+  setTimeout(function() {
+    navigate('game');
+  }, 900);
+}
+
+// ══ 属性值闪烁 ══
+(function() {
+  var origUpdate = updateAttr;
+  updateAttr = function(cur) {
+    origUpdate(cur);
+    if (cur) {
+      var el = document.getElementById(cur + 'V');
+      el.classList.add('flash');
+      setTimeout(function() { el.classList.remove('flash'); }, 300);
+    }
+  };
+})();
+
+// ══ 滑条金色填充 ══
+(function() {
+  function updateFill() {
+    var sliders = document.querySelectorAll('input[type=range]');
+    for (var i = 0; i < sliders.length; i++) {
+      var s = sliders[i], min = parseInt(s.min) || 3, max = parseInt(s.max) || 18, val = parseInt(s.value);
+      var pct = ((val - min) / (max - min)) * 100;
+      s.style.setProperty('--fill', pct + '%');
+    }
+  }
+  document.addEventListener('input', function(e) {
+    if (e.target.type === 'range') updateFill();
+  });
+  window.addEventListener('DOMContentLoaded', updateFill);
+})();
+
+// ══ 初始化向导 ══
+window.addEventListener('DOMContentLoaded', function() {
+  updateAttr();
+  updateRaceHint();
+  generateOutput();
+});
+
+// ══ 金色魔法粉尘粒子 ══
+(function() {
+  var canvas = document.getElementById('ember-canvas'), ctx = canvas.getContext('2d'), particles = [], MAX = 28;
+  function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+  resize(); window.addEventListener('resize', resize);
+  function P() {
+    this.x = Math.random() * canvas.width;
+    this.y = -10;
+    this.size = Math.random() * 2 + 0.5;
+    this.speedY = Math.random() * 0.3 + 0.05;
+    this.driftX = (Math.random() - 0.5) * 0.3;
+    this.opacity = Math.random() * 0.4 + 0.15;
+    this.fadeRate = Math.random() * 0.001 + 0.0005;
+    this.wobble = Math.random() * Math.PI * 2;
+    this.wobbleSpeed = Math.random() * 0.01 + 0.003;
+    if (Math.random() < 0.7) { this.r = 200 + Math.floor(Math.random() * 40); this.g = 160 + Math.floor(Math.random() * 40); this.b = 40 + Math.floor(Math.random() * 30); }
+    else { this.r = 240; this.g = 220; this.b = 180; }
+  }
+  function loop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    while (particles.length < MAX) particles.push(new P());
+    for (var i = particles.length - 1; i >= 0; i--) {
+      var p = particles[i]; p.y += p.speedY; p.wobble += p.wobbleSpeed;
+      p.x += p.driftX + Math.sin(p.wobble) * 0.15; p.opacity -= p.fadeRate;
+      if (p.opacity <= 0 || p.y > canvas.height + 10) { particles.splice(i, 1); continue; }
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(' + p.r + ',' + p.g + ',' + p.b + ',' + p.opacity + ')'; ctx.fill();
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.size * 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(' + p.r + ',' + p.g + ',' + p.b + ',' + (p.opacity * 0.08) + ')'; ctx.fill();
+    }
+    requestAnimationFrame(loop);
+  }
+  loop();
+})();
+</script>
+
+<!-- ══════════ 设置页模块加载 + 脚本（迁自 settings.html） ══════════ -->
+<script src="module/api-service.js"></script>
+<script src="module/embedding-service.js"></script>
+<script>
+'use strict';
+
+/* ── API 配置（读写 jxz_apiConfig，与 api-service.js 对齐） ── */
+function loadApiConfig(){
+  try{
+    apiService.loadConfig();
+    var c = apiService.getConfig();
+    document.getElementById('api-type').value = c.type || 'openai';
+    document.getElementById('stream-mode').value = c.streamMode || 'stream';
+    document.getElementById('endpoint').value = c.endpoint || '';
+    document.getElementById('api-key').value = c.apiKey || '';
+    document.getElementById('model').value = c.model || '';
+    document.getElementById('temperature').value = c.temperature;
+    document.getElementById('temp-val').textContent = c.temperature;
+    document.getElementById('max-output-tokens').value = c.maxOutputTokens || 18000;
+    document.getElementById('max-context-tokens').value = c.maxContextTokens || 500000;
+    document.getElementById('top-p').value = (c.topP != null) ? c.topP : 1;
+    document.getElementById('top-p-enabled').checked = !!c.topPEnabled;
+    document.getElementById('top-k').value = (c.topK != null) ? c.topK : 200;
+    document.getElementById('top-k-enabled').checked = !!c.topKEnabled;
+    document.getElementById('freq-penalty').value = (c.frequencyPenalty != null) ? c.frequencyPenalty : 0.3;
+    document.getElementById('freq-pen-enabled').checked = !!c.frequencyPenaltyEnabled;
+    document.getElementById('pres-penalty').value = (c.presencePenalty != null) ? c.presencePenalty : 0.2;
+    document.getElementById('pres-pen-enabled').checked = !!c.presencePenaltyEnabled;
+    document.getElementById('cors-enabled').checked = !!c.corsProxyEnabled;
+    document.getElementById('cors-proxy').value = c.corsProxyUrl || '';
+  }catch(e){ console.warn('读取 API 配置失败', e); }
+}
+
+function collectApiConfig(){
+  return {
+    type: document.getElementById('api-type').value,
+    streamMode: document.getElementById('stream-mode').value,
+    endpoint: document.getElementById('endpoint').value.trim(),
+    apiKey: document.getElementById('api-key').value.trim(),
+    model: document.getElementById('model').value.trim(),
+    temperature: parseFloat(document.getElementById('temperature').value),
+    maxOutputTokens: parseInt(document.getElementById('max-output-tokens').value) || 18000,
+    maxContextTokens: parseInt(document.getElementById('max-context-tokens').value) || 500000,
+    topP: parseFloat(document.getElementById('top-p').value),
+    topPEnabled: document.getElementById('top-p-enabled').checked,
+    topK: parseInt(document.getElementById('top-k').value, 10),
+    topKEnabled: document.getElementById('top-k-enabled').checked,
+    frequencyPenalty: parseFloat(document.getElementById('freq-penalty').value),
+    frequencyPenaltyEnabled: document.getElementById('freq-pen-enabled').checked,
+    presencePenalty: parseFloat(document.getElementById('pres-penalty').value),
+    presencePenaltyEnabled: document.getElementById('pres-pen-enabled').checked,
+    corsProxyEnabled: document.getElementById('cors-enabled').checked,
+    corsProxyUrl: document.getElementById('cors-proxy').value.trim()
+  };
+}
+
+async function fetchModelList(){
+  var fb = document.getElementById('api-feedback');
+  var c = collectApiConfig();
+  if(!c.endpoint || !c.apiKey){ fb.textContent='◈ 请先填写接口地址与密钥'; fb.className='feedback err'; return; }
+  fb.textContent='◈ 正在召唤模型名录...'; fb.className='feedback';
+  try{
+    var models = await apiService.fetchModels(c.endpoint, c.apiKey, c.type);
+    var dl = document.getElementById('model-list');
+    dl.innerHTML = '';
+    models.forEach(function(m){
+      var opt = document.createElement('option');
+      opt.value = m.id || m;
+      dl.appendChild(opt);
+    });
+    fb.textContent = '◈ 已获得 '+models.length+' 个模型，点击模型输入框可选择';
+    fb.className = 'feedback ok';
+  }catch(e){
+    fb.textContent = '◈ 拉取失败：'+(e.message||e);
+    fb.className = 'feedback err';
+  }
+}
+
+async function testConnection(){
+  var fb = document.getElementById('api-feedback');
+  fb.textContent = '◈ 正在测试连接...'; fb.className = 'feedback';
+  apiService.updateConfig(collectApiConfig());
+  var ok = await apiService.healthCheck();
+  if(ok){ fb.textContent='◈ 连接成功，连接稳定如遗火不熄'; fb.className='feedback ok'; }
+  else{ fb.textContent='◈ 连接失败，请检查地址/密钥/模型名，或尝试开关 CORS 代理'; fb.className='feedback err'; }
+}
+
+async function sendTestMsg(){
+  var btn = event && event.target;
+  var resultDiv = document.getElementById('test-result');
+  if(btn){ btn.disabled = true; btn.textContent = '⏳ 发送中...'; }
+  resultDiv.textContent = '◈ 正在发送测试消息...'; resultDiv.className = 'feedback';
+
+  var c = collectApiConfig();
+  if(!c.endpoint || !c.apiKey || !c.model){
+    resultDiv.textContent = '◈ 请先填写接口地址、密钥与模型名'; resultDiv.className = 'feedback err';
+    if(btn){ btn.disabled = false; btn.textContent = '📨 发送测试消息'; }
+    return;
+  }
+
+  try{
+    var result = await apiService.sendTestMessage(c);
+    if(result && result.success){
+      var preview = result.content.length > 80 ? result.content.substring(0, 80) + '…' : result.content;
+      resultDiv.textContent = '✦ 测试通过！AI 回复：' + preview;
+      resultDiv.className = 'feedback ok';
+    }else{
+      resultDiv.textContent = '✕ 测试失败：' + ((result && result.error) || '未知错误');
+      resultDiv.className = 'feedback err';
+    }
+  }catch(e){
+    resultDiv.textContent = '✕ 测试异常：' + (e.message || e);
+    resultDiv.className = 'feedback err';
+  }
+  if(btn){ btn.disabled = false; btn.textContent = '📨 发送测试消息'; }
+}
+
+var HISTORY_KEY = 'calamity_apiConfigHistory';
+var HISTORY_MAX = 3;
+
+function loadConfigHistory(){
+  try{ return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }catch(e){ return []; }
+}
+
+function saveConfigHistory(cfg){
+  var history = loadConfigHistory();
+  var domain = '';
+  try{
+    domain = cfg.type === 'gemini' ? 'Gemini' : new URL(cfg.endpoint).hostname.replace(/^www\./, '');
+  }catch(e){ domain = cfg.type || 'OpenAI'; }
+  var now = new Date();
+  var pad = function(n){ return (n < 10 ? '0' : '') + n; };
+  var label = (cfg.model || '未知模型') + ' · ' + domain + ' · '
+    + (now.getMonth()+1) + '-' + pad(now.getDate()) + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes());
+  history = history.filter(function(h){
+    return !(h.endpoint === cfg.endpoint && h.model === cfg.model);
+  });
+  history.unshift(Object.assign({}, cfg, { _label: label }));
+  if(history.length > HISTORY_MAX) history = history.slice(0, HISTORY_MAX);
+  try{ localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); }
+  catch(e){ console.warn('历史配置写入失败：', e); }
+}
+
+function togglePreset(){
+  var container = document.getElementById('preset-container');
+  if(!container) return;
+  var visible = container.style.display !== 'none';
+  if(visible){ container.style.display = 'none'; return; }
+
+  var history = loadConfigHistory();
+  if(history.length === 0){
+    container.innerHTML = '<div class="hint">暂无历史配置，保存后将自动记录</div>';
+  }else{
+    var html = '<select class="preset-select" onchange="applyPreset(this.value);this.value=\'\'">'
+      + '<option value="">-- 选择历史配置回填 --</option>';
+    for(var i = 0; i < history.length; i++){
+      html += '<option value="' + i + '">' + escapeHtml(history[i]._label) + '</option>';
+    }
+    html += '</select>';
+    container.innerHTML = html;
+  }
+  container.style.display = 'block';
+}
+
+function applyPreset(indexStr){
+  var idx = parseInt(indexStr, 10);
+  if(isNaN(idx)) return;
+  var preset = loadConfigHistory()[idx];
+  if(!preset) return;
+  var el;
+  el = document.getElementById('api-type');          if(el) el.value = preset.type || 'openai';
+  el = document.getElementById('stream-mode');        if(el) el.value = preset.streamMode || 'stream';
+  el = document.getElementById('endpoint');           if(el) el.value = preset.endpoint || '';
+  el = document.getElementById('api-key');            if(el) el.value = preset.apiKey || '';
+  el = document.getElementById('model');              if(el) el.value = preset.model || '';
+  el = document.getElementById('temperature');        if(el) el.value = (preset.temperature != null) ? preset.temperature : 0.9;
+  document.getElementById('temp-val').textContent = document.getElementById('temperature').value;
+  el = document.getElementById('max-output-tokens');  if(el) el.value = preset.maxOutputTokens || 18000;
+  el = document.getElementById('max-context-tokens'); if(el) el.value = preset.maxContextTokens || 500000;
+  el = document.getElementById('top-p');              if(el) el.value = (preset.topP != null) ? preset.topP : 1;
+  el = document.getElementById('top-p-enabled');      if(el) el.checked = !!preset.topPEnabled;
+  el = document.getElementById('top-k');              if(el) el.value = (preset.topK != null) ? preset.topK : 200;
+  el = document.getElementById('top-k-enabled');      if(el) el.checked = !!preset.topKEnabled;
+  el = document.getElementById('freq-penalty');       if(el) el.value = (preset.frequencyPenalty != null) ? preset.frequencyPenalty : 0.3;
+  el = document.getElementById('freq-pen-enabled');   if(el) el.checked = !!preset.frequencyPenaltyEnabled;
+  el = document.getElementById('pres-penalty');       if(el) el.value = (preset.presencePenalty != null) ? preset.presencePenalty : 0.2;
+  el = document.getElementById('pres-pen-enabled');   if(el) el.checked = !!preset.presencePenaltyEnabled;
+  el = document.getElementById('cors-proxy');         if(el && preset.corsProxyUrl) el.value = preset.corsProxyUrl;
+  el = document.getElementById('cors-enabled');       if(el && typeof preset.corsProxyEnabled === 'boolean') el.checked = preset.corsProxyEnabled;
+  var container = document.getElementById('preset-container');
+  if(container) container.style.display = 'none';
+}
+
+function escapeHtml(str){
+  if(!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ── Embedding 向量化配置（读写 jxz_embeddingConfig） ── */
+function loadEmbeddingConfig(){
+  try{
+    var c = embeddingService.getConfig();
+    document.getElementById('emb-enabled').checked = !!c.enabled;
+    document.getElementById('emb-endpoint').value = c.endpoint || '';
+    document.getElementById('emb-key').value = c.apiKey || '';
+    document.getElementById('emb-model').value = c.model || 'BAAI/bge-m3';
+    document.getElementById('emb-rerank').value = c.rerankModel || 'BAAI/bge-reranker-v2-m3';
+  }catch(e){ console.warn('读取 Embedding 配置失败', e); }
+}
+
+function collectEmbeddingConfig(){
+  return {
+    enabled: document.getElementById('emb-enabled').checked,
+    endpoint: document.getElementById('emb-endpoint').value.trim(),
+    apiKey: document.getElementById('emb-key').value.trim(),
+    model: document.getElementById('emb-model').value.trim() || 'BAAI/bge-m3',
+    rerankModel: document.getElementById('emb-rerank').value.trim() || 'BAAI/bge-reranker-v2-m3'
+  };
+}
+
+async function testEmbedding(){
+  var fb = document.getElementById('emb-feedback');
+  fb.textContent = '◈ 正在测试 Embedding 连接...'; fb.className = 'feedback';
+  try{
+    var result = await embeddingService.testConnection(collectEmbeddingConfig());
+    if(result && result.ok){
+      fb.textContent = '◈ 连接成功！向量维度：' + (result.dims || '?');
+      fb.className = 'feedback ok';
+    }else{
+      fb.textContent = '◈ 连接失败：' + ((result && result.error) || '未知错误');
+      fb.className = 'feedback err';
+    }
+  }catch(e){
+    fb.textContent = '◈ 测试异常：' + (e.message || e);
+    fb.className = 'feedback err';
+  }
+}
+
+var DEFAULT_SETTINGS = {
+  display: { narrativeMode:'beautified', particles:true, candlelight:true, sound:false, fontSize:15 },
+  game: { autoSave:true, autoSaveInterval:5 }
+};
+
+function loadDisplaySettings(){
+  try{
+    var s = JSON.parse(localStorage.getItem('settings') || 'null') || DEFAULT_SETTINGS;
+    var d = Object.assign({}, DEFAULT_SETTINGS.display, s.display);
+    var g = Object.assign({}, DEFAULT_SETTINGS.game, s.game);
+    var modeRadios = document.querySelectorAll('input[name=narrative-mode]');
+    for(var i=0;i<modeRadios.length;i++){ modeRadios[i].checked = (modeRadios[i].value === d.narrativeMode); }
+    document.getElementById('font-size').value = d.fontSize;
+    document.getElementById('font-val').textContent = d.fontSize+'px';
+    document.getElementById('fx-particles').checked = d.particles;
+    document.getElementById('fx-candlelight').checked = d.candlelight;
+    document.getElementById('fx-sound').checked = d.sound;
+    document.getElementById('autosave').checked = g.autoSave;
+    document.getElementById('autosave-interval').value = g.autoSaveInterval;
+  }catch(e){ console.warn('读取显示设置失败', e); }
+}
+
+function collectDisplaySettings(){
+  var mode = 'beautified';
+  var modeRadios = document.querySelectorAll('input[name=narrative-mode]');
+  for(var i=0;i<modeRadios.length;i++){ if(modeRadios[i].checked) mode = modeRadios[i].value; }
+  return {
+    display: {
+      narrativeMode: mode,
+      particles: document.getElementById('fx-particles').checked,
+      candlelight: document.getElementById('fx-candlelight').checked,
+      sound: document.getElementById('fx-sound').checked,
+      fontSize: parseInt(document.getElementById('font-size').value)
+    },
+    game: {
+      autoSave: document.getElementById('autosave').checked,
+      autoSaveInterval: parseInt(document.getElementById('autosave-interval').value) || 5
+    }
+  };
+}
+
+function saveAll(){
+  var apiCfg = collectApiConfig();
+  if(!apiCfg.endpoint || !apiCfg.apiKey || !apiCfg.model){
+    var fb = document.getElementById('api-feedback');
+    fb.textContent = '◈ 请填写完整的 API 信息（地址、密钥、模型名）';
+    fb.className = 'feedback err';
+    return;
+  }
+  apiService.updateConfig(apiCfg);
+  saveConfigHistory(apiCfg);
+  embeddingService.updateConfig(collectEmbeddingConfig());
+  localStorage.setItem('settings', JSON.stringify(collectDisplaySettings()));
+  var btn = document.querySelector('.btn-row .btn');
+  var orig = btn.textContent;
+  btn.textContent = '◈ 已铭刻 ◈';
+  setTimeout(function(){ btn.textContent = orig; }, 1000);
+}
+
+// 进入设置视图时加载各配置
+function initSettings() {
+  if (typeof apiService === 'undefined' || !apiService.loadConfig) {
+    document.getElementById('api-feedback').textContent = '◈ api-service.js 加载失败';
+    document.getElementById('api-feedback').className = 'feedback err';
+    return;
+  }
+  loadApiConfig();
+  loadDisplaySettings();
+  loadEmbeddingConfig();
+}
+</script>
+
+<!-- ══════════ 游戏视图模块 + 主逻辑（迁自 game.html） ══════════ -->
+<script src="module/json-repair-helper.js"></script>
+<script src="module/command-engine.js"></script>
+<script src="module/command-processor.js"></script>
+<script src="module/worldbook-engine.js"></script>
+<script src="module/prompt-builder.js"></script>
+<script src="module/response-parser.js"></script>
+
+<script type="module">
+  import * as gameState from './module/game-state.js';
+  import * as narrativeSystem from './module/narrative-system.js';
+  import * as combatSystem from './module/combat-system.js';
+  import * as checkSystem from './module/check-system.js';
+
+  // IIFE 模块已通过上方 <script> 挂载到 window
+  const apiService = window.apiService;
+  const promptBuilder = window.promptBuilder;
+  const responseParser = window.responseParser;
+  const commandProcessor = window.commandProcessor;
+
+  window.gameReady = false;
+
+  // ── 初始化 ──
+  function initGame() {
+    gameState.initGameData();
+    gameState.migrateFromCharacter();
+    const gd = gameState.getGameData();
+
+    // 无角色 → 跳登记册
+    if (gd.character.name === '旅行者' && !localStorage.getItem('character')) {
+      navigate('create');
+      return;
+    }
+
+    // 填 UI
+    document.querySelector('#player-name span').textContent = gd.character.name;
+    document.getElementById('char-race').textContent = gd.character.race || '人类';
+    document.getElementById('char-level').textContent = gd.character.level;
+    document.getElementById('char-exp').textContent = gd.character.exp + '/' + gd.character.expToNextLevel;
+    document.getElementById('gold-text').textContent = gd.currency.gold;
+    document.getElementById('fate-points').textContent = gd.fatePoints.current + '/' + gd.fatePoints.max;
+    updateHPBar(gd.hp.current, gd.hp.max);
+    updateAttributes(gd.attributes);
+    updateEquipment(gd.equipment);
+    updateInventory(gd.inventory);
+
+    // 欢迎语（仅首次进入时显示一次）
+    const nd = document.getElementById('narrative-display');
+    if (nd && nd.childElementCount <= 1) {
+      displayNarrative(generateWelcomeMessage(gd.character));
+    }
+    applyDisplaySettings();
+    window.gameReady = true;
+  }
+
+  function generateWelcomeMessage(character) {
+    return '\n----- ✦ 灾厄303年5月12日 14:00 ✦ -----\n\n<content>\n\n欢迎，' + character.name + '。\n\n你是一名' + (character.race || '人类') + '冒险者，踏入了灾厄之后的废土世界。\n\n眼前是锈钉镇的入口——破败的木栅栏，焦黑的土地，空气中弥漫着灰烬的气味。\n\n远处传来佣兵们的喧闹声。\n\n你的冒险，从这里开始。\n\n</content>';
+  }
+
+  function updateHPBar(current, max) {
+    const percent = Math.max(0, Math.min(100, (current / max) * 100));
+    document.getElementById('hp-fill').style.width = percent + '%';
+    document.getElementById('hp-text').textContent = current + '/' + max;
+    const fill = document.getElementById('hp-fill');
+    if (percent < 30) fill.style.background = 'linear-gradient(90deg, #f44336, #e91e63)';
+    else if (percent < 60) fill.style.background = 'linear-gradient(90deg, #ff9800, #ffc107)';
+    else fill.style.background = 'linear-gradient(90deg, #4caf50, #8bc34a)';
+  }
+
+  function updateAttributes(attributes) {
+    const list = document.getElementById('attr-list');
+    if (!list) return;
+    list.innerHTML = '';
+    Object.entries(attributes || {}).forEach(([name, value]) => {
+      const modifier = (typeof checkSystem !== 'undefined' && checkSystem.calculateModifier)
+        ? checkSystem.calculateModifier(value) : Math.floor((value - 10) / 2);
+      const modStr = modifier >= 0 ? '+' + modifier : modifier;
+      const item = document.createElement('div');
+      item.className = 'attr-item';
+      item.innerHTML = '<span>' + name + '</span><span>' + value + ' (' + modStr + ')</span>';
+      list.appendChild(item);
+    });
+  }
+
+  function updateEquipment(equipment) {
+    const list = document.getElementById('equipment-list');
+    if (!list) return;
+    list.innerHTML = '';
+    const slotNames = { mainHand:'主手', offHand:'副手', body:'身体', head:'头部', hands:'手部', legs:'腿部', feet:'脚部', shoulders:'肩部', accessory1:'饰品1', accessory2:'饰品2' };
+    let shown = 0;
+    Object.entries(equipment || {}).forEach(([slot, item]) => {
+      if (item) {
+        const div = document.createElement('div');
+        div.textContent = (slotNames[slot] || slot) + ': ' + (item.name || '?');
+        list.appendChild(div);
+        shown++;
+      }
+    });
+    if (shown === 0) list.innerHTML = '<div style="color:var(--ink-faded)">无装备</div>';
+  }
+
+  function updateInventory(inventory) {
+    const list = document.getElementById('inventory-list');
+    if (!list) return;
+    list.innerHTML = '';
+    if (!Array.isArray(inventory) || inventory.length === 0) {
+      list.innerHTML = '<div style="color:var(--ink-faded)">空</div>';
+      return;
+    }
+    inventory.forEach(item => {
+      const div = document.createElement('div');
+      const count = item.count || item.quantity || 1;
+      div.textContent = count > 1 ? (item.name + ' ×' + count) : item.name;
+      list.appendChild(div);
+    });
+  }
+
+  function displayNarrative(text) {
+    const display = document.getElementById('narrative-display');
+    const div = document.createElement('div');
+    div.style.marginBottom = '20px';
+    div.style.whiteSpace = 'pre-wrap';
+    div.textContent = text;
+    display.appendChild(div);
+    display.scrollTop = display.scrollHeight;
+  }
+
+  // ── AI 主链路 ──
+  window.sendMessage = async function() {
+    const input = document.getElementById('input-box');
+    const message = input.value.trim();
+    if (!message || window._gameBusy) return;
+
+    window._gameBusy = true;
+    input.value = '';
+    input.disabled = true;
+
+    try {
+      displayNarrative('\n> ' + message + '\n');
+      const loadingDiv = document.createElement('div');
+      loadingDiv.id = 'loading-indicator';
+      loadingDiv.textContent = '🌀 AI 思考中...';
+      loadingDiv.style.cssText = 'padding: 10px; color: #b8942a; font-style: italic;';
+      document.getElementById('narrative-display').appendChild(loadingDiv);
+
+      const gd = gameState.getGameData();
+
+      // 构建提示词
+      let prompt;
+      try {
+        prompt = promptBuilder.buildMessages({ gameData: gd, userMessage: message });
+      } catch (e) {
+        console.warn('buildMessages 异常，用最小提示词:', e);
+        prompt = { messages: [
+          { role: 'system', content: '你是一名灾厄之后废土世界的叙事者。请用第三人称推进剧情，检定用框线文本输出。' },
+          { role: 'user', content: message }
+        ] };
+      }
+
+      // 调用 AI（修正为 sendMessages(messages[], options)）
+      const apiConfig = apiService.getConfig();
+      if (!apiConfig || !apiConfig.apiKey) throw new Error('未配置 API Key，请先到「设置」填写');
+      const aiResult = await apiService.sendMessages(prompt.messages, {
+        model: apiConfig.model,
+        temperature: 0.8,
+        stream: false
+      });
+      const responseContent = (aiResult && aiResult.content)
+        ? aiResult.content
+        : (typeof aiResult === 'string' ? aiResult : '');
+
+      if (loadingDiv.parentNode) loadingDiv.remove();
+
+      // 解析并显示正文
+      const parsed = responseParser.run(responseContent);
+      displayNarrative('\n' + parsed.mainText);
+
+      // 应用命令
+      if (parsed.commands && parsed.commands.length > 0) {
+        const result = commandProcessor.applyCommands(gd, parsed.commands);
+        if (result.report && result.report.rejected && result.report.rejected.length > 0) {
+          console.warn('命令被拒绝:', result.report.rejected);
+          displayNarrative('\n\n⚠️ 部分命令未能执行（非法路径或类型不匹配）\n');
+        }
+        gameState.importGameData(result.gameData);
+        refreshGameUI();
+      }
+
+      saveToHistory(message, responseContent);
+    } catch (error) {
+      console.error('AI 调用失败:', error);
+      displayNarrative('\n❌ 错误: ' + error.message + '\n');
+      const ld = document.getElementById('loading-indicator');
+      if (ld && ld.parentNode) ld.remove();
+    } finally {
+      window._gameBusy = false;
+      input.disabled = false;
+      input.focus();
+    }
+  };
+
+  function refreshGameUI() {
+    const gd = gameState.getGameData();
+    document.getElementById('char-level').textContent = gd.character.level;
+    document.getElementById('char-exp').textContent = gd.character.exp + '/' + gd.character.expToNextLevel;
+    document.getElementById('gold-text').textContent = gd.currency.gold;
+    document.getElementById('fate-points').textContent = gd.fatePoints.current + '/' + gd.fatePoints.max;
+    updateHPBar(gd.hp.current, gd.hp.max);
+    updateAttributes(gd.attributes);
+    updateEquipment(gd.equipment);
+    updateInventory(gd.inventory);
+  }
+  window.refreshGameUI = refreshGameUI;
+
+  function saveToHistory(userInput, aiResponse) {
+    try {
+      const history = JSON.parse(localStorage.getItem('calamity-chat-history') || '[]');
+      history.push({ timestamp: Date.now(), user: userInput, ai: aiResponse });
+      if (history.length > 50) history.splice(0, history.length - 50);
+      localStorage.setItem('calamity-chat-history', JSON.stringify(history));
+    } catch (e) { console.warn('保存历史失败:', e); }
+  }
+
+  window.openInventory = function() { alert('背包功能开发中...'); };
+  window.rollDice = function() {
+    const r = Math.floor(Math.random() * 20) + 1;
+    displayNarrative('\n🎲 你掷出了：' + r + '\n');
+  };
+
+  function applyDisplaySettings() {
+    try {
+      const s = JSON.parse(localStorage.getItem('settings') || 'null');
+      const d = (s && s.display) || {};
+      if (d.fontSize) {
+        const narrative = document.getElementById('narrative-display');
+        if (narrative) narrative.style.fontSize = d.fontSize + 'px';
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  // 暴露给路由：进入游戏视图时初始化
+  window.initGameView = function() {
+    if (!window.gameReady) initGame();
+    else { refreshGameUI(); }
+  };
+</script>
+
+</body>
+</html>

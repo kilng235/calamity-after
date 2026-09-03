@@ -1,0 +1,21 @@
+<DicePool>
+本轮可用骰子（按「通用检定 §6」依次取用，第一枚对应第一次检定，不得跳选或编造；用完为止，需要更多时按顺序重复取用并注明；d20 用于检定，d4/d6/d8/d10/d12 用于装备伤害骰掷取）：
+
+d20（检定用）：
+{{roll:d20}},{{roll:d20}},{{roll:d20}},{{roll:d20}},{{roll:d20}},{{roll:d20}},{{roll:d20}},{{roll:d20}},{{roll:d20}},{{roll:d20}},{{roll:d20}},{{roll:d20}},{{roll:d20}},{{roll:d20}},{{roll:d20}}
+
+d4（匕首/法杖物理伤害）：
+{{roll:d4}},{{roll:d4}},{{roll:d4}},{{roll:d4}},{{roll:d4}},{{roll:d4}},{{roll:d4}},{{roll:d4}},{{roll:d4}},{{roll:d4}}
+
+d6（短剑/铁斧/铁锤/短矛/猎弓/弩矢/烟幕弹/小效果）：
+{{roll:d6}},{{roll:d6}},{{roll:d6}},{{roll:d6}},{{roll:d6}},{{roll:d6}},{{roll:d6}},{{roll:d6}},{{roll:d6}},{{roll:d6}}
+
+d8（铁剑/长弓/轻弩）：
+{{roll:d8}},{{roll:d8}},{{roll:d8}},{{roll:d8}},{{roll:d8}},{{roll:d8}},{{roll:d8}},{{roll:d8}},{{roll:d8}},{{roll:d8}}
+
+d10（双手剑/战斧/战锤）：
+{{roll:d10}},{{roll:d10}},{{roll:d10}},{{roll:d10}},{{roll:d10}},{{roll:d10}},{{roll:d10}},{{roll:d10}},{{roll:d10}},{{roll:d10}}
+
+d12（重弩）：
+{{roll:d12}},{{roll:d12}},{{roll:d12}},{{roll:d12}},{{roll:d12}},{{roll:d12}},{{roll:d12}},{{roll:d12}},{{roll:d12}},{{roll:d12}}
+</DicePool>

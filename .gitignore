@@ -1,0 +1,22 @@
+# 依赖
+node_modules/
+
+# 被 SPA (index.html) 取代的旧独立页面（保留在本地作参考，不入库）
+game.html
+start-screen.html
+settings.html
+register.html
+
+# 临时调试页面
+诊断-*.html
+demo-*.html
+测试-*.html
+
+# 数据生成器缓存与报告
+data-source/module/
+data-source/reports/
+data-source/世界书/系统/*.backup
+
+# 系统
+.DS_Store
+Thumbs.db
