@@ -1200,264 +1200,6 @@
     font-family:"Cinzel","Noto Serif SC",serif;
   }
 
-  /* ── 开局信息 ── */
-  .opening-info{
-    background:
-      linear-gradient(135deg,rgba(184,148,42,0.06) 0%,rgba(180,160,120,0.1) 50%,rgba(184,148,42,0.04) 100%);
-    border:1px solid var(--parchment-dark);
-    padding:14px 18px;margin:16px 0;
-    border-radius:3px;
-    position:relative;
-    box-shadow:inset 0 1px 3px rgba(120,100,60,0.1);
-  }
-  .opening-info::before{
-    content:'⏣';position:absolute;top:-8px;left:16px;
-    font-size:16px;color:var(--gold);opacity:0.6;
-    background:var(--parchment);padding:0 6px;
-  }
-  .info-row{
-    display:flex;gap:8px;margin:5px 0;
-    font-size:0.9em;align-items:center;
-  }
-  .info-row .label{
-    color:var(--gold);font-weight:bold;min-width:50px;
-    font-family:"Cinzel","Noto Serif SC",serif;
-    letter-spacing:1px;
-  }
-  .info-row .value{
-    color:var(--ink);
-    font-style:italic;
-  }
-
-  /* ── 叙事框 ── */
-  .narrative-box{
-    background:
-      radial-gradient(ellipse 80px 60px at 15% 20%,rgba(140,100,50,0.08) 0%,transparent 70%),
-      radial-gradient(ellipse 60px 80px at 85% 75%,rgba(120,80,40,0.06) 0%,transparent 65%),
-      rgba(255,250,240,0.3);
-    border:1px solid var(--parchment-dark);
-    padding:20px 18px;margin:16px 0;
-    border-radius:3px;
-    line-height:1.9;
-    position:relative;
-    box-shadow:
-      inset 0 0 20px rgba(120,100,60,0.08),
-      inset 8px 0 15px -8px rgba(80,50,20,0.06),
-      inset -8px 0 15px -8px rgba(80,50,20,0.06);
-  }
-  .narrative-box::before{
-    content:'';position:absolute;top:6px;left:6px;right:6px;bottom:6px;
-    border:1px solid rgba(184,148,42,0.12);
-    border-radius:2px;pointer-events:none;
-  }
-  .narrative-box .lore-p{
-    opacity:0;transform:translateY(10px);
-    animation:loreFadeIn .8s ease-out forwards;
-  }
-  .narrative-box .lore-p:nth-of-type(1){animation-delay:.3s}
-  .narrative-box .lore-p:nth-of-type(2){animation-delay:.6s}
-  .narrative-box .lore-p:nth-of-type(3){animation-delay:.9s}
-  @keyframes loreFadeIn{to{opacity:1;transform:translateY(0)}}
-  .narrative-box #identityGreeting{
-    color:var(--gold);
-    font-style:italic;
-    border-left:2px solid var(--gold);
-    padding-left:12px;
-    margin-left:4px;
-  }
-
-  /* ── 任务卡片 ── */
-  .quest-card{
-    background:
-      linear-gradient(135deg,rgba(184,148,42,0.08) 0%,rgba(180,160,120,0.12) 50%,rgba(184,148,42,0.06) 100%);
-    border:1px solid var(--gold);
-    padding:16px;margin:14px 0;
-    border-radius:3px;
-    position:relative;
-    box-shadow:0 2px 8px rgba(184,148,42,0.1);
-  }
-  .quest-card::before{
-    content:'📜';position:absolute;top:-10px;right:12px;
-    font-size:20px;opacity:0.7;
-    background:var(--parchment);padding:0 6px;
-  }
-  .quest-name{
-    font-size:1.15em;color:var(--gold-bright);font-weight:bold;
-    margin-bottom:8px;
-    font-family:"Cinzel","Noto Serif SC",serif;
-    letter-spacing:1px;
-    text-shadow:0 1px 0 rgba(255,255,255,0.3);
-  }
-  .quest-type{
-    font-size:0.85em;color:var(--ink-faded);margin-bottom:10px;
-    padding-bottom:8px;
-    border-bottom:1px solid rgba(184,148,42,0.2);
-    font-style:italic;
-  }
-  .quest-desc{
-    font-size:0.9em;color:var(--ink);margin-bottom:12px;
-    line-height:1.7;
-  }
-  .quest-objectives{
-    background:rgba(255,250,240,0.5);
-    padding:10px 14px;margin:10px 0;
-    border-radius:2px;
-    border-left:3px solid var(--gold);
-  }
-  .obj-item{
-    font-size:0.85em;color:var(--ink);margin:4px 0;
-    padding-left:16px;position:relative;
-  }
-  .obj-item::before{
-    content:'◈';position:absolute;left:0;
-    color:var(--gold);font-size:0.8em;
-  }
-  .quest-deadline{
-    font-size:0.85em;color:var(--ink-faded);
-    margin-top:10px;padding-top:10px;
-    border-top:1px dashed var(--parchment-dark);
-    display:flex;justify-content:space-between;
-  }
-  .quest-empty{
-    font-size:0.9em;color:var(--ink-faded);
-    font-style:italic;padding:16px;text-align:center;
-    background:rgba(180,160,120,0.08);
-    border:1px dashed var(--parchment-dark);
-    border-radius:3px;margin:14px 0;
-  }
-  .obj-item.completed{
-    color:var(--ink-faded);text-decoration:line-through;opacity:0.6;
-  }
-
-  /* ── 钩子卡片 ── */
-  .hook-card{
-    background:
-      radial-gradient(ellipse at 50% 50%,rgba(138,42,26,0.06) 0%,rgba(138,42,26,0.02) 70%),
-      rgba(138,42,26,0.04);
-    border:1px solid var(--danger);
-    padding:16px;margin:14px 0;
-    border-radius:3px;
-    position:relative;
-    box-shadow:0 2px 8px rgba(138,42,26,0.08);
-    overflow:hidden;
-  }
-  .hook-card::before{
-    content:'?';position:absolute;top:-5px;right:10px;
-    font-size:48px;color:var(--danger);opacity:0.08;
-    font-family:"Cinzel Decorative",serif;font-weight:bold;
-  }
-  .hook-card::after{
-    content:'';position:absolute;top:0;left:0;right:0;bottom:0;
-    background:repeating-linear-gradient(
-      45deg,
-      transparent,
-      transparent 10px,
-      rgba(138,42,26,0.02) 10px,
-      rgba(138,42,26,0.02) 20px
-    );
-    pointer-events:none;
-  }
-  .hook-name{
-    font-size:1.05em;color:var(--danger);font-weight:bold;
-    margin-bottom:8px;
-    font-family:"Cinzel","Noto Serif SC",serif;
-    letter-spacing:1px;
-    position:relative;z-index:1;
-  }
-  .hook-desc{
-    font-size:0.9em;color:var(--ink);margin-bottom:10px;
-    font-style:italic;line-height:1.7;
-    position:relative;z-index:1;
-  }
-  .hook-trigger{
-    font-size:0.8em;color:var(--ink-faded);
-    padding:4px 8px;
-    background:rgba(138,42,26,0.06);
-    border-radius:2px;
-    display:inline-block;
-    position:relative;z-index:1;
-  }
-
-  /* ── 启程按钮特效 ── */
-  #p3 .btn[onclick="enterGame()"]{
-    background:linear-gradient(180deg,rgba(184,148,42,0.18) 0%,rgba(184,148,42,0.08) 100%);
-    border:2px solid var(--gold-bright);
-    font-size:1em;
-    padding:14px 20px;
-    letter-spacing:3px;
-    position:relative;
-    overflow:hidden;
-    animation:btnPulse 3s ease-in-out infinite;
-  }
-  @keyframes btnPulse{
-    0%,100%{box-shadow:0 0 5px var(--gold-glow)}
-    50%{box-shadow:0 0 20px var(--gold-glow),0 0 40px rgba(184,148,42,0.1)}
-  }
-  #p3 .btn[onclick="enterGame()"]::before{
-    content:'';position:absolute;top:0;left:-100%;
-    width:100%;height:100%;
-    background:linear-gradient(90deg,transparent,rgba(232,200,96,0.2),transparent);
-    animation:btnShine 4s ease-in-out infinite;
-  }
-  @keyframes btnShine{
-    0%{left:-100%}
-    50%,100%{left:100%}
-  }
-
-  /* ── Page 3 入场动画 ── */
-  #p3.active{
-    animation:pageOpenReveal .8s ease-out;
-  }
-  @keyframes pageOpenReveal{
-    0%{
-      opacity:0;
-      transform:rotateY(-8deg) scale(0.95);
-      filter:brightness(0.7);
-    }
-    40%{
-      opacity:1;
-      filter:brightness(1);
-    }
-    100%{
-      transform:rotateY(0) scale(1);
-      filter:brightness(1);
-    }
-  }
-
-  /* ── Page 3 章节标题特效 ── */
-  #p3 h1{
-    position:relative;
-    display:inline-block;
-  }
-  #p3 h1::after{
-    content:'';
-    position:absolute;
-    bottom:-4px;left:0;right:0;
-    height:2px;
-    background:linear-gradient(90deg,transparent,var(--gold),transparent);
-    animation:titleGlow 2s ease-in-out infinite alternate;
-  }
-  @keyframes titleGlow{
-    0%{opacity:0.3}
-    100%{opacity:0.8}
-  }
-
-  /* ── Page 3 分隔线特效 ── */
-  #p3 hr.divider{
-    position:relative;
-  }
-  #p3 hr.divider::after{
-    content:'✦';
-    position:absolute;
-    top:-8px;left:50%;
-    transform:translateX(-50%);
-    color:var(--gold);
-    font-size:12px;
-    background:var(--parchment);
-    padding:0 8px;
-    opacity:0.5;
-  }
-
 
 /* ═══ 游戏视图样式（来自 game.html） ═══ */
 
@@ -2222,70 +1964,9 @@
     <p style="font-size:0.8em;color:var(--ink-faded);text-indent:0">◈ 确认无误后，复制以下铭文发送给 AI。</p>
     <textarea class="out" id="out" readonly=""></textarea>
     <button class="btn copy" onclick="copyOutput()" data-ripple-bound="1">◈ 复制铭文到剪贴板 ◈</button>
-    <button class="btn" onclick="saveCharacter();switchPage(3);" style="margin-top:8px" data-ripple-bound="1">◈ 翻入冒险卷轴 ◈</button>
+    <button class="btn" onclick="enterGame()" style="margin-top:8px" data-ripple-bound="1">◈ 翻入冒险卷轴 ◈</button>
     <div class="footer">圣火骑士团 · 联合登记处 · 愿遗火照亮你的路</div>
     <div class="page-num">— ⅱ —</div>
-  </div>
-
-  <!-- ═══ PAGE 3: 开局叙事 ═══ -->
-  <div class="page" id="p3">
-    <div class="candle-glow"></div>
-    <div class="manuscript-border"></div>
-    <div class="corner-ornament tl">❧</div><div class="corner-ornament tr">❧</div>
-    <div class="corner-ornament bl">❧</div><div class="corner-ornament br">❧</div>
-
-    <div class="status-bar">
-      <span>冒险者启程</span>
-      <span>Profectio</span>
-    </div>
-    <div class="deco-line">─── ✦ ───</div>
-    <h1>启程</h1>
-    <div class="subtitle">—— Profectio ——</div>
-    <hr class="divider">
-
-    <!-- 时间与地点 -->
-    <div class="opening-info" id="openingInfo">
-      <div class="info-row">
-        <span class="label">⏣ 时间</span>
-        <span class="value" id="openTime">灾厄纪年300年11月12日 07:10</span>
-      </div>
-      <div class="info-row">
-        <span class="label">⏣ 地点</span>
-        <span class="value" id="openLocation">佣兵镇·锈钉，佣兵公会大厅</span>
-      </div>
-    </div>
-
-    <!-- 叙事正文 -->
-    <div class="narrative-box" id="narrativeBox">
-      <p class="lore-p">锈钉镇的清晨比想象中醒得早。天还没全亮，铁匠铺的锤声就隔着两条街传过来，一下一下，像给整座镇子敲着起床的鼓点。你裹着旧斗篷穿过主街，灰烬雾还没散，空气里混着铁锈、隔夜麦酒和木柴烧过的味道。三百年了，这座镇子就这样醒过来，日复一日。</p>
-      <p class="lore-p" id="identityScene">佣兵公会在主街尽头，门脸不大，一块铁牌歪歪斜斜钉在门框上，写着「自由佣兵联盟」几个褪色的字。推门进去，炭火盆的暖意扑面而来，大厅里已经坐了三两拨人。柜台后一个矮人女人抬起头，来公会报到登记，接待员递上登记表。</p>
-      <p class="lore-p" id="identityGreeting">「新面孔。名字、种族、特质，自己填，填完盖手印。」</p>
-    </div>
-
-    <hr class="divider">
-
-    <!-- 当前任务（动态渲染） -->
-    <h2>◈ 当前任务</h2>
-    <div id="questsContainer">
-      <div class="quest-empty">暂无进行中的任务</div>
-    </div>
-
-    <hr class="divider">
-
-    <!-- 主线钩子 -->
-    <h2>◈ 主线钩子</h2>
-    <div class="hook-card" id="hookCard">
-      <div class="hook-name">老维特失踪</div>
-      <div class="hook-desc">告示板角落的泛黄旧单，墨迹洇开，铁钉生锈。似乎钉在那里很久了。</div>
-      <div class="hook-trigger">触发条件：主动询问</div>
-    </div>
-
-    <hr class="divider">
-
-    <!-- 启程按钮 -->
-    <button class="btn" onclick="enterGame()" data-ripple-bound="1">◈ 踏入灰烬废土 ◈</button>
-    <div class="footer">圣火骑士团 · 联合登记处 · 愿遗火照亮你的路</div>
-    <div class="page-num">— ⅲ —</div>
   </div>
 </div></section>
 
@@ -4367,23 +4048,17 @@ var attrNames={str:'力量',dex:'敏捷',con:'体质',wis:'感知',int:'智力',
 var raceHints={人类:'适应力：跨种族社交/跨势力交涉不劣势',矮人:'锻造之心：锻造/鉴定/负重相关检定优势',精灵:'自然之眼：草本/魔法鉴定/暗视相关检定优势',羊人:'山地步兵：攀爬/耐力/行军相关检定优势',虎族:'猎手：视觉追踪/近战搏斗检定优势',犬人:'嗅觉追踪/信使任务相关检定优势',灵耳族:'耳语机巧：听觉定位/精密操作检定优势',兔耳族:'超级跳跃：跳跃/闪避/斥候侦查相关检定优势',猫人:'夜目+猫步：夜间行动/潜行/平衡检定优势'};
 
 function switchPage(n){
-  var pages=['p1','p2','p3'];
+  var pages=['p1','p2'];
   var currentPage=document.querySelector('.page.active');
   var nextPage=document.getElementById(pages[n-1]);
+  if(!nextPage) return;
   if(currentPage)currentPage.classList.remove('active');
   nextPage.classList.add('active');
   nextPage.style.animation='none';void nextPage.offsetWidth;
   nextPage.style.animation='pageOpen .6s ease-out';
-
-  // 进入Page 3时更新开局叙事
-  if(n===3){
-    updateOpeningNarrative();
-  }
 }
 
 // 身份差异化开场数据
-var _lastOpeningData = null;  // saveCharacter 生成的开局数据缓存，供开局确认页渲染
-
 var IDENTITY_OPENINGS={
   '佣兵':{scene:'来公会报到登记，接待员递上登记表',greeting:'「新面孔。名字、种族、特质，自己填，填完盖手印。」'},
   '拾荒者':{scene:'顺路兑战利品，顺手接单',greeting:'「又来兑货？正好，昨晚上新贴了个活。」'},
@@ -4393,63 +4068,6 @@ var IDENTITY_OPENINGS={
   '工匠':{scene:'交订单修装备，接单',greeting:'「修装备？正好，修完有个活给你看看。」'},
   '医师':{scene:'收药材卖药剂，接单',greeting:'「收药材？正好有个灰烬森林的活，需要医师。」'}
 };
-
-function updateOpeningNarrative(){
-  var identity=document.getElementById('identity').value;
-  var opening=IDENTITY_OPENINGS[identity]||IDENTITY_OPENINGS['佣兵'];
-
-  // 更新身份差异化内容
-  document.getElementById('identityScene').innerHTML=
-    '佣兵公会在主街尽头，门脸不大，一块铁牌歪歪斜斜钉在门框上，写着「自由佣兵联盟」几个褪色的字。推门进去，炭火盆的暖意扑面而来，大厅里已经坐了三两拨人。柜台后一个矮人女人抬起头，'+opening.scene+'。';
-  document.getElementById('identityGreeting').textContent=opening.greeting;
-
-  // 开局数据渲染：时间 / 地点 / 当前任务 / 主线钩子（来自 createOpeningData，消除静态默认值）
-  var od = _lastOpeningData;
-  if (od) {
-    var tEl = document.getElementById('openTime');
-    if (tEl) tEl.textContent = od.time.display;
-    var lEl = document.getElementById('openLocation');
-    if (lEl) lEl.textContent = od.location.full;
-
-    var qc = document.getElementById('questsContainer');
-    if (qc) {
-      var q = od.initialQuest;
-      if (q) {
-        var objItems = (q.objectives || []).map(function(o) {
-          return '<div class="obj-item">' + o.target + '（0/' + o.required + '）</div>';
-        }).join('');
-        qc.innerHTML =
-          '<div class="quest-card">' +
-            '<div class="quest-name">' + q.name + '</div>' +
-            '<div class="quest-type">' + q.type + ' · 发布者：' + q.issuer + ' · 目标区域：' + q.targetArea + '</div>' +
-            '<div class="quest-desc">' + q.description + '</div>' +
-            '<div class="quest-objectives">' + objItems + '</div>' +
-            '<div class="quest-deadline"><span>时限：' + q.deadline.display + '</span><span>奖励：' + q.rewards.gold + ' 金币 + 声望 +' + q.rewards.reputation.amount + '（' + q.rewards.reputation.faction + '）</span></div>' +
-          '</div>';
-      } else {
-        qc.innerHTML = '<div class="quest-empty">暂无进行中的任务</div>';
-      }
-    }
-
-    var hookCard = document.getElementById('hookCard');
-    var hook = od.mainPlotHook;
-    if (hookCard && hook) {
-      hookCard.innerHTML =
-        '<div class="hook-name">' + hook.name + '</div>' +
-        '<div class="hook-desc">' + hook.description + '</div>' +
-        '<div class="hook-trigger">触发条件：' + hook.triggerCondition + '</div>';
-    }
-  }
-
-  // 重新触发动画
-  var narrativeBox = document.getElementById('narrativeBox');
-  var lorePs = narrativeBox.querySelectorAll('.lore-p');
-  lorePs.forEach(function(p) {
-    p.style.animation = 'none';
-    void p.offsetWidth;
-    p.style.animation = '';
-  });
-}
 
 // 生成进入游戏时的开局叙事文本（「启程」页内容搬入游戏叙事区，供 module 块 initGame 调用）
 window.buildOpeningIntro = function(od) {
@@ -4533,7 +4151,6 @@ function saveCharacter() {
     var openingData = createOpeningData({
       name: name, race: race, gender: gender, age: age, identity: identity, traits: traits.join(','), attributes: attributes
     });
-    _lastOpeningData = openingData;
     localStorage.setItem('calamityOpening', JSON.stringify(openingData));
 
     // 初始任务落库：进入游戏后即可出现在任务面板与 AI 任务上下文，并参与任务块结算
