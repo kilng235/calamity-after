@@ -4002,7 +4002,7 @@ function clearSTPreset() {
         }
       }
       refreshGameUI();
-      displayNarrative('\n◈ 已撤销上一回合，变量与记忆同步回退\n');
+      mountUndoBar(nd);
     } catch (e) {
       console.error('撤销失败:', e);
       displayNarrative('\n❌ 撤销失败: ' + e.message + '\n');
