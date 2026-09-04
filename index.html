@@ -2685,28 +2685,8 @@
 
         <hr class="divider" style="">
         <h2 style="">◈ Ⅱ. 显示设置</h2>
-        <label style="">◈ 正文模式（AI 集成后生效）</label>
-        <div class="radio-row" style="">
-          <label><input type="radio" name="narrative-mode" value="raw"> 原始格式</label>
-          <label><input type="radio" name="narrative-mode" value="beautified" checked=""> 美化格式</label>
-          <label><input type="radio" name="narrative-mode" value="hidden"> 隐藏标签</label>
-        </div>
-
-        <label style="">◈ 正文字号 <span id="font-val" style="color:var(--gold)">15px</span></label>
-        <input type="range" id="font-size" min="12" max="22" step="1" value="15" style="width: 100%; accent-color: var(--gold); --fill: 30%;" oninput="document.getElementById('font-val').textContent=this.value+'px'">
-
-        <div class="check-row" style="">
-          <input type="checkbox" id="fx-particles" checked="">
-          <label for="fx-particles" style="margin:0">金色魔法粉尘粒子</label>
-        </div>
-        <div class="check-row" style="">
-          <input type="checkbox" id="fx-candlelight" checked="">
-          <label for="fx-candlelight" style="margin:0">烛光摇曳</label>
-        </div>
-        <div class="check-row" style="">
-          <input type="checkbox" id="fx-sound">
-          <label for="fx-sound" style="margin:0">音效 <span style="color:var(--ink-faded);font-size:0.85em">（未实装）</span></label>
-        </div>
+        <label style="">◈ 正文字号 <span id="font-val" style="color:var(--gold)">15px</span> <span style="color:var(--ink-faded);font-size:0.85em">（拖动即时生效）</span></label>
+        <input type="range" id="font-size" min="12" max="22" step="1" value="15" style="width: 100%; accent-color: var(--gold); --fill: 30%;" oninput="onFontSizeInput(this)">
 
         <hr class="divider" style="">
         <h2 style="">◈ Ⅲ. 游戏设置</h2>
@@ -3164,37 +3144,32 @@ async function testEmbedding(){
 }
 
 var DEFAULT_SETTINGS = {
-  display: { narrativeMode:'beautified', particles:true, candlelight:true, sound:false, fontSize:15 },
+  display: { fontSize:15 },
   game: { autoSave:true, autoSaveInterval:5 }
 };
+
+// 字号即时生效：拖动滑杆立即应用到叙事区（保存后持久化）
+function onFontSizeInput(el){
+  document.getElementById('font-val').textContent = el.value + 'px';
+  var nd = document.getElementById('narrative-display');
+  if (nd) nd.style.fontSize = el.value + 'px';
+}
 
 function loadDisplaySettings(){
   try{
     var s = JSON.parse(localStorage.getItem('settings') || 'null') || DEFAULT_SETTINGS;
     var d = Object.assign({}, DEFAULT_SETTINGS.display, s.display);
     var g = Object.assign({}, DEFAULT_SETTINGS.game, s.game);
-    var modeRadios = document.querySelectorAll('input[name=narrative-mode]');
-    for(var i=0;i<modeRadios.length;i++){ modeRadios[i].checked = (modeRadios[i].value === d.narrativeMode); }
     document.getElementById('font-size').value = d.fontSize;
     document.getElementById('font-val').textContent = d.fontSize+'px';
-    document.getElementById('fx-particles').checked = d.particles;
-    document.getElementById('fx-candlelight').checked = d.candlelight;
-    document.getElementById('fx-sound').checked = d.sound;
     document.getElementById('autosave').checked = g.autoSave;
     document.getElementById('autosave-interval').value = g.autoSaveInterval;
   }catch(e){ console.warn('读取显示设置失败', e); }
 }
 
 function collectDisplaySettings(){
-  var mode = 'beautified';
-  var modeRadios = document.querySelectorAll('input[name=narrative-mode]');
-  for(var i=0;i<modeRadios.length;i++){ if(modeRadios[i].checked) mode = modeRadios[i].value; }
   return {
     display: {
-      narrativeMode: mode,
-      particles: document.getElementById('fx-particles').checked,
-      candlelight: document.getElementById('fx-candlelight').checked,
-      sound: document.getElementById('fx-sound').checked,
       fontSize: parseInt(document.getElementById('font-size').value)
     },
     game: {
@@ -3216,6 +3191,7 @@ function saveAll(){
   saveConfigHistory(apiCfg);
   embeddingService.updateConfig(collectEmbeddingConfig());
   localStorage.setItem('settings', JSON.stringify(collectDisplaySettings()));
+  if (window.applyDisplaySettings) window.applyDisplaySettings();
   var btn = document.querySelector('.btn-row .btn');
   var orig = btn.textContent;
   btn.textContent = '◈ 已铭刻 ◈';
@@ -4356,6 +4332,7 @@ function clearSTPreset() {
       }
     } catch (e) { /* ignore */ }
   }
+  window.applyDisplaySettings = applyDisplaySettings;
 
   // 暴露给路由：进入游戏视图时初始化
   window.initGameView = function() {
