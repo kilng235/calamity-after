@@ -97,14 +97,14 @@ const defaultGameData = {
   // 关系系统
   relationships: {},
   
-  // 游戏时间（灾厄纪年）
+  // 游戏时间（灾厄纪年，与登记册开局对齐：时间线设定当前为灾厄300年）
   gameTime: {
-    year: 303,
-    month: 5,
+    year: 300,
+    month: 11,
     day: 12,
-    hour: 14,
-    minute: 0,
-    season: '春'
+    hour: 7,
+    minute: 10,
+    season: '秋'
   },
   
   // 统计数据

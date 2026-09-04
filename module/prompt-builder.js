@@ -123,7 +123,7 @@ var promptBuilder = (function() {
         lines.push('## 背包');
         lines.push(_fmtInventory(gd.inventory));
         lines.push('## 位置与时间');
-        lines.push('当前位置：' + (p.currentLocation || '未知') + '　灾厄纪年：' + (t.year || 303) + '年'
+        lines.push('当前位置：' + (p.currentLocation || '未知') + '　灾厄纪年：' + (t.year || 300) + '年'
             + (t.month || '') + '月' + (t.day || '') + '日 ' + (t.hour || '') + ':' + (String(t.minute || 0).padStart(2, '0'))
             + '（' + (t.season || '') + '）');
         if (p.completedQuests && p.completedQuests.length) {
