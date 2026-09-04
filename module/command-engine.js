@@ -22,7 +22,7 @@ var commandEngine = (function () {
     var WRITABLE_ROOTS = [
         'character', 'attributes', 'backgrounds', 'fatePoints', 'hp',
         'equipment', 'inventory', 'currency', 'progress',
-        'relationships', 'gameTime', 'tone'
+        'relationships', 'gameTime', 'tone', 'skills', 'spells'
     ];
 
     /** 本地保留域：AI 一律不可写 */
@@ -57,12 +57,13 @@ var commandEngine = (function () {
         '关系.好感度': function (rest) { return 'relationships' + rest + '.好感度'; },
         
         // 泛化规则（用于未列举的子路径）
-        '属性': function (rest) { return 'attributes' + rest; },
-        '属性值': function (rest) { return 'attributes' + rest; },
-        '六维': function (rest) { return 'attributes' + rest; },
-        '角色': function (rest) { return 'character' + rest; },
-        '主角': function (rest) { return 'character' + rest; },
-        '玩家': function (rest) { return 'character' + rest; },
+        // 注意：容器型别名在“整键命中”时返回 null → 拒绝整体赋值，防止 set 关系 = 10 之类把容器核爆
+        '属性': function (rest) { return rest ? 'attributes' + rest : null; },
+        '属性值': function (rest) { return rest ? 'attributes' + rest : null; },
+        '六维': function (rest) { return rest ? 'attributes' + rest : null; },
+        '角色': function (rest) { return rest ? 'character' + rest : null; },
+        '主角': function (rest) { return rest ? 'character' + rest : null; },
+        '玩家': function (rest) { return rest ? 'character' + rest : null; },
         '名字': 'character.name',
         '姓名': 'character.name',
         '种族': 'character.race',
@@ -85,24 +86,24 @@ var commandEngine = (function () {
         '命运点上限': 'fatePoints.max',
         '背景特长': 'backgrounds',
         '特质': 'backgrounds',
-        '装备': function (rest) { return 'equipment' + rest; },
+        '装备': function (rest) { return rest ? 'equipment' + rest : null; },
         '背包': 'inventory',
         '物品列表': 'inventory',
         '金币': 'currency.gold',
         '金钱': 'currency.gold',
         '资金': 'currency.gold',
-        '进度': function (rest) { return 'progress' + rest; },
+        '进度': function (rest) { return rest ? 'progress' + rest : null; },
         '当前位置': 'progress.currentLocation',
         '位置': 'progress.currentLocation',
         '所在地': 'progress.currentLocation',
         '已解锁地点': 'progress.unlockedLocations',
         '已完成任务': 'progress.completedQuests',
-        '关系': function (rest) { return 'relationships' + rest; },
-        '好感': function (rest) { return 'relationships' + rest; },
-        '好感度': function (rest) { return 'relationships' + rest; },
-        '时间': function (rest) { return 'gameTime' + rest; },
-        '游戏时间': function (rest) { return 'gameTime' + rest; },
-        '灾厄纪年': function (rest) { return 'gameTime' + rest; },
+        '关系': function (rest) { return rest ? 'relationships' + rest : null; },
+        '好感': function (rest) { return rest ? 'relationships' + rest : null; },
+        '好感度': function (rest) { return rest ? 'relationships' + rest : null; },
+        '时间': function (rest) { return rest ? 'gameTime' + rest : null; },
+        '游戏时间': function (rest) { return rest ? 'gameTime' + rest : null; },
+        '灾厄纪年': function (rest) { return rest ? 'gameTime' + rest : null; },
         '年份': 'gameTime.year',
         '月份': 'gameTime.month',
         '日期': 'gameTime.day',
@@ -112,6 +113,8 @@ var commandEngine = (function () {
         '分钟': 'gameTime.minute',
         '分': 'gameTime.minute',
         '季节': 'gameTime.season',
+        '技能列表': 'skills',
+        '法术列表': 'spells',
         '基调': 'tone',
         '剧情基调': 'tone',
         '叙事基调': 'tone'
@@ -169,7 +172,14 @@ var commandEngine = (function () {
             if (!Object.prototype.hasOwnProperty.call(ALIAS_TABLE, alias)) continue;
             var rule = ALIAS_TABLE[alias];
             if (key === alias) {
-                return { ok: true, path: 'gameData.' + (typeof rule === 'function' ? rule('') : rule) };
+                if (typeof rule === 'function') {
+                    var rootPath = rule('');
+                    if (rootPath === null) {
+                        return { ok: false, path: '', reason: '禁止对容器整体赋值，请带子路径：' + key + '.xxx' };
+                    }
+                    return { ok: true, path: 'gameData.' + rootPath };
+                }
+                return { ok: true, path: 'gameData.' + rule };
             }
             if (key.indexOf(alias + '.') === 0 || key.indexOf(alias + '[') === 0) {
                 var rest = key.slice(alias.length);

@@ -1,61 +1,56 @@
 #!/usr/bin/env node
 /**
- * 灾厄之后·重制版 - YAML to JS 数据转换脚本
- * 
+ * 灾厄之后·重制版 - YAML to JS 数据转换脚本（v2 扁平格式）
+ *
  * 功能：
- * 1. 将 116 个 YAML 文件转换为姬侠传格式的 JS 模块
- * 2. 检测数据薄弱点（缺失字段、空内容、格式不一致）
- * 3. 生成数据质量报告
- * 4. 输出 prompt-data-calamity.js
- * 
+ * 1. 遍历 data-source/世界书/ 全部 YAML/TXT，生成三个 JS 数据模块（直写根目录 module/）：
+ *    - prompt-data-core-calamity.js  扁平格式 export const promptData = { '分类/条目名': 正文 }
+ *    - prompt-data-npc-calamity.js   嵌套格式 calamityPrompts.NPC（兼容兜底）
+ *    - prompt-data-world-calamity.js 嵌套格式 calamityPrompts（其余分类，兼容兜底）
+ * 2. 剥离成对的 XML 式包装标签（<Xxx> ... </Xxx>，ST 式条目类型标记，不入 Prompt）
+ * 3. 数据质量检查 + 生成报告
+ *
+ * key 规则：key = '最深目录名/文件名（去扩展名）'
+ *   世界书/装备/武器/铁剑.yaml → '武器/铁剑'
+ *   世界书/地理/势力/圣火骑士团.yaml → '势力/圣火骑士团'
+ *   世界书/地理/区域·北方山脉.yaml → '地理/区域·北方山脉'
+ *
  * 使用：
- * node tools/convert-yaml-to-js.js
+ * node tools/convert-yaml-to-js.js   （或项目根目录 npm run convert）
  */
 
 const fs = require('fs');
 const path = require('path');
-const yaml = require('js-yaml');
 
 // ==================== 配置 ====================
 const CONFIG = {
   inputDir: path.join(__dirname, '..', '世界书'),
-  outputDir: path.join(__dirname, '..', 'module'),
+  outputDir: path.join(__dirname, '..', '..', 'module'),   // 直写运行时模块目录
   reportDir: path.join(__dirname, '..', 'reports'),
-  
-  // 输出文件名
+
   outputs: {
-    core: 'prompt-data-core-calamity.js',      // 核心提示词（系统规则）
-    npc: 'prompt-data-npc-calamity.js',        // NPC 人设
-    world: 'prompt-data-world-calamity.js',    // 世界观/地理/势力
-    report: 'data-quality-report.md'            // 数据质量报告
+    core: 'prompt-data-core-calamity.js',      // 扁平：全部分类（运行时主数据源）
+    npc: 'prompt-data-npc-calamity.js',        // 嵌套：NPC（兜底）
+    world: 'prompt-data-world-calamity.js',    // 嵌套：其余分类（兜底）
+    report: 'data-quality-report.md'
   },
-  
-  // 姬侠传格式模板
-  templates: {
-    moduleHeader: `/**
- * 灾厄之后·重制版 - 自动生成的提示词数据
- * 生成时间: {{timestamp}}
- * 源文件数量: {{fileCount}}
- * 
- * 警告：此文件由脚本自动生成，请勿手动编辑
- * 如需修改，请编辑源 YAML 文件后重新运行转换脚本
- */
 
-export const calamityPrompts = {`,
-    
-    moduleFooter: `};
-
-// 导出便捷访问函数
-export function getPrompt(category, key) {
-  return calamityPrompts[category]?.[key] || '';
-}
-
-export function getAllPrompts(category) {
-  return calamityPrompts[category] || {};
-}
-`
-  }
+  // 输出排序用固定分类顺序（未列出的分类追加在末尾）
+  categoryOrder: ['NPC', '世界观', '势力', '地理', '种族', '生物', '装备', '武器', '护甲', '检定', '扮演准则', '时间线', '系统']
 };
+
+// 剥离成对的 XML 式包装标签（首行 <Xxx> / 末行 </Xxx>），并去除首尾空行
+function stripWrapperTags(content) {
+  let lines = content.replace(/\r\n/g, '\n').split('\n');
+  while (lines.length && !lines[0].trim()) lines.shift();
+  while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
+  if (!lines.length) return '';
+  if (/^<[\w\u4e00-\u9fa5·-]+>$/.test(lines[0])) lines.shift();
+  while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
+  if (lines.length && /^<\/[\w\u4e00-\u9fa5·-]+>$/.test(lines[lines.length - 1])) lines.pop();
+  while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
+  return lines.join('\n');
+}
 
 // ==================== 数据质量检查器 ====================
 class DataQualityChecker {
@@ -77,11 +72,11 @@ class DataQualityChecker {
   // 检查 NPC 数据完整性
   checkNPC(filename, data) {
     const content = this._extractText(data);
-    
+
     // 对于 Markdown 格式，检查是否包含必要的章节标题
     const required = ['基础信息', '外貌', '性格', '背景'];
     const recommended = ['能力', '跑团接口', '战斗值', '六维'];
-    
+
     // 检查必要章节
     for (const section of required) {
       if (!content.includes(section)) {
@@ -93,7 +88,7 @@ class DataQualityChecker {
         });
       }
     }
-    
+
     // 检查内容长度
     if (content.length < 500) {
       this.issues.warning.push({
@@ -110,7 +105,7 @@ class DataQualityChecker {
       });
       this.stats.missingRequired++;
     }
-    
+
     // 检查战斗数值
     if (!content.includes('HP') && !content.includes('生命值') && !content.includes('战斗值')) {
       this.issues.warning.push({
@@ -120,7 +115,7 @@ class DataQualityChecker {
         severity: 'warning'
       });
     }
-    
+
     if (!content.includes('六维') && !content.includes('力量') && !content.includes('敏捷')) {
       this.issues.warning.push({
         file: filename,
@@ -134,7 +129,7 @@ class DataQualityChecker {
   // 检查系统规则数据
   checkSystem(filename, data) {
     const content = this._extractText(data);
-    
+
     if (content.length < 50) {
       this.issues.warning.push({
         file: filename,
@@ -143,7 +138,7 @@ class DataQualityChecker {
       });
       this.stats.shortContent++;
     }
-    
+
     // 检查是否有示例
     if (filename.includes('检定') || filename.includes('战斗') || filename.includes('锻造')) {
       if (!content.includes('示例') && !content.includes('例：') && !content.includes('例子')) {
@@ -218,295 +213,181 @@ class DataQualityChecker {
 class YAMLConverter {
   constructor(checker) {
     this.checker = checker;
-    this.data = {
-      core: {},      // 核心系统规则
-      npc: {},       // NPC 数据
-      world: {}      // 世界观数据
-    };
+    // 扁平数据：category -> { '分类/条目名': 正文 }
+    this.flat = {};
   }
 
-  // 处理所有文件
-  async processAll() {
-    console.log('🚀 开始转换 YAML 文件...\n');
-    
-    // 处理 NPC
-    await this.processDirectory('NPC', 'npc');
-    
-    // 处理系统规则
-    await this.processDirectory('系统', 'core');
-    
-    // 处理世界观
-    await this.processDirectory('世界观', 'world');
-    
-    // 处理地理
-    await this.processDirectory('地理', 'world');
-    
-    // 处理其他目录
-    const otherDirs = ['种族', '生物', '装备', '检定', '扮演准则', '时间线'];
-    for (const dir of otherDirs) {
-      await this.processDirectory(dir, 'world');
+  // 按固定顺序展开全部条目：[[key, content], ...]
+  allEntries() {
+    const cats = Object.keys(this.flat).sort((a, b) => {
+      const ia = CONFIG.categoryOrder.indexOf(a);
+      const ib = CONFIG.categoryOrder.indexOf(b);
+      return (ia === -1 ? CONFIG.categoryOrder.length : ia) - (ib === -1 ? CONFIG.categoryOrder.length : ib)
+        || a.localeCompare(b, 'zh');
+    });
+    const entries = [];
+    for (const cat of cats) {
+      for (const key of Object.keys(this.flat[cat]).sort((a, b) => a.localeCompare(b, 'zh'))) {
+        entries.push([key, this.flat[cat][key]]);
+      }
     }
-    
+    return entries;
+  }
+
+  // 递归遍历世界书目录
+  processAll() {
+    console.log('🚀 开始转换 YAML 文件...\n');
+    console.log(`📁 根目录: ${CONFIG.inputDir}`);
+    this.walkDirectory(CONFIG.inputDir);
     console.log(`\n✅ 处理完成: ${this.checker.stats.processedFiles}/${this.checker.stats.totalFiles} 个文件\n`);
   }
 
-  // 处理单个目录
-  async processDirectory(dirName, category) {
-    const dirPath = path.join(CONFIG.inputDir, dirName);
-    
-    if (!fs.existsSync(dirPath)) {
-      console.log(`⚠️  目录不存在: ${dirName}`);
-      return;
-    }
-    
-    console.log(`📁 处理目录: ${dirName}`);
-    
-    const files = this.getAllFiles(dirPath);
-    
-    for (const file of files) {
-      this.checker.stats.totalFiles++;
-      
-      try {
-        await this.processFile(file, category, dirName);
-        this.checker.stats.processedFiles++;
-      } catch (error) {
-        console.error(`❌ 处理失败: ${path.basename(file)}`);
-        console.error(`   错误: ${error.message}`);
-        this.checker.issues.critical.push({
-          file: path.basename(file),
-          issue: `解析失败: ${error.message}`,
-          severity: 'critical'
-        });
-      }
-    }
-  }
-
-  // 递归获取所有文件
-  getAllFiles(dirPath) {
-    let files = [];
-    const items = fs.readdirSync(dirPath);
-    
+  walkDirectory(dirPath, relParts = []) {
+    const items = fs.readdirSync(dirPath).sort();
     for (const item of items) {
       const fullPath = path.join(dirPath, item);
       const stat = fs.statSync(fullPath);
-      
       if (stat.isDirectory()) {
-        files = files.concat(this.getAllFiles(fullPath));
+        this.walkDirectory(fullPath, relParts.concat(item));
       } else if (item.endsWith('.yaml') || item.endsWith('.txt')) {
-        files.push(fullPath);
-      }
-    }
-    
-    return files;
-  }
-
-  // 处理单个文件
-  async processFile(filePath, category, dirName) {
-    const filename = path.basename(filePath, path.extname(filePath));
-    const content = fs.readFileSync(filePath, 'utf8');
-    
-    let data;
-    
-    // 检测文件格式
-    if (filePath.endsWith('.yaml')) {
-      // 检查是否为 Markdown 格式（以 # 开头）
-      if (content.trim().startsWith('#')) {
-        // 这是 Markdown 格式的 YAML 文件，直接作为字符串处理
-        data = content;
-      } else {
-        // 尝试作为标准 YAML 解析
+        this.checker.stats.totalFiles++;
         try {
-          data = yaml.load(content);
+          this.processFile(fullPath, relParts.concat(item));
+          this.checker.stats.processedFiles++;
         } catch (error) {
-          // 解析失败，回退到字符串处理
-          console.log(`   ⚠️  ${filename} YAML 解析失败，作为文本处理`);
-          data = content;
+          console.error(`❌ 处理失败: ${item} → ${error.message}`);
+          this.checker.issues.critical.push({
+            file: item,
+            issue: `解析失败: ${error.message}`,
+            severity: 'critical'
+          });
         }
       }
-    } else if (filePath.endsWith('.txt')) {
-      data = content; // TXT 直接作为字符串
     }
-    
-    // 数据质量检查
-    if (category === 'npc') {
-      this.checker.checkNPC(filename, data);
-    } else if (category === 'core') {
-      this.checker.checkSystem(filename, data);
-    } else if (category === 'world') {
-      this.checker.checkWorld(filename, data);
-    }
-    
-    // 存储转换后的数据
-    const key = this.generateKey(filename, dirName);
-    
-    if (!this.data[category][dirName]) {
-      this.data[category][dirName] = {};
-    }
-    
-    this.data[category][dirName][key] = this.formatData(data, category, filename);
-    
-    console.log(`   ✓ ${filename}`);
   }
 
-  // 生成键名（转为驼峰命名）
-  generateKey(filename, dirName) {
-    // 移除数字前缀（如 "030NPC尾铃" → "尾铃"）
-    let key = filename.replace(/^\d+/, '');
-    
-    // 移除特殊前缀
-    key = key.replace(/^NPC/, '').replace(/^区域·/, '');
-    
-    return key || filename;
-  }
+  // 处理单个文件：relParts = ['地理', '势力', '圣火骑士团.yaml']
+  processFile(filePath, relParts) {
+    const filename = relParts[relParts.length - 1];
+    const baseName = filename.replace(/\.(yaml|txt)$/, '');
+    const dirParts = relParts.slice(0, -1);
+    const category = dirParts[dirParts.length - 1];
+    const key = `${category}/${baseName}`;
 
-  // 格式化数据为姬侠传格式
-  formatData(data, category, filename) {
-    // 如果已经是字符串（Markdown 格式），直接返回
-    if (typeof data === 'string') {
-      return data;
-    }
-    
-    // 转换为姬侠传的提示词格式
-    if (category === 'npc') {
-      return this.formatNPC(data);
-    } else if (category === 'core') {
-      return this.formatSystem(data);
+    // 全部条目按 Markdown 散文处理，不尝试 YAML 结构化解析
+    let content = fs.readFileSync(filePath, 'utf8');
+    content = stripWrapperTags(content);
+
+    // 数据质量检查（按目录粗分：NPC / 系统 / 其余）
+    if (category === 'NPC') {
+      this.checker.checkNPC(baseName, content);
+    } else if (category === '系统') {
+      this.checker.checkSystem(baseName, content);
     } else {
-      return this.formatWorld(data);
+      this.checker.checkWorld(baseName, content);
     }
+
+    if (!this.flat[category]) this.flat[category] = {};
+    this.flat[category][key] = content;
+    console.log(`   ✓ ${key}`);
   }
 
-  // 格式化 NPC 数据
-  formatNPC(data) {
-    const sections = [];
-    
-    // 基础信息
-    if (data['基础信息']) {
-      sections.push('## 基础信息');
-      sections.push(this.objectToText(data['基础信息']));
-    }
-    
-    // 外貌要点
-    if (data['外貌要点']) {
-      sections.push('\n## 外貌要点');
-      sections.push(this.objectToText(data['外貌要点']));
-    }
-    
-    // 性格与口癖
-    if (data['性格与口癖']) {
-      sections.push('\n## 性格与口癖');
-      sections.push(this.objectToText(data['性格与口癖']));
-    }
-    
-    // 背景与剧情钩子
-    if (data['背景与剧情钩子']) {
-      sections.push('\n## 背景与剧情钩子');
-      sections.push(this.objectToText(data['背景与剧情钩子']));
-    }
-    
-    // 能力与服务
-    if (data['能力与服务']) {
-      sections.push('\n## 能力与服务');
-      sections.push(this.objectToText(data['能力与服务']));
-    }
-    
-    // 跑团接口
-    if (data['跑团接口']) {
-      sections.push('\n## 跑团接口');
-      sections.push(this.objectToText(data['跑团接口']));
-    }
-    
-    return sections.join('\n');
-  }
-
-  // 格式化系统规则数据
-  formatSystem(data) {
-    return this.objectToText(data);
-  }
-
-  // 格式化世界观数据
-  formatWorld(data) {
-    return this.objectToText(data);
-  }
-
-  // 对象转文本
-  objectToText(obj, indent = '') {
-    if (typeof obj === 'string') return obj;
-    if (typeof obj === 'number' || typeof obj === 'boolean') return String(obj);
-    if (obj === null || obj === undefined) return '';
-    
-    if (Array.isArray(obj)) {
-      return obj.map(item => `${indent}- ${this.objectToText(item, indent + '  ')}`).join('\n');
-    }
-    
-    if (typeof obj === 'object') {
-      const lines = [];
-      for (const [key, value] of Object.entries(obj)) {
-        if (typeof value === 'object' && !Array.isArray(value)) {
-          lines.push(`${indent}${key}:`);
-          lines.push(this.objectToText(value, indent + '  '));
-        } else {
-          lines.push(`${indent}${key}: ${this.objectToText(value, indent + '  ')}`);
-        }
-      }
-      return lines.join('\n');
-    }
-    
-    return '';
-  }
-
-  // 生成 JS 模块
+  // 生成三个 JS 模块 + 校验输出目录
   generateModules() {
     console.log('\n📝 生成 JS 模块...\n');
-    
-    // 确保输出目录存在
+
     if (!fs.existsSync(CONFIG.outputDir)) {
       fs.mkdirSync(CONFIG.outputDir, { recursive: true });
     }
-    
+
     const timestamp = new Date().toISOString();
-    
-    // 生成核心提示词模块
-    this.writeModule('core', CONFIG.outputs.core, timestamp);
-    
-    // 生成 NPC 提示词模块
-    this.writeModule('npc', CONFIG.outputs.npc, timestamp);
-    
-    // 生成世界观提示词模块
-    this.writeModule('world', CONFIG.outputs.world, timestamp);
-    
+    this.writeCoreModule(CONFIG.outputs.core, timestamp);
+    this.writeNestedModule(['NPC'], CONFIG.outputs.npc, timestamp);
+    this.writeNestedModule(
+      Object.keys(this.flat).filter((c) => c !== 'NPC'),
+      CONFIG.outputs.world,
+      timestamp
+    );
+
     console.log('✅ JS 模块生成完成\n');
   }
 
-  // 写入模块文件
-  writeModule(category, filename, timestamp) {
-    const outputPath = path.join(CONFIG.outputDir, filename);
-    
-    // 生成模块头部
-    let content = CONFIG.templates.moduleHeader
-      .replace('{{timestamp}}', timestamp)
-      .replace('{{fileCount}}', Object.keys(this.data[category]).length);
-    
-    content += '\n';
-    
-    // 生成数据
-    for (const [dir, items] of Object.entries(this.data[category])) {
-      content += `  // ${dir}\n`;
-      content += `  "${dir}": {\n`;
-      
-      for (const [key, value] of Object.entries(items)) {
-        const escapedValue = JSON.stringify(value);
-        content += `    "${key}": ${escapedValue},\n`;
+  // 扁平格式：export const promptData = { '分类/条目名': 正文 }
+  writeCoreModule(filename, timestamp) {
+    const entries = this.allEntries();
+    let content = `/**
+ * 灾厄之后·重制版 - 自动生成的提示词数据（扁平格式）
+ * 生成时间: ${timestamp}
+ * 条目数量: ${entries.length}
+ *
+ * 警告：此文件由脚本自动生成，请勿手动编辑
+ * 如需修改，请编辑 data-source/世界书/ 源 YAML 后重新运行: npm run convert
+ */
+
+export const promptData = {
+`;
+    let lastCat = null;
+    for (const [key, value] of entries) {
+      const cat = key.split('/')[0];
+      if (cat !== lastCat) {
+        content += `\n  // ── ${cat} ──\n`;
+        lastCat = cat;
       }
-      
-      content += `  },\n\n`;
+      content += `  ${JSON.stringify(key)}: ${JSON.stringify(value)},\n`;
     }
-    
-    // 生成模块尾部
-    content += CONFIG.templates.moduleFooter;
-    
+    content += `};
+
+export default promptData;
+`;
+    const outputPath = path.join(CONFIG.outputDir, filename);
     fs.writeFileSync(outputPath, content, 'utf8');
-    console.log(`   ✓ ${filename}`);
+    console.log(`   ✓ ${filename}（扁平 ${entries.length} 条）→ ${outputPath}`);
+  }
+
+  // 嵌套格式（兼容兜底）：export const calamityPrompts = { 分类: { 条目名: 正文 } }
+  writeNestedModule(categories, filename, timestamp) {
+    const sorted = categories.slice().sort((a, b) => {
+      const ia = CONFIG.categoryOrder.indexOf(a);
+      const ib = CONFIG.categoryOrder.indexOf(b);
+      return (ia === -1 ? CONFIG.categoryOrder.length : ia) - (ib === -1 ? CONFIG.categoryOrder.length : ib)
+        || a.localeCompare(b, 'zh');
+    });
+
+    let content = `/**
+ * 灾厄之后·重制版 - 自动生成的提示词数据（嵌套格式，兜底数据源）
+ * 生成时间: ${timestamp}
+ *
+ * 警告：此文件由脚本自动生成，请勿手动编辑
+ * 如需修改，请编辑 data-source/世界书/ 源 YAML 后重新运行: npm run convert
+ */
+
+export const calamityPrompts = {
+`;
+    let count = 0;
+    for (const cat of sorted) {
+      const items = this.flat[cat] || {};
+      content += `  ${JSON.stringify(cat)}: {\n`;
+      for (const key of Object.keys(items).sort((a, b) => a.localeCompare(b, 'zh'))) {
+        const shortKey = key.split('/').slice(1).join('/');
+        content += `    ${JSON.stringify(shortKey)}: ${JSON.stringify(items[key])},\n`;
+        count++;
+      }
+      content += `  },\n`;
+    }
+    content += `};
+
+// 导出便捷访问函数
+export function getPrompt(category, key) {
+  return (calamityPrompts[category] || {})[key] || '';
+}
+
+export function getAllPrompts(category) {
+  return calamityPrompts[category] || {};
+}
+`;
+    const outputPath = path.join(CONFIG.outputDir, filename);
+    fs.writeFileSync(outputPath, content, 'utf8');
+    console.log(`   ✓ ${filename}（嵌套 ${count} 条）→ ${outputPath}`);
   }
 }
 
@@ -519,32 +400,32 @@ class ReportGenerator {
 
   generate() {
     console.log('📊 生成数据质量报告...\n');
-    
+
     // 确保报告目录存在
     if (!fs.existsSync(CONFIG.reportDir)) {
       fs.mkdirSync(CONFIG.reportDir, { recursive: true });
     }
-    
+
     const report = this.checker.generateReport();
     const markdown = this.generateMarkdown(report);
-    
+
     const reportPath = path.join(CONFIG.reportDir, CONFIG.outputs.report);
     fs.writeFileSync(reportPath, markdown, 'utf8');
-    
+
     console.log(`✅ 报告已保存: ${reportPath}\n`);
-    
+
     // 打印摘要
     this.printSummary(report);
   }
 
   generateMarkdown(report) {
     const lines = [];
-    
+
     lines.push('# 灾厄之后·重制版 - 数据质量报告');
     lines.push('');
     lines.push(`> 生成时间: ${new Date().toLocaleString('zh-CN')}`);
     lines.push('');
-    
+
     // 摘要
     lines.push('## 📊 数据摘要');
     lines.push('');
@@ -556,7 +437,7 @@ class ReportGenerator {
     lines.push(`| 警告 | ${report.summary.warnings} |`);
     lines.push(`| 建议 | ${report.summary.suggestions} |`);
     lines.push('');
-    
+
     // 严重问题
     if (report.issues.critical.length > 0) {
       lines.push('## 🚨 严重问题（需立即修复）');
@@ -568,19 +449,19 @@ class ReportGenerator {
         lines.push('');
       }
     }
-    
+
     // 警告
     if (report.issues.warning.length > 0) {
       lines.push('## ⚠️ 警告（建议修复）');
       lines.push('');
-      
+
       // 按文件分组
       const byFile = {};
       for (const issue of report.issues.warning) {
         if (!byFile[issue.file]) byFile[issue.file] = [];
         byFile[issue.file].push(issue);
       }
-      
+
       for (const [file, issues] of Object.entries(byFile)) {
         lines.push(`### ${file}`);
         lines.push('');
@@ -594,7 +475,7 @@ class ReportGenerator {
         lines.push('');
       }
     }
-    
+
     // 建议
     if (report.issues.suggestion.length > 0) {
       lines.push('## 💡 优化建议');
@@ -604,7 +485,7 @@ class ReportGenerator {
       }
       lines.push('');
     }
-    
+
     // 统计详情
     lines.push('## 📈 统计详情');
     lines.push('');
@@ -612,7 +493,7 @@ class ReportGenerator {
     lines.push(`- 内容过短: ${report.stats.shortContent} 处`);
     lines.push(`- 空字段: ${report.stats.emptyFields} 处`);
     lines.push('');
-    
+
     // 数据完整度评分
     const score = this.calculateScore(report);
     lines.push('## 🎯 数据完整度评分');
@@ -623,7 +504,7 @@ class ReportGenerator {
     lines.push(`- 推荐字段完整性: ${score.recommended}/30`);
     lines.push(`- 内容质量: ${score.quality}/30`);
     lines.push('');
-    
+
     // 建议行动
     lines.push('## 🔧 建议行动');
     lines.push('');
@@ -637,24 +518,23 @@ class ReportGenerator {
       lines.push('3. **考虑优化建议**（添加示例、丰富描述）');
     }
     lines.push('');
-    
+
     return lines.join('\n');
   }
 
   calculateScore(report) {
-    const total = report.summary.processedFiles;
     const critical = report.summary.criticalIssues;
     const warnings = report.summary.warnings;
-    
+
     // 必填字段完整性（40 分）
     const required = Math.max(0, 40 - (critical * 2));
-    
+
     // 推荐字段完整性（30 分）
     const recommended = Math.max(0, 30 - (warnings * 0.5));
-    
+
     // 内容质量（30 分）
     const quality = Math.max(0, 30 - (report.stats.shortContent * 0.3));
-    
+
     return {
       total: Math.round(required + recommended + quality),
       required: Math.round(required),
@@ -671,11 +551,11 @@ class ReportGenerator {
     console.log(`严重问题: ${report.summary.criticalIssues}`);
     console.log(`警告: ${report.summary.warnings}`);
     console.log(`建议: ${report.summary.suggestions}`);
-    
+
     const score = this.calculateScore(report);
     console.log(`数据完整度: ${score.total}/100`);
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
-    
+
     if (report.summary.criticalIssues > 0) {
       console.log('⚠️  发现严重问题，请查看报告后修复');
     } else if (report.summary.warnings > 10) {
@@ -691,23 +571,23 @@ class ReportGenerator {
 async function main() {
   try {
     console.log('\n🎮 灾厄之后·重制版 - 数据转换工具\n');
-    
+
     // 初始化
     const checker = new DataQualityChecker();
     const converter = new YAMLConverter(checker);
-    
+
     // 处理所有文件
-    await converter.processAll();
-    
+    converter.processAll();
+
     // 生成 JS 模块
     converter.generateModules();
-    
+
     // 生成报告
     const reporter = new ReportGenerator(checker, converter);
     reporter.generate();
-    
+
     console.log('🎉 转换完成！\n');
-    
+
   } catch (error) {
     console.error('\n❌ 转换失败:', error.message);
     console.error(error.stack);
@@ -720,4 +600,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { YAMLConverter, DataQualityChecker, ReportGenerator };
+module.exports = { YAMLConverter, DataQualityChecker, ReportGenerator, stripWrapperTags };

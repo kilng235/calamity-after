@@ -39,11 +39,11 @@ let rollCounts = {
 // ==================== 核心掷骰函数 ====================
 
 /**
- * 掷一个指定面数的骰子
+ * 掷一枚指定面数的骰子（模块内部随机源）
  * @param {number} sides - 骰子面数 (4, 6, 8, 10, 12, 20)
  * @returns {number} 骰值 (1 到 sides)
  */
-function rollDice(sides) {
+function rollOne(sides) {
   return Math.floor(Math.random() * sides) + 1;
 }
 
@@ -56,9 +56,26 @@ function rollDice(sides) {
 function rollMultiple(sides, count) {
   const results = [];
   for (let i = 0; i < count; i++) {
-    results.push(rollDice(sides));
+    results.push(rollOne(sides));
   }
   return results;
+}
+
+/**
+ * 通用掷骰接口（兼容锻造/炼金/词缀系统的 rollDice(数量, 面数) 签名）
+ * @param {number} count - 骰子数量
+ * @param {number} [sides] - 骰子面数；省略时按 rollDice(面数) 掷一枚
+ * @returns {number} 骰值总和
+ */
+export function rollDice(count, sides) {
+  if (sides === undefined) {
+    return rollOne(count);
+  }
+  let total = 0;
+  for (let i = 0; i < count; i++) {
+    total += rollOne(sides);
+  }
+  return total;
 }
 
 // ==================== 导出函数 ====================
@@ -68,7 +85,7 @@ function rollMultiple(sides, count) {
  * @returns {{ value: number, cycled: boolean, timestamp: number }}
  */
 export function getD20() {
-  const value = rollDice(20);
+  const value = rollOne(20);
   
   // 记录统计
   rollCounts.d20++;
@@ -89,8 +106,8 @@ export function getD20() {
  * @returns {{ values: number[], cycled: boolean, rolls: Array }}
  */
 export function get2D20() {
-  const value1 = rollDice(20);
-  const value2 = rollDice(20);
+  const value1 = rollOne(20);
+  const value2 = rollOne(20);
   
   // 记录统计
   rollCounts.d20 += 2;
@@ -186,7 +203,7 @@ export function getDice(type) {
     throw new Error(`❌ 无效的骰子类型: ${type}`);
   }
   
-  const value = rollDice(sides);
+  const value = rollOne(sides);
   
   // 记录统计
   rollCounts[type]++;
@@ -363,6 +380,7 @@ if (typeof window !== 'undefined') {
 
 export default {
   // 核心函数
+  rollDice,
   getDice,
   getMultipleDice,
   

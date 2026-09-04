@@ -9,6 +9,10 @@
 
 var worldbookEngine = (function() {
 
+    // 注入上限（防长对话 system 无限膨胀）
+    var INJECT_MAX_ENTRIES = 8;    // 单轮最多注入条目数
+    var INJECT_MAX_CHARS = 6000;   // 注入内容总字符预算
+
     // 从条目名提取可匹配关键词（去掉分类前缀与常见后缀，按分隔符拆分）
     function _keywords(key) {
         var cleaned = String(key)
@@ -22,16 +26,16 @@ var worldbookEngine = (function() {
         return parts.filter(function(p) { return p.length >= 2; });
     }
 
-    // 排除不按关键词触发的条目
+    // 排除不按关键词触发的条目（骰子池由 prompt-builder 每轮展开注入，不走关键词匹配）
     function _isSkippable(key) {
-        return key === '生成规则' || key === '总纲' || key === '开局大纲' || key === '开局生成规则';
+        return key === '生成规则' || key === '总纲' || key === '开局大纲' || key === '开局生成规则' || key === '骰子池';
     }
 
     /**
-     * 在指定分类内做关键词匹配
+     * 在指定分类内做关键词匹配（带条目数与字符预算上限，按分类顺序即优先级）
      * @param {string} userInput - 本次用户输入
      * @param {string} lastAIReply - 上一次 AI 完整回复
-     * @param {string[]} categories - 要扫描的分类
+     * @param {string[]} categories - 要扫描的分类（顺序即优先级）
      * @returns {Array<{category, key, content}>}
      */
     function match(userInput, lastAIReply, categories) {
@@ -40,19 +44,29 @@ var worldbookEngine = (function() {
         if (!searchText) return [];
         var result = [];
         var seen = {};
+        var usedChars = 0;
 
-        categories.forEach(function(cat) {
+        for (var ci = 0; ci < categories.length; ci++) {
+            var cat = categories[ci];
+            if (result.length >= INJECT_MAX_ENTRIES) return result;
             var entries = window.calamityData.getCategory(cat);
-            Object.keys(entries).forEach(function(key) {
-                if (_isSkippable(key)) return;
+            var keys = Object.keys(entries);
+            for (var ki = 0; ki < keys.length; ki++) {
+                if (result.length >= INJECT_MAX_ENTRIES) return result;
+                var key = keys[ki];
+                if (_isSkippable(key)) continue;
                 var kws = _keywords(key);
                 var hit = kws.some(function(kw) { return searchText.indexOf(kw) !== -1; });
                 if (hit && !seen[cat + '/' + key]) {
                     seen[cat + '/' + key] = true;
-                    result.push({ category: cat, key: key, content: entries[key] });
+                    var content = entries[key];
+                    // 超预算的条目整条跳过（不截断，保持条目完整）
+                    if (usedChars + content.length > INJECT_MAX_CHARS) continue;
+                    usedChars += content.length;
+                    result.push({ category: cat, key: key, content: content });
                 }
-            });
-        });
+            }
+        }
 
         return result;
     }
@@ -68,10 +82,10 @@ var worldbookEngine = (function() {
     }
 
     /**
-     * 通用世界书匹配（Prompt 注入用）
+     * 通用世界书匹配（Prompt 注入用；NPC 与检定规则优先）
      */
     function matchWorldbook(userInput, lastAIReply) {
-        return match(userInput, lastAIReply, ['NPC', '地理', '势力', '生物', '种族', '武器', '护甲', '装备', '检定']);
+        return match(userInput, lastAIReply, ['NPC', '检定', '地理', '势力', '生物', '种族', '武器', '护甲', '装备']);
     }
 
     /**

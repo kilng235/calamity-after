@@ -68,6 +68,12 @@ const defaultGameData = {
   
   // 背包
   inventory: [],
+
+  // 技能列表（对齐技能总纲：{name, level(1-3), source, learnedAt}）
+  skills: [],
+
+  // 法术列表（对齐法术总纲：{name, school, level(1-3), source, learnedAt}）
+  spells: [],
   
   // 金钱
   currency: {

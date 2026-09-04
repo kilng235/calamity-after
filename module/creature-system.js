@@ -240,7 +240,7 @@ const CREATURE_TEMPLATES = {
   },
   
   '白骨行者': {
-    id: 'bonew alker',
+    id: 'bonewalker',
     name: '白骨行者',
     threatLevel: '低',
     type: '异常生物',

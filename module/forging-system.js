@@ -315,24 +315,24 @@ class ForgingSystem {
       advantage = true; // 持工具获优势
     }
 
-    // 执行检定
+    // 执行检定（check-system 契约：attribute + gameState + dc）
     const checkResult = performCheck({
-      character,
-      attributeName,
+      attribute: attributeName,
+      gameState: character,
       dc,
       advantage,
       disadvantage,
-      context: '锻造检定'
+      description: '锻造检定'
     });
 
     // 计算成果分级
     const surplus = checkResult.total - dc;
     let grade = FORGE_RESULT_GRADE.FAILURE;
-    
-    if (checkResult.natural20) {
+
+    if (checkResult.criticalSuccess) {
       // 天然20强制成功
       grade = surplus >= 10 ? FORGE_RESULT_GRADE.EXCELLENT : FORGE_RESULT_GRADE.GOOD;
-    } else if (checkResult.natural1) {
+    } else if (checkResult.criticalFailure) {
       // 天然1强制大失败
       grade = FORGE_RESULT_GRADE.FAILURE;
     } else if (surplus >= 10) {
@@ -351,7 +351,7 @@ class ForgingSystem {
       surplus,
       grade: grade.name,
       gradeLevel: grade.grade,
-      success: surplus >= 0 || checkResult.natural20
+      success: surplus >= 0 || checkResult.criticalSuccess
     };
 
     this.craftingHistory.push({

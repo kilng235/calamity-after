@@ -28,6 +28,26 @@ var promptBuilder = (function() {
         return (window.calamityData && window.calamityData.get(cat, key)) || '';
     }
 
+    /**
+     * 展开 {{roll:dN}} 宏为实时骰值（仅用于骰子池条目，每轮构建时重新掷出）
+     */
+    function _expandDiceMacros(text) {
+        if (!text || text.indexOf('{{roll:') === -1) return text;
+        return text.replace(/\{\{roll:d(\d+)\}\}/g, function(_, sidesStr) {
+            var sides = parseInt(sidesStr, 10) || 20;
+            return String(1 + Math.floor(Math.random() * sides));
+        });
+    }
+
+    /**
+     * 骰子池块：每轮注入实时掷出的骰值（反作弊设计：模型依序取用，不得编造）
+     */
+    function _buildDicePool() {
+        var pool = _wb('系统', '骰子池');
+        if (!pool) return '';
+        return '# 骰子池（本轮实时掷出，按序取用）\n' + _expandDiceMacros(pool);
+    }
+
     function _fmtAttr(attributes) {
         var names = ['力量', '敏捷', '体质', '感知', '智力', '魅力'];
         return names.map(function(n) {
@@ -245,6 +265,8 @@ var promptBuilder = (function() {
         sections.push(_buildWorldview());
         sections.push(_buildOutputRules());
         sections.push(_buildCheckRules());
+        var dicePool = _buildDicePool();
+        if (dicePool) sections.push(dicePool);
         var opening = _buildOpeningBlock();
         if (opening) sections.push(opening);
         var wb = _buildWorldbookBlocks(npcBlocks, wbBlocks);
@@ -275,6 +297,7 @@ var promptBuilder = (function() {
      * @param {string} params.userMessage - 本次用户输入
      * @param {Object} params.gameData - 游戏状态
      * @param {string} [params.lastAssistantReply] - 上一次 AI 回复
+     * @param {Array<{role,content}>} [params.history] - 滚动对话历史（多轮上下文）
      * @returns {{messages: Array<{role, content}>}}
      */
     function buildMessages(params) {
@@ -282,9 +305,19 @@ var promptBuilder = (function() {
         var userMessage = params.userMessage || '';
         var gd = params.gameData || {};
         var lastAssistantReply = params.lastAssistantReply || '';
+        var history = Array.isArray(params.history) ? params.history : [];
 
-        // 世界书触发
-        var blocks = (window.worldbookEngine && window.worldbookEngine.buildWorldbookBlocks(userMessage, lastAssistantReply)) || { npcBlocks: [], wbBlocks: [], actionGuide: null };
+        // 世界书触发（无显式上轮回复时，回退到历史中最近的 assistant 消息）
+        var scanText = lastAssistantReply;
+        if (!scanText) {
+            for (var hi = history.length - 1; hi >= 0; hi--) {
+                if (history[hi] && history[hi].role === 'assistant' && history[hi].content) {
+                    scanText = String(history[hi].content);
+                    break;
+                }
+            }
+        }
+        var blocks = (window.worldbookEngine && window.worldbookEngine.buildWorldbookBlocks(userMessage, scanText)) || { npcBlocks: [], wbBlocks: [], actionGuide: null };
         var npcBlocks = blocks.npcBlocks;
         var wbBlocks = blocks.wbBlocks;
         var actionGuide = blocks.actionGuide;
@@ -312,6 +345,14 @@ var promptBuilder = (function() {
         if (presetChain) {
             for (ci = 0; ci < presetChain.before.length; ci++) {
                 messages.push(presetChain.before[ci]);
+            }
+        }
+
+        // 对话历史（滚动窗口，来自本地 chat context；置于 before 段之后、本次输入之前）
+        for (ci = 0; ci < history.length; ci++) {
+            var hmsg = history[ci];
+            if (hmsg && (hmsg.role === 'user' || hmsg.role === 'assistant') && hmsg.content) {
+                messages.push({ role: hmsg.role, content: String(hmsg.content) });
             }
         }
 

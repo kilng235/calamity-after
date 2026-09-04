@@ -120,16 +120,32 @@ var apiService = (function() {
         if (config.presencePenaltyEnabled) target[isGemini ? 'presencePenalty' : 'presence_penalty'] = config.presencePenalty;
     }
 
+    // 非流式请求默认超时（毫秒）：挂起时中断 fetch，避免调用方 busy 锁死
+    var DEFAULT_REQUEST_TIMEOUT = 180000;
+
     async function sendMessages(messages, options) {
         if (!config.endpoint || !config.apiKey || !config.model) {
             throw new Error('请先配置 API 信息（endpoint, key, model）');
         }
         var signal = options && options.signal;
-        var maxTokens = _resolveMaxOutputTokens(options);
-        if (config.type === 'gemini') {
-            return _callGemini(messages, signal, maxTokens);
+        var timeoutMs = (options && options.timeoutMs) || config.requestTimeoutMs || DEFAULT_REQUEST_TIMEOUT;
+        if (!signal) {
+            var controller = new AbortController();
+            signal = controller.signal;
+            setTimeout(function() { controller.abort(); }, timeoutMs);
         }
-        return _callOpenAI(messages, signal, maxTokens);
+        var maxTokens = _resolveMaxOutputTokens(options);
+        try {
+            if (config.type === 'gemini') {
+                return await _callGemini(messages, signal, maxTokens);
+            }
+            return await _callOpenAI(messages, signal, maxTokens);
+        } catch (e) {
+            if (e && (e.name === 'AbortError' || e.name === 'TimeoutError')) {
+                throw new Error('请求超时（' + Math.round(timeoutMs / 1000) + ' 秒），已中断');
+            }
+            throw e;
+        }
     }
 
     async function _callOpenAI(messages, signal, maxTokens) {
@@ -182,7 +198,7 @@ var apiService = (function() {
             };
         });
 
-        var url = _resolveUrl(config.endpoint.replace(/\/+$/, '') + '/models/' + config.model + ':generateContent?key=' + encodeURIComponent(config.apiKey));
+        var url = _resolveUrl(config.endpoint.replace(/\/+$/, '') + '/models/' + config.model + ':generateContent');
         console.log('[API] 发送请求到 Gemini:', url);
 
         var _genConfig = { temperature: config.temperature };
@@ -194,7 +210,7 @@ var apiService = (function() {
         _applyExtraSamplerParams(_genConfig, true);
         var response = await fetch(url, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': config.apiKey },
             body: JSON.stringify({
                 contents: contents,
                 systemInstruction: { parts: [{ text: systemPrompt }] },
@@ -247,9 +263,10 @@ var apiService = (function() {
     }
 
     async function _fetchGeminiModels(endpoint, apiKey) {
-        var url = _resolveUrl(endpoint.replace(/\/+$/, '') + '/models?key=' + encodeURIComponent(apiKey));
+        var url = _resolveUrl(endpoint.replace(/\/+$/, '') + '/models');
         var response = await fetch(url, {
-            method: 'GET'
+            method: 'GET',
+            headers: { 'x-goog-api-key': apiKey }
         });
         if (!response.ok) {
             var text = '';
@@ -315,10 +332,10 @@ var apiService = (function() {
         var contents = messages.map(function(m) {
             return { role: 'user', parts: [{ text: m.content }] };
         });
-        var url = cfg.endpoint.replace(/\/+$/, '') + '/models/' + cfg.model + ':generateContent?key=' + encodeURIComponent(cfg.apiKey);
+        var url = cfg.endpoint.replace(/\/+$/, '') + '/models/' + cfg.model + ':generateContent';
         var response = await fetch(url, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cfg.apiKey },
             body: JSON.stringify({
                 contents: contents,
                 generationConfig: { temperature: cfg.temperature || 0.85, maxOutputTokens: 100 }
@@ -464,7 +481,7 @@ var apiService = (function() {
             };
         });
 
-        var url = _resolveUrl(config.endpoint.replace(/\/+$/, '') + '/models/' + config.model + ':streamGenerateContent?alt=sse&key=' + encodeURIComponent(config.apiKey));
+        var url = _resolveUrl(config.endpoint.replace(/\/+$/, '') + '/models/' + config.model + ':streamGenerateContent?alt=sse');
         var fullContent = '';
         var _streamGenConfig = { temperature: config.temperature };
         if (typeof maxTokens === 'number') {
@@ -477,7 +494,7 @@ var apiService = (function() {
         try {
             var response = await fetch(url, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'x-goog-api-key': config.apiKey },
                 body: JSON.stringify({
                     contents: contents,
                     systemInstruction: systemPrompt ? { parts: [{ text: systemPrompt }] } : undefined,

@@ -94,10 +94,16 @@ var variableSystem = (function() {
         return merged;
     }
 
+    // 三级合并快照（turn > session > global），供 variable-utils 等消费方使用
+    function getAll() {
+        return toTemplateVars();
+    }
+
     return {
         init: init,
         get: get,
         set: set,
+        getAll: getAll,
         commitTurn: commitTurn,
         rollbackTurn: rollbackTurn,
         hasTurnPending: hasTurnPending,

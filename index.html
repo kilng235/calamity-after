@@ -2355,874 +2355,6 @@
 <script src="./module/variable-utils.js"></script>
 <script src="./module/variable-ui.js"></script>
 
-<script>
- 加载并挂载到 window
-  const apiService = window.apiService;
-  const promptBuilder = window.promptBuilder;
-  const responseParser = window.responseParser;
-  const commandProcessor = window.commandProcessor;
-  const worldbookEngine = window.worldbookEngine;
-
-  // 全局状态
-  window.currentCombat = null;
-  let isProcessing = false;  // 防止重复提交
-
-  // ==================== 变量→UI 绑定注册 ====================
-
-  /**
-   * 注册默认 UI 绑定槽位（对齐 ST 的 registerSlot 范式）
-   * 将 gameData 字段绑定到对应的 HTML 元素，数据变更时自动刷新
-   */
-  function registerDefaultSlots() {
-    if (!window.variableUI || !window.variableUtils) {
-      console.warn('[UI绑定] variableUI 或 variableUtils 未加载');
-      return;
-    }
-
-    var ui = window.variableUI;
-    var utils = window.variableUtils;
-
-    // ── 顶部状态栏 ──
-
-    // 角色名
-    ui.registerSlot('#player-name span', 'character.name', { always: true });
-
-    // HP 文本（复合格式：current/max）
-    ui.registerSlot('#hp-text', 'hp', {
-      always: true,
-      formatter: function(data) {
-        var hp = data.hp || {};
-        return (hp.current || 0) + '/' + (hp.max || 0);
-      },
-      secondarySelector: '#hp-fill',
-      secondaryFormatter: function(data) {
-        var hp = data.hp || {};
-        var pct = hp.max > 0 ? Math.round((hp.current / hp.max) * 100) : 0;
-        return { width: pct + '%' };
-      }
-    });
-
-    // 金币
-    ui.registerSlot('#gold-text', 'currency.gold', { always: true });
-
-    // 命运点（复合格式：current/max）
-    ui.registerSlot('#fate-points', 'fatePoints', {
-      always: true,
-      formatter: function(data) {
-        var fp = data.fatePoints || {};
-        return (fp.current || 0) + '/' + (fp.max || 0);
-      }
-    });
-
-    // ── 左侧面板：角色信息 ──
-
-    // 种族
-    ui.registerSlot('#char-race', 'character.race', { always: true });
-
-    // 等级
-    ui.registerSlot('#char-level', 'character.level', { always: true });
-
-    // 经验（复合格式：current/max）
-    ui.registerSlot('#char-exp', 'character', {
-      always: true,
-      formatter: function(data) {
-        var c = data.character || {};
-        return (c.exp || 0) + '/' + (c.expToNextLevel || 100);
-      }
-    });
-
-    console.log('[UI绑定] 已注册', ui.getSlots().length, '个槽位');
-  }
-
-  // 初始化
-  function init() {
-    // 唯一真源：gameData（calamity-game-state）
-    gameState.initGameData();
-    let gd = gameState.getGameData();
-
-    // 兼容旧档：从 localStorage['character'] 迁移一次
-    gameState.migrateFromCharacter();
-    gd = gameState.getGameData();
-
-    // 从开局系统同步角色数据（register.html 创建的开局数据）
-    // 先保存开局数据用于叙事，再同步
-    var openingJson = localStorage.getItem('calamityOpening');
-    var openingData = null;
-    if (openingJson) {
-      try { openingData = JSON.parse(openingJson); } catch (e) {}
-    }
-
-    syncFromOpeningSystem(gd);
-
-    // 从未创建过角色（迁移后仍是默认名）→ 回开局页
-    if (gd.character.name === '旅行者' && !localStorage.getItem('character') && !localStorage.getItem('calamityOpeningSynced')) {
-      window.location.href = 'start-screen.html';
-      return;
-    }
-
-    // 更新UI（全部来自 gameData）
-    document.querySelector('#player-name span').textContent = gd.character.name;
-    document.getElementById('char-race').textContent = gd.character.race || '人类';
-    document.getElementById('char-level').textContent = gd.character.level;
-    document.getElementById('char-exp').textContent = `${gd.character.exp}/${gd.character.expToNextLevel}`;
-    document.getElementById('gold-text').textContent = gd.currency.gold;
-    document.getElementById('fate-points').textContent = `${gd.fatePoints.current}/${gd.fatePoints.max}`;
-
-    updateHPBar(gd.hp.current, gd.hp.max);
-    updateAttributes(gd.attributes);
-    updateEquipment(gd.equipment);
-    updateInventory(gd.inventory);
-
-    // 注册变量→UI 绑定并触发首次刷新
-    registerDefaultSlots();
-    if (window.variableUI) window.variableUI.populateAll({ force: true });
-
-    // 显示欢迎消息（如果有开局数据，使用开局叙事）
-    if (openingData) {
-      displayNarrative(generateOpeningNarrative(openingData));
-    } else {
-      displayNarrative(generateWelcomeMessage(gd.character));
-    }
-
-    // 应用显示设置
-    applyDisplaySettings();
-  }
-
-  // 从开局系统同步角色数据到 gameData
-  function syncFromOpeningSystem(gd) {
-    var openingJson = localStorage.getItem('calamityOpening');
-    if (!openingJson) return;
-
-    try {
-      var opening = JSON.parse(openingJson);
-      var c = opening.character;
-      var s = opening.stats;
-
-      // 同步角色基本信息
-      gd.character.name = c.name;
-      gd.character.race = c.race;
-      gd.character.identity = c.identity;
-      gd.character.gender = c.gender;
-      gd.character.age = c.age;
-      gd.character.level = s.level;
-
-      // 同步六维属性
-      if (c.attributes) {
-        gd.attributes.strength = c.attributes['力量'] || 10;
-        gd.attributes.dexterity = c.attributes['敏捷'] || 10;
-        gd.attributes.constitution = c.attributes['体质'] || 10;
-        gd.attributes.wisdom = c.attributes['感知'] || 10;
-        gd.attributes.intelligence = c.attributes['智力'] || 10;
-        gd.attributes.charisma = c.attributes['魅力'] || 10;
-      }
-
-      // 同步HP/MP
-      gd.hp.current = s.hp;
-      gd.hp.max = s.hpMax;
-      gd.mp = { current: s.mp, max: s.mpMax };
-
-      // 同步金币/命运点
-      gd.currency.gold = s.gold;
-      gd.fatePoints.current = s.fatePoint;
-      gd.fatePoints.max = 1;
-
-      // 同步初始装备
-      if (opening.equipment && opening.equipment.mainHand) {
-        gd.equipment.mainHand = opening.equipment.mainHand;
-      }
-
-      // 标记已同步，避免重复
-      localStorage.removeItem('calamityOpening');
-      localStorage.setItem('calamityOpeningSynced', 'true');
-    } catch (e) {
-      console.warn('开局数据同步失败:', e);
-    }
-  }
-
-  // 身份差异化开场数据
-  var IDENTITY_OPENINGS = {
-    '佣兵': { scene: '来公会报到登记，接待员递上登记表', greeting: '「新面孔。名字、种族、特质，自己填，填完盖手印。」' },
-    '拾荒者': { scene: '顺路兑战利品，顺手接单', greeting: '「又来兑货？正好，昨晚上新贴了个活。」' },
-    '学者': { scene: '雇向导查资料，接单作野外保障', greeting: '「要雇向导？灰烬森林那边正好有个委托，顺路。」' },
-    '猎人': { scene: '卖猎物顺带问行情，接单', greeting: '「今天的猎物不错。正好有个材料狩猎的活，接不接？」' },
-    '商贩': { scene: '谈供货押运，接单', greeting: '「要谈押运？正好有个灰烬森林的活，顺路。」' },
-    '工匠': { scene: '交订单修装备，接单', greeting: '「修装备？正好，修完有个活给你看看。」' },
-    '医师': { scene: '收药材卖药剂，接单', greeting: '「收药材？正好有个灰烬森林的活，需要医师。」' }
-  };
-
-  // 生成开局叙事
-  function generateOpeningNarrative(opening) {
-    var identity = opening.character.identity || '佣兵';
-    var o = IDENTITY_OPENINGS[identity] || IDENTITY_OPENINGS['佣兵'];
-    var time = opening.time.display;
-    var q = opening.initialQuest;
-    var objText = q.objectives.map(function(ob) { return ob.target + ' ' + ob.current + '/' + ob.required; }).join('、');
-
-    return '----- ✦ ' + time + ' ✦ -----\n\n<content>\n\n' +
-      '锈钉镇的清晨比想象中醒得早。天还没全亮，铁匠铺的锤声就隔着两条街传过来，一下一下，像给整座镇子敲着起床的鼓点。你裹着旧斗篷穿过主街，灰烬雾还没散，空气里混着铁锈、隔夜麦酒和木柴烧过的味道。三百年了，这座镇子就这样醒过来，日复一日。\n\n' +
-      '佣兵公会在主街尽头，门脸不大，一块铁牌歪歪斜斜钉在门框上，写着「自由佣兵联盟」几个褪色的字。推门进去，炭火盆的暖意扑面而来，大厅里已经坐了三两拨人。柜台后一个矮人女人抬起头，' + o.scene + '。\n\n' +
-      o.greeting + '\n\n' +
-      '你填完表，她扫了一眼，从柜台下抽出一张皱巴巴的纸：「正好，昨晚上新贴的。灰烬森林材料狩猎，灰烬狼皮三张，焦木蜥鳞片两片，三天限期，按市价收。狼皮一张三金，鳞片一片五金，公会抽一成。接不接？」\n\n' +
-      '告示板的角落里，还钉着一张边角泛黄的旧单子，墨迹被潮气洇开大半，只隐约能认出几个字：老维特，失踪，赏金待定。铁钉已经生锈，像是钉在那里很久了。\n\n' +
-      '你把材料狩猎的单子从木钉上取下来，卷好，塞进斗篷内袋。出城时铁匠铺门口的矮人铁匠看了一眼你腰间的铁剑，咧嘴一笑：「新来的吧，第一单活？」你没答话，他也不再问，回身继续敲他的铁。镇门口的老守门人叼着烟斗，扫过你的登记凭证，摆摆手：「灰烬森林别往深了走，天黑前回来。」\n\n' +
-      '公会大门在你身后合上，灰烬雾正从镇外漫进来。灰烬森林的方向，天边泛着一层灰白。\n\n' +
-      '接下来，往哪走，是你自己的事了。\n\n' +
-      '<status>\n当前任务：' + q.name + '（' + q.deadline.display + '限期）\n' +
-      '目标：' + objText + '\n</status>';
-  }
-  
-  // 生成欢迎消息
-  function generateWelcomeMessage(character) {
-    return `
------ ✦ 灾厄303年5月12日 14:00 ✦ -----
-
-<content>
-
-欢迎，${character.name}。
-
-你是一名${character.race}冒险者，踏入了灾厄之后的废土世界。
-
-眼前是锈钉镇的入口，这里是五大势力交汇的边境小镇。破败的木栅栏，焦黑的土地，空气中弥漫着灰烬的气味。
-
-远处传来佣兵们的喧闹声，镇子中心的圣火骑士团哨所竖立着燃烧的旗帜。
-
-你的冒险，从这里开始。
-
-</content>
-    `;
-  }
-  
-  // 更新HP条
-  function updateHPBar(current, max) {
-    const percent = (current / max) * 100;
-    document.getElementById('hp-fill').style.width = percent + '%';
-    document.getElementById('hp-text').textContent = `${current}/${max}`;
-    
-    // 颜色变化
-    const fill = document.getElementById('hp-fill');
-    if (percent < 30) {
-      fill.style.background = 'linear-gradient(90deg, #f44336, #e91e63)';
-    } else if (percent < 60) {
-      fill.style.background = 'linear-gradient(90deg, #ff9800, #ffc107)';
-    } else {
-      fill.style.background = 'linear-gradient(90deg, #4caf50, #8bc34a)';
-    }
-  }
-  
-  // 更新属性显示
-  function updateAttributes(attributes) {
-    const list = document.getElementById('attr-list');
-    list.innerHTML = '';
-    
-    Object.entries(attributes).forEach(([name, value]) => {
-      const modifier = checkSystem.calculateModifier(value);
-      const modStr = modifier >= 0 ? `+${modifier}` : modifier;
-      
-      const item = document.createElement('div');
-      item.className = 'attr-item';
-      item.innerHTML = `<span>${name}</span><span>${value} (${modStr})</span>`;
-      list.appendChild(item);
-    });
-  }
-  
-  // 更新装备显示
-  function updateEquipment(equipment) {
-    const list = document.getElementById('equipment-list');
-    list.innerHTML = '';
-
-    if (!equipment || Object.keys(equipment).length === 0) {
-      list.innerHTML = '<div style="color: var(--ink-faded);">无装备</div>';
-      return;
-    }
-
-    // 槽位名中英文映射
-    const slotNames = {
-      mainHand: '主手',
-      offHand: '副手',
-      body: '身体',
-      head: '头部',
-      hands: '手部',
-      legs: '腿部',
-      feet: '脚部',
-      shoulders: '肩部',
-      accessory1: '饰品1',
-      accessory2: '饰品2'
-    };
-
-    let shown = 0;
-    Object.entries(equipment).forEach(([slot, item]) => {
-      if (item) {
-        const div = document.createElement('div');
-        const slotName = slotNames[slot] || slot;
-        div.textContent = `${slotName}: ${item.name}`;
-        div.style.marginBottom = '5px';
-        list.appendChild(div);
-        shown++;
-      }
-    });
-    if (shown === 0) list.innerHTML = '<div style="color: var(--ink-faded);">无装备</div>';
-  }
-
-  // 更新背包显示
-  function updateInventory(inventory) {
-    const list = document.getElementById('inventory-list');
-    list.innerHTML = '';
-
-    if (!Array.isArray(inventory) || inventory.length === 0) {
-      list.innerHTML = '<div style="color: var(--ink-faded);">空</div>';
-      return;
-    }
-    inventory.forEach(item => {
-      const div = document.createElement('div');
-      const count = item.count || item.quantity || 1;
-      div.textContent = count > 1 ? `${item.name} ×${count}` : item.name;
-      div.style.marginBottom = '5px';
-      list.appendChild(div);
-    });
-  }
-
-  // 刷新全部状态栏（命令应用/本地结算后调用）
-  window.refreshStatusDisplay = function() {
-    const gd = gameState.getGameData();
-    document.querySelector('#player-name span').textContent = gd.character.name;
-    document.getElementById('char-race').textContent = gd.character.race || '人类';
-    document.getElementById('char-level').textContent = gd.character.level;
-    document.getElementById('char-exp').textContent = `${gd.character.exp}/${gd.character.expToNextLevel}`;
-    document.getElementById('gold-text').textContent = gd.currency.gold;
-    document.getElementById('fate-points').textContent = `${gd.fatePoints.current}/${gd.fatePoints.max}`;
-    updateHPBar(gd.hp.current, gd.hp.max);
-    updateAttributes(gd.attributes);
-    updateEquipment(gd.equipment);
-    updateInventory(gd.inventory);
-  };
-  
-  // 显示正文
-  function displayNarrative(text) {
-    const display = document.getElementById('narrative-display');
-    const div = document.createElement('div');
-    div.style.marginBottom = '20px';
-    div.style.whiteSpace = 'pre-wrap';
-    div.textContent = text;
-    display.appendChild(div);
-    display.scrollTop = display.scrollHeight;
-  }
-  
-  // 发送消息
-  window.sendMessage = async function() {
-    const input = document.getElementById('input-box');
-    const message = input.value.trim();
-    
-    if (!message || isProcessing) return;
-    
-    isProcessing = true;
-    input.value = '';
-    input.disabled = true;
-    
-    try {
-      // 显示玩家输入
-      displayNarrative(`\n> ${message}\n`);
-      
-      // 显示加载提示
-      const loadingDiv = document.createElement('div');
-      loadingDiv.id = 'loading-indicator';
-      loadingDiv.textContent = '🌀 AI 思考中...';
-      loadingDiv.style.cssText = 'padding: 10px; color: #ffd700; font-style: italic;';
-      document.getElementById('narrative-display').appendChild(loadingDiv);
-      
-      // 获取当前游戏数据
-      const gd = gameState.getGameData();
-      
-// 构建提示词
-      let prompt;
-      try {
-        prompt = promptBuilder.buildMessages({
-          gameData: gd,
-          userMessage: message
-        });
-      } catch (e) {
-        console.warn('buildMessages 调用异常，使用最小提示词:', e);
-        prompt = { messages: [
-          { role: 'system', content: '你是一名灾厄之后废土世界的叙事者。' },
-          { role: 'user', content: message }
-        ] };
-      }
-
-      // 调用 AI（通过 api-service）
-      const apiConfig = apiService.getConfig();
-      if (!apiConfig || !apiConfig.apiKey) {
-        throw new Error('未配置 API Key，请前往设置页面配置');
-      }
-
-      const aiResult = await apiService.sendMessages({
-        messages: prompt.messages,
-        model: apiConfig.model,
-        temperature: 0.8,
-        stream: false
-      });
-
-      const responseContent = aiResult && aiResult.content
-        ? aiResult.content
-        : (typeof aiResult === 'string' ? aiResult : '');
-      
-      // 移除加载提示
-      if (loadingDiv.parentNode) {
-        loadingDiv.remove();
-      }
-      
-// 解析 AI 响应
-      const parsed = responseParser.run(responseContent);
-
-      // 显示正文（包含框线版检定卡和战斗卡）
-      displayNarrative('\n' + parsed.mainText);
-
-      // 应用命令到 gameData
-      if (parsed.commands && parsed.commands.length > 0) {
-        const result = commandProcessor.applyCommands(gd, parsed.commands);
-
-        if (result.report && result.report.rejected && result.report.rejected.length > 0) {
-          console.warn('命令被拒绝:', result.report.rejected);
-          displayNarrative('\n\n⚠️ 部分命令未能执行（非法路径或类型不匹配）\n');
-        }
-
-        // 保存更新后的 gameData
-        gameState.importGameData(result.gameData);
-
-        // 刷新 UI
-        refreshUI();
-      }
-
-      // 保存对话历史（可选）
-      saveToHistory(message, responseContent);
-      
-    } catch (error) {
-      console.error('AI 调用失败:', error);
-      displayNarrative(`\n❌ 错误: ${error.message}\n`);
-      
-      // 移除加载提示
-      const loadingDiv = document.getElementById('loading-indicator');
-      if (loadingDiv) {
-        loadingDiv.remove();
-      }
-    } finally {
-      isProcessing = false;
-      input.disabled = false;
-      input.focus();
-    }
-  };
-  
-  // 刷新 UI（根据 gameData 更新所有显示）
-  function refreshUI() {
-    const gd = gameState.getGameData();
-    
-    // 更新角色信息
-    document.getElementById('char-level').textContent = gd.character.level;
-    document.getElementById('char-exp').textContent = `${gd.character.exp}/${gd.character.expToNextLevel}`;
-    document.getElementById('gold-text').textContent = gd.currency.gold;
-    document.getElementById('fate-points').textContent = `${gd.fatePoints.current}/${gd.fatePoints.max}`;
-    
-    // 更新 HP 条
-    updateHPBar(gd.hp.current, gd.hp.max);
-    
-    // 更新属性
-    updateAttributes(gd.attributes);
-    
-    // 更新装备
-    updateEquipment(gd.equipment);
-    
-    // 更新背包
-    updateInventory(gd.inventory);
-    
-    // 更新时间显示（如果有）
-    if (gd.gameTime) {
-      const timeStr = `灾厄${gd.gameTime.year}年${gd.gameTime.month}月${gd.gameTime.day}日 ${String(gd.gameTime.hour).padStart(2, '0')}:${String(gd.gameTime.minute).padStart(2, '0')}`;
-      const timeDisplay = document.getElementById('time-display');
-      if (timeDisplay) {
-        timeDisplay.textContent = timeStr;
-      }
-    }
-  }
-  
-  // 保存对话历史
-  function saveToHistory(userInput, aiResponse) {
-    try {
-      const history = JSON.parse(localStorage.getItem('calamity-chat-history') || '[]');
-      history.push({
-        timestamp: Date.now(),
-        user: userInput,
-        ai: aiResponse
-      });
-      
-      // 只保留最近 50 条
-      if (history.length > 50) {
-        history.splice(0, history.length - 50);
-      }
-      
-      localStorage.setItem('calamity-chat-history', JSON.stringify(history));
-    } catch (e) {
-      console.warn('保存历史失败:', e);
-    }
-  }
-  
-  /* 调试用快捷函数（已从 UI 移除）
-  // 快捷战斗
-  window.quickBattle = function() {
-    const gd = gameState.getGameData();
-    const character = {
-      name: gd.character.name,
-      level: gd.character.level,
-      attributes: gd.attributes,
-      hp: { ...gd.hp },
-      ac: gd.character.ac,
-      equipment: gd.equipment
-    };
-
-    const combat = combatSystem.startCombat(character, ['灰烬狼']);
-    window.currentCombat = combat;
-
-    // 自动战斗演示
-    let round = 0;
-    const interval = setInterval(() => {
-      if (combat.status !== 'active' || round >= 5) {
-        clearInterval(interval);
-
-        // 显示战斗结果
-        const narrative = narrativeSystem.generateCombatNarrative(combat);
-        displayNarrative(narrative);
-
-        // 更新角色状态（写回 gameData 唯一真源）
-        gd.hp.current = Math.max(0, Math.min(gd.hp.max, combat.player.hp.current));
-        gameState.saveGameData();
-
-        if (combat.status === 'victory' && combat.rewards) {
-          gameState.addExp(combat.rewards.exp);
-          gameState.addGold(combat.rewards.gold);
-        }
-        window.refreshStatusDisplay();
-
-        window.currentCombat = null;
-        return;
-      }
-
-      const actor = combatSystem.getCurrentActor(combat);
-      if (actor && actor.type === 'player') {
-        const targets = combatSystem.getAliveEnemies(combat);
-        if (targets.length > 0) {
-          combatSystem.playerAttack(combat, targets[0].id, 'mainHand');
-        }
-      }
-
-      round++;
-    }, 100);
-  };
-
-  // 快捷检定
-  window.quickCheck = function() {
-    const gd = gameState.getGameData();
-
-    const result = checkSystem.performCheck({
-      attribute: '感知',
-      dc: 15,
-      description: '观察周围环境',
-      gameState: {
-        attributes: gd.attributes,
-        proficiencyBonus: gd.character.proficiencyBonus
-      }
-    });
-
-    const context = '你仔细观察周围的环境。';
-    const narrative = narrativeSystem.generateCheckNarrative(result, context);
-    displayNarrative(narrative);
-  };
-  */
-  
-  // ─ 背包系统 ──
-  const SLOT_NAMES = { mainHand:'主手', offHand:'副手', body:'身体', head:'头部', hands:'手部', legs:'腿部', feet:'脚部', shoulders:'肩部', accessory1:'饰品1', accessory2:'饰品2' };
-  const TYPE_LABELS = { weapon:'武器', armor:'护甲', consumable:'消耗品', material:'材料', quest:'任务', misc:'杂项' };
-
-  function openInventory() {
-    const gd = gameState.getGameData();
-    const body = document.getElementById('inv-body');
-    const footer = document.getElementById('inv-footer');
-    if (!body) return;
-    body.innerHTML = '';
-
-    const eqTitle = document.createElement('div');
-    eqTitle.className = 'inv-section-title';
-    eqTitle.textContent = '已装备';
-    body.appendChild(eqTitle);
-
-    const eq = gd.equipment || {};
-    let eqCount = 0;
-    Object.entries(eq).forEach(([slot, item]) => {
-      if (!item) return;
-      eqCount++;
-      const row = document.createElement('div');
-      row.className = 'inv-slot';
-      const nameSpan = document.createElement('span');
-      nameSpan.className = 'inv-slot-name';
-      nameSpan.textContent = (SLOT_NAMES[slot] || slot) + ' · ' + item.name;
-      row.appendChild(nameSpan);
-      if (item.durability !== undefined) {
-        const dur = document.createElement('span');
-        dur.className = 'inv-slot-dur';
-        dur.textContent = '耐久 ' + item.durability;
-        row.appendChild(dur);
-      }
-      const btn = document.createElement('button');
-      btn.className = 'inv-slot-btn';
-      btn.textContent = '卸下';
-      btn.onclick = () => invUnequip(slot);
-      row.appendChild(btn);
-      body.appendChild(row);
-    });
-    if (eqCount === 0) {
-      const empty = document.createElement('div');
-      empty.className = 'inv-empty';
-      empty.textContent = '无装备';
-      body.appendChild(empty);
-    }
-
-    const invTitle = document.createElement('div');
-    invTitle.className = 'inv-section-title';
-    invTitle.textContent = '背包';
-    body.appendChild(invTitle);
-
-    const inv = gd.inventory || [];
-    if (!inv.length) {
-      const empty = document.createElement('div');
-      empty.className = 'inv-empty';
-      empty.textContent = '背包是空的';
-      body.appendChild(empty);
-    } else {
-      inv.forEach((item, idx) => {
-        const row = document.createElement('div');
-        row.className = 'inv-slot';
-        const nameSpan = document.createElement('span');
-        nameSpan.className = 'inv-slot-name';
-        const count = item.count || item.quantity || 1;
-        nameSpan.textContent = item.name + (count > 1 ? ' ×' + count : '');
-        row.appendChild(nameSpan);
-        const typeLabel = TYPE_LABELS[item.type] || item.type || '';
-        if (typeLabel) {
-          const typeSpan = document.createElement('span');
-          typeSpan.className = 'inv-slot-type';
-          typeSpan.textContent = typeLabel;
-          row.appendChild(typeSpan);
-        }
-        if (item.durability !== undefined) {
-          const dur = document.createElement('span');
-          dur.className = 'inv-slot-dur';
-          dur.textContent = '耐久 ' + item.durability;
-          row.appendChild(dur);
-        }
-        if (item.type === 'weapon' || item.type === 'armor') {
-          const eqBtn = document.createElement('button');
-          eqBtn.className = 'inv-slot-btn';
-          eqBtn.textContent = '装备';
-          eqBtn.onclick = () => invEquip(idx);
-          row.appendChild(eqBtn);
-        }
-        if (item.type === 'consumable') {
-          const useBtn = document.createElement('button');
-          useBtn.className = 'inv-slot-btn';
-          useBtn.textContent = '使用';
-          useBtn.onclick = () => invUse(idx);
-          row.appendChild(useBtn);
-        }
-        const dropBtn = document.createElement('button');
-        dropBtn.className = 'inv-slot-btn danger';
-        dropBtn.textContent = '丢弃';
-        dropBtn.onclick = () => invDrop(idx);
-        row.appendChild(dropBtn);
-        body.appendChild(row);
-      });
-    }
-
-    footer.textContent = '物品数：' + inv.length + '  金币：' + (gd.currency?.gold || 0);
-    document.getElementById('inv-overlay').classList.add('open');
-  }
-
-  function closeInventory() {
-    document.getElementById('inv-overlay').classList.remove('open');
-  }
-
-  function invUnequip(slot) {
-    const gd = gameState.getGameData();
-    const item = gd.equipment?.[slot];
-    if (!item) return;
-    gd.inventory = gd.inventory || [];
-    gd.inventory.push(item);
-    gd.equipment[slot] = null;
-    gameState.saveGameData();
-    refreshGameUI();
-    openInventory();
-    displayNarrative('你卸下了 ' + item.name + '。');
-  }
-
-  function invEquip(idx) {
-    const gd = gameState.getGameData();
-    const item = gd.inventory?.[idx];
-    if (!item) return;
-    const slot = item.type === 'armor' ? 'body' : 'mainHand';
-    const old = gd.equipment?.[slot];
-    gd.equipment = gd.equipment || {};
-    gd.equipment[slot] = item;
-    gd.inventory.splice(idx, 1);
-    if (old) gd.inventory.push(old);
-    gameState.saveGameData();
-    refreshGameUI();
-    openInventory();
-    displayNarrative('你装备了 ' + item.name + '。');
-  }
-
-  function invUse(idx) {
-    const gd = gameState.getGameData();
-    const item = gd.inventory?.[idx];
-    if (!item) return;
-    if (item.type === 'consumable' && item.effect === 'heal') {
-      const heal = item.value || 10;
-      gd.hp.current = Math.min(gd.hp.max, gd.hp.current + heal);
-      displayNarrative('你使用了 ' + item.name + '，恢复了 ' + heal + ' 点生命。');
-    } else {
-      displayNarrative('你使用了 ' + item.name + '。');
-    }
-    const count = item.count || item.quantity || 1;
-    if (count > 1) { item.count = count - 1; }
-    else { gd.inventory.splice(idx, 1); }
-    gameState.saveGameData();
-    refreshGameUI();
-    openInventory();
-  }
-
-  function invDrop(idx) {
-    const gd = gameState.getGameData();
-    const item = gd.inventory?.[idx];
-    if (!item) return;
-    gd.inventory.splice(idx, 1);
-    gameState.saveGameData();
-    refreshGameUI();
-    openInventory();
-    displayNarrative('你丢弃了 ' + item.name + '。');
-  }
-
-  window.openInventory = openInventory;
-  window.closeInventory = closeInventory;
-
-  function fillTestInventory() {
-    const gd = gameState.getGameData();
-    gd.inventory = gd.inventory || [];
-    gd.inventory.push(
-      { name: '铁剑', type: 'weapon', durability: 20, attack: '1d8', materialTier: 1 },
-      { name: '皮甲', type: 'armor', durability: 15, acBase: 11, dexBonus: 'full', materialTier: 1 },
-      { name: '治疗药水', type: 'consumable', effect: 'heal', value: 15, count: 3 },
-      { name: '火把', type: 'misc', count: 5 },
-      { name: '干粮', type: 'consumable', effect: 'food', count: 4 },
-      { name: '铁矿', type: 'material', count: 8 }
-    );
-    gameState.saveGameData();
-    refreshGameUI();
-    openInventory();
-    displayNarrative('你往背包里塞了一些测试物品。');
-  }
-  window.fillTestInventory = fillTestInventory;
-  
-  // 打开设置
-  window.openSettings = function() {
-    window.location.href = 'settings.html';
-  };
-
-  // 应用显示设置（粒子/烛光/字号），读取 localStorage.settings
-  function applyDisplaySettings() {
-    var s;
-    try { s = JSON.parse(localStorage.getItem('settings') || 'null'); } catch (e) { s = null; }
-    var d = (s && s.display) || {};
-    var canvas = document.getElementById('ember-canvas');
-    if (canvas && d.particles === false) canvas.style.display = 'none';
-    var glow = document.querySelector('.center-area .candle-glow');
-    if (glow && d.candlelight === false) glow.style.display = 'none';
-    if (d.fontSize) {
-      var narrative = document.getElementById('narrative-display');
-      if (narrative) narrative.style.fontSize = d.fontSize + 'px';
-    }
-  }
-  
-  // 骰子
-  window.rollDice = function() {
-    const result = Math.floor(Math.random() * 20) + 1;
-    displayNarrative(`\n🎲 你掷出了：${result}\n`);
-  };
-  
-  // 页面加载时初始化
-  window.addEventListener('DOMContentLoaded', () => {
-    init();
-    
-    // 绑定回车键发送
-    const inputBox = document.getElementById('input-box');
-    if (inputBox) {
-      inputBox.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          window.sendMessage();
-        }
-      });
-    }
-  });
-
-  /* ══ 按钮涟漪效果 ══ */
-  (function(){
-    var btns=document.querySelectorAll('.action-btn,.send-btn');
-    for(var i=0;i<btns.length;i++){
-      btns[i].addEventListener('click',function(e){
-        var rect=this.getBoundingClientRect();
-        var x=e.clientX-rect.left,y=e.clientY-rect.top;
-        var size=Math.max(rect.width,rect.height);
-        var ripple=document.createElement('span');
-        ripple.className='ripple';
-        ripple.style.width=ripple.style.height=size+'px';
-        ripple.style.left=(x-size/2)+'px';
-        ripple.style.top=(y-size/2)+'px';
-        this.appendChild(ripple);
-        setTimeout(function(){ripple.remove()},600);
-      });
-    }
-  })();
-
-  /* ══ 金色魔法粉尘粒子 ══ */
-  (function(){
-    var canvas=document.getElementById('ember-canvas'),ctx=canvas.getContext('2d'),particles=[],MAX=28;
-    function resize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight}
-    resize();window.addEventListener('resize',resize);
-    function P(){
-      this.x=Math.random()*canvas.width;
-      this.y=-10;
-      this.size=Math.random()*2+0.5;
-      this.speedY=Math.random()*0.3+0.05;
-      this.driftX=(Math.random()-0.5)*0.3;
-      this.opacity=Math.random()*0.4+0.15;
-      this.fadeRate=Math.random()*0.001+0.0005;
-      this.wobble=Math.random()*Math.PI*2;
-      this.wobbleSpeed=Math.random()*0.01+0.003;
-      if(Math.random()<0.7){this.r=200+Math.floor(Math.random()*40);this.g=160+Math.floor(Math.random()*40);this.b=40+Math.floor(Math.random()*30)}
-      else{this.r=240;this.g=220;this.b=180}
-    }
-    function loop(){
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-      while(particles.length<MAX)particles.push(new P());
-      for(var i=particles.length-1;i>=0;i--){
-        var p=particles[i];p.y+=p.speedY;p.wobble+=p.wobbleSpeed;
-        p.x+=p.driftX+Math.sin(p.wobble)*0.15;p.opacity-=p.fadeRate;
-        if(p.opacity<=0||p.y>canvas.height+10){particles.splice(i,1);continue}
-        ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
-        ctx.fillStyle='rgba('+p.r+','+p.g+','+p.b+','+p.opacity+')';ctx.fill();
-        ctx.beginPath();ctx.arc(p.x,p.y,p.size*2.5,0,Math.PI*2);
-        ctx.fillStyle='rgba('+p.r+','+p.g+','+p.b+','+(p.opacity*0.08)+')';ctx.fill();
-      }
-      requestAnimationFrame(loop);
-    }
-    loop();
-  })();
-
-</script>
 </section>
 
   <!-- ═══ 页面：设置（迁自 settings.html） ═══ -->
@@ -3562,7 +2694,6 @@ window.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <!-- ══════════ 设置页模块加载 + 脚本（迁自 settings.html） ══════════ -->
-<script src="module/api-service.js"></script>
 <script src="module/embedding-service.js"></script>
 <script>
 'use strict';
@@ -4019,7 +3150,6 @@ function clearSTPreset() {
 <!-- ══════════ 游戏视图模块 + 主逻辑（迁自 game.html） ══════════ -->
 <!-- 注意：command-engine / command-processor / calamity-data / worldbook-engine / prompt-builder / response-parser
      已在前面的脚本块加载，这里只补 json-repair-helper；重复加载会把 promptBuilder 替换成新实例、丢失已注入的 ST 预设状态 -->
-<script src="module/json-repair-helper.js"></script>
 
 <script type="module">
   import * as gameState from './module/game-state.js';
@@ -4332,6 +3462,22 @@ function clearSTPreset() {
     display.scrollTop = display.scrollHeight;
   }
 
+  // ── 对话上下文（多轮记忆，滚动窗口存 localStorage） ──
+  const CHAT_CONTEXT_KEY = 'calamity-chat-context';
+  const CHAT_CONTEXT_MAX = 16; // 最近 8 轮对话
+  function loadChatContext() {
+    try { return JSON.parse(localStorage.getItem(CHAT_CONTEXT_KEY) || '[]'); } catch (e) { return []; }
+  }
+  function appendChatContext(userText, assistantText) {
+    try {
+      const ctx = loadChatContext();
+      ctx.push({ role: 'user', content: userText });
+      if (assistantText) ctx.push({ role: 'assistant', content: assistantText });
+      while (ctx.length > CHAT_CONTEXT_MAX) ctx.shift();
+      localStorage.setItem(CHAT_CONTEXT_KEY, JSON.stringify(ctx));
+    } catch (e) { console.warn('保存对话上下文失败:', e); }
+  }
+
   // ── AI 主链路 ──
   window.sendMessage = async function() {
     const input = document.getElementById('input-box');
@@ -4352,10 +3498,10 @@ function clearSTPreset() {
 
       const gd = gameState.getGameData();
 
-      // 构建提示词
+      // 构建提示词（附滚动对话上下文，保证多轮叙事连续性）
       let prompt;
       try {
-        prompt = promptBuilder.buildMessages({ gameData: gd, userMessage: message });
+        prompt = promptBuilder.buildMessages({ gameData: gd, userMessage: message, history: loadChatContext() });
       } catch (e) {
         console.warn('buildMessages 异常，用最小提示词:', e);
         prompt = { messages: [
@@ -4382,17 +3528,28 @@ function clearSTPreset() {
       const parsed = responseParser.run(responseContent);
       displayNarrative('\n' + parsed.mainText);
 
-      // 应用命令
+      // 应用命令 + 任务块（两条都走深拷贝工作流，最后一次性落盘）
+      let finalGd = gd;
       if (parsed.commands && parsed.commands.length > 0) {
         const result = commandProcessor.applyCommands(gd, parsed.commands);
         if (result.report && result.report.rejected && result.report.rejected.length > 0) {
           console.warn('命令被拒绝:', result.report.rejected);
           displayNarrative('\n\n⚠️ 部分命令未能执行（非法路径或类型不匹配）\n');
         }
-        gameState.importGameData(result.gameData);
+        finalGd = result.gameData || gd;
+      }
+      if (parsed.quests && parsed.quests.length > 0) {
+        const qResult = commandProcessor.applyQuests(finalGd, parsed.quests);
+        console.log('任务块已应用:', qResult.report);
+        finalGd = qResult.gameData || finalGd;
+      }
+      if (finalGd !== gd) {
+        gameState.importGameData(finalGd);
         refreshGameUI();
       }
 
+      // 正文写入滚动上下文（不含命令标签），原始响应另存调试历史
+      appendChatContext(message, parsed.mainText || '');
       saveToHistory(message, responseContent);
     } catch (error) {
       console.error('AI 调用失败:', error);
@@ -4642,11 +3799,27 @@ function clearSTPreset() {
     if (!window.gameReady) initGame();
     else { refreshGameUI(); }
   };
+
+  // 设置按钮 → SPA 设置视图（原独立 settings.html 已并入，不再跳转独立页）
+  window.openSettings = function() {
+    if (typeof navigate === 'function') navigate('settings');
+  };
+
+  // 回车发送（Enter 发送 / Shift+Enter 换行）
+  (function() {
+    const inputBox = document.getElementById('input-box');
+    if (inputBox) {
+      inputBox.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          window.sendMessage();
+        }
+      });
+    }
+  })();
 </script>
 
-/* ══════════════════════════════════════
-   登记册脚本（来自 register.html）
-   ══════════════════════════════════════ */
+<!-- 登记册脚本（来自 register.html） -->
 <script>
 
 var TOTAL_POINTS=18,BASE=8;

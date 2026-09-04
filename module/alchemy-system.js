@@ -267,20 +267,20 @@ class AlchemySystem {
       disadvantage = true;
     }
 
-    // 执行检定
+    // 执行检定（check-system 契约：attribute + gameState + dc）
     const checkResult = performCheck({
-      character,
-      attributeName,
+      attribute: attributeName,
+      gameState: character,
       dc,
       advantage,
       disadvantage,
-      context: '炼金检定'
+      description: '炼金检定'
     });
 
     // 判定成败
     let result = ALCHEMY_RESULT.SUCCESS;
-    
-    if (checkResult.natural1) {
+
+    if (checkResult.criticalFailure) {
       result = ALCHEMY_RESULT.CRITICAL_FAILURE;
     } else if (checkResult.total < dc) {
       result = ALCHEMY_RESULT.FAILURE;
@@ -297,7 +297,7 @@ class AlchemySystem {
     }
 
     // 天然20品质档上移一档
-    if (checkResult.natural20 && result === ALCHEMY_RESULT.SUCCESS) {
+    if (checkResult.criticalSuccess && result === ALCHEMY_RESULT.SUCCESS) {
       if (grade === ALCHEMY_GRADE.NORMAL) {
         grade = ALCHEMY_GRADE.GOOD;
       } else if (grade === ALCHEMY_GRADE.GOOD) {
