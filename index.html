@@ -2632,6 +2632,8 @@ window.addEventListener('DOMContentLoaded', function() {
 
 <!-- ══════════ 设置页模块加载 + 脚本（迁自 settings.html） ══════════ -->
 <script src="module/embedding-service.js"></script>
+<script src="module/vector-store.js"></script>
+<script src="module/legacy/memory-recall.js"></script>
 <script>
 'use strict';
 
@@ -3789,6 +3791,57 @@ function clearSTPreset() {
     if (bar.parentNode !== nd || nd.lastElementChild !== bar) nd.appendChild(bar);
   }
 
+  // ── 向量化记忆：召回注入 + 摘要入库（embedding 未启用或失败时静默跳过） ──
+  (function initVectorMemory() {
+    if (!window.vectorStore || !window.memoryRecall) return;
+    window.vectorStore.init().then(function() {
+      return window.memoryRecall.init();
+    }).then(function() {
+      console.log('[VectorMemory] 记忆缓存预热完成', window.memoryRecall.getStats());
+    }).catch(function(e) { console.warn('[VectorMemory] 初始化失败:', e && e.message || e); });
+  })();
+
+  async function recallMemoriesForPrompt(userMessage) {
+    if (!window.memoryRecall || !window.embeddingService || !window.embeddingService.isEnabled()) return '';
+    try {
+      const recalled = await window.memoryRecall.recallRelevantMemories(userMessage, 6, [], 600);
+      if (!recalled || !recalled.length) return '';
+      const lines = recalled.map(m => '- ' + String(m.text || '').trim()).filter(l => l.length > 2);
+      return lines.length
+        ? '【相关记忆召回】以下是向量检索出的历史剧情摘要，仅供保持剧情连贯参考（非当前对话内容）：\n' + lines.join('\n')
+        : '';
+    } catch (e) {
+      console.warn('[VectorMemory] 召回失败（降级跳过）:', e && e.message || e);
+      return '';
+    }
+  }
+
+  async function storeSummariesToMemory(summaries) {
+    if (!window.memoryRecall || !window.vectorStore || !window.embeddingService || !window.embeddingService.isEnabled()) return 0;
+    const texts = (summaries || []).map(s => String(s).trim()).filter(s => s.length > 1);
+    if (!texts.length) return 0;
+    try {
+      const fp = window.embeddingService.getFingerprint();
+      const vecs = await window.embeddingService.embed(texts);
+      let n = 0;
+      texts.forEach((txt, i) => {
+        if (!vecs || !vecs[i]) return;
+        const id = 'emb_' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2, 8);
+        const f32 = new Float32Array(vecs[i]);
+        window.vectorStore.saveEmbedding(id, f32, { text: txt, week: 0, fingerprint: fp, createdAt: Date.now() });
+        window.memoryRecall.addToCache({ id: id, vector: f32, text: txt, week: 0, fingerprint: fp, createdAt: Date.now() });
+        n++;
+      });
+      if (n) console.log('[VectorMemory] 已入库 ' + n + ' 条摘要向量');
+      return n;
+    } catch (e) {
+      console.warn('[VectorMemory] 摘要入库失败（不影响主流程）:', e && e.message || e);
+      return 0;
+    }
+  }
+  window.recallMemoriesForPrompt = recallMemoriesForPrompt;
+  window.storeSummariesToMemory = storeSummariesToMemory;
+
   // ── AI 主链路 ──
   window.sendMessage = async function() {
     const input = document.getElementById('input-box');
@@ -3810,6 +3863,9 @@ function clearSTPreset() {
 
       const gd = gameState.getGameData();
 
+      // 向量化记忆召回（未启用/失败时返回空串，静默降级）
+      const recalledBlock = await recallMemoriesForPrompt(message);
+
       // 构建提示词（附滚动对话上下文，保证多轮叙事连续性）
       let prompt;
       try {
@@ -3820,6 +3876,9 @@ function clearSTPreset() {
           { role: 'system', content: '你是一名灾厄之后废土世界的叙事者。请用第三人称推进剧情，检定用框线文本输出。' },
           { role: 'user', content: message }
         ] };
+      }
+      if (recalledBlock) {
+        prompt.messages.splice(1, 0, { role: 'system', content: recalledBlock });
       }
 
       // 调用 AI（修正为 sendMessages(messages[], options)）
@@ -3863,6 +3922,8 @@ function clearSTPreset() {
       // 正文写入滚动上下文（不含命令标签），原始响应另存调试历史
       appendChatContext(message, parsed.mainText || '');
       saveToHistory(message, responseContent);
+      // 向量化记忆：本轮摘要入库（异步，不阻塞主流程，失败静默）
+      storeSummariesToMemory(parsed.summaries);
     } catch (error) {
       console.error('AI 调用失败:', error);
       displayNarrative('\n❌ 错误: ' + error.message + '\n');
