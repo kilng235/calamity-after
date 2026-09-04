@@ -2143,6 +2143,26 @@
   #narrative-display .sys-line{
     color:var(--gold);font-size:0.92em;letter-spacing:0.5px;margin:10px 0;
   }
+  #narrative-display .turn-quest{
+    background:rgba(180,160,120,0.10);
+    border:1px solid rgba(184,148,42,0.35);
+    border-left:3px solid var(--gold);
+    border-radius:0 3px 3px 0;
+    padding:10px 14px;margin:12px 0;
+  }
+  #narrative-display .tq-head{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+  #narrative-display .tq-label{font-size:0.8em;color:#8a6a1a;letter-spacing:1px;font-weight:700}
+  #narrative-display .tq-name{font-size:0.98em;color:var(--ink);font-weight:700;letter-spacing:0.5px}
+  #narrative-display .tq-obj{
+    font-size:0.85em;color:var(--ink);margin-top:4px;
+    padding-left:14px;position:relative;line-height:1.6;
+  }
+  #narrative-display .tq-obj::before{content:'◈';position:absolute;left:0;top:0.1em;font-size:0.75em;color:var(--gold)}
+  #narrative-display .tq-body{font-size:0.85em;color:var(--ink-light);margin-top:4px;line-height:1.7}
+  #narrative-display .tq-meta{
+    font-size:0.78em;color:var(--ink-light);margin-top:5px;padding-top:4px;
+    border-top:1px dashed rgba(106,88,56,0.3);
+  }
   #narrative-display .player-strip{
     color:var(--ink-faded);font-style:italic;font-size:0.92em;
     border-left:2px solid rgba(184,148,42,0.4);padding-left:10px;
@@ -3471,6 +3491,7 @@ function clearSTPreset() {
         flushPara(); container.appendChild(eln('div', 'turn-chapter', line.replace(/[【】]/g, ''))); continue;
       }
       if (/^[「『]/.test(line)) { flushPara(); container.appendChild(eln('div', 'quote-line', line)); continue; }
+      if (/^◈\s*(当前委托|当前任务|新委托|新任务)[：:]/.test(line)) { flushPara(); container.appendChild(buildNarrativeQuestCard(line)); continue; }
       if (/^[◈🎲]/.test(line)) { flushPara(); container.appendChild(eln('div', 'sys-line', line)); continue; }
       if (/^(⚠️|❌)/.test(line)) { flushPara(); container.appendChild(eln('div', 'error-strip', line)); continue; }
       if (/^>/.test(line)) { flushPara(); container.appendChild(eln('div', 'player-strip', line.replace(/^>\s?/, '❯ '))); continue; }
@@ -3584,8 +3605,31 @@ function clearSTPreset() {
     const t = line.trim();
     if (/^>/.test(t)) return eln('div', 'player-strip', t.replace(/^>\s?/, '❯ '));
     if (/^(⚠️|❌)/.test(t)) return eln('div', 'error-strip', t);
+    if (/^◈\s*(当前委托|当前任务|新委托|新任务)[：:]/.test(t)) return buildNarrativeQuestCard(t);
     if (/^[🎲◈]/.test(t)) return eln('div', 'sys-line', t);
     return eln('div', 'sys-strip', t);
+  }
+
+  // 委托行渲染成任务卡片（解析失败时整行降级进卡片体，不丢内容）
+  function buildNarrativeQuestCard(line) {
+    const body = String(line).trim().replace(/^◈\s*/, '').replace(/[。]\s*$/, '');
+    const parts = body.split(/[：:]/);
+    const card = eln('div', 'turn-quest');
+    const head = eln('div', 'tq-head');
+    head.appendChild(eln('span', 'tq-label', (parts[0] || '当前委托').trim()));
+    if (parts[1]) head.appendChild(eln('span', 'tq-name', parts[1].trim()));
+    card.appendChild(head);
+    const rest = parts.slice(2).join('：').trim();
+    if (rest) {
+      const m = rest.match(/^(.*?)[，,]\s*时限[:：]?\s*(.+)$/);
+      if (m) {
+        m[1].split(/[、]/).forEach(o => { if (o.trim()) card.appendChild(eln('div', 'tq-obj', o.trim())); });
+        card.appendChild(eln('div', 'tq-meta', '⏳ 时限 ' + m[2].replace(/[。]\s*$/, '').trim()));
+      } else {
+        card.appendChild(eln('div', 'tq-body', rest));
+      }
+    }
+    return card;
   }
 
   function renderNarrativePage(rawText) {
