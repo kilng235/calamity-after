@@ -2058,6 +2058,7 @@
     <div class="panel-section">
       <div class="panel-title">◆ ◇ 快捷操作</div>
       <button class="action-btn" onclick="openInventory()">◈ 打开背包</button>
+      <button class="action-btn" onclick="openVecOverlay()">◈ 向量记忆库</button>
       <button class="action-btn" onclick="openSettings()">◈ 设置</button>
       <button class="action-btn" onclick="navigate('home')">◈ 返回首页</button>
     </div>
@@ -2096,7 +2097,32 @@
   </div>
 </div>
 
+<!-- 向量记忆库弹窗 -->
+<div class="inv-overlay" id="vec-overlay" onclick="if(event.target===this)closeVecOverlay()">
+  <div class="inv-panel">
+    <div class="inv-header">
+      <span>◈ 向量记忆库 ◈</span>
+      <button class="inv-close" onclick="closeVecOverlay()"></button>
+    </div>
+    <div class="inv-body">
+      <div id="vec-stats"></div>
+      <input type="text" id="vec-filter" placeholder="◈ 筛选摘要关键词..." oninput="renderVecList()">
+      <div id="vec-list"></div>
+      <button class="btn" onclick="clearVectorMemory()" style="width:100%;margin-top:12px;border-color:var(--danger);color:var(--danger)">◈ 清空全部记忆向量 ◈</button>
+    </div>
+  </div>
+</div>
+
 <style id="narrative-render-style">
+  /* ── 向量记忆库查看器 ── */
+  #vec-stats{font-size:12px;color:var(--ink-light);margin-bottom:8px;font-style:italic}
+  #vec-filter{width:100%;padding:8px 10px;background:rgba(255,250,240,0.5);border:1px solid var(--parchment-dark);border-radius:2px;font-family:"Noto Serif SC",serif;font-size:13px;color:var(--ink);margin-bottom:10px}
+  #vec-filter:focus{outline:none;border-color:var(--gold)}
+  .vec-entry{margin-bottom:6px;padding:8px 10px;background:rgba(180,160,120,0.12);border:1px solid var(--parchment-dark);border-left:2px solid var(--gold);border-radius:2px}
+  .vec-entry-text{font-size:13px;color:var(--ink);line-height:1.6}
+  .vec-entry-meta{font-size:11px;color:var(--ink-faded);margin-top:3px}
+  .vec-empty{font-size:13px;color:var(--ink-faded);font-style:italic;text-align:center;padding:16px;background:rgba(180,160,120,0.08);border:1px dashed var(--parchment-dark);border-radius:2px}
+
   /* ── 叙事区书页渲染（对齐启程页视觉语言） ── */
   /* 防遮挡冻结：基态可见 + from 帧淡入（动画不推进也不影响阅读） */
   #narrative-display .lore-p{
@@ -3852,6 +3878,66 @@ function clearSTPreset() {
   }
   window.recallMemoriesForPrompt = recallMemoriesForPrompt;
   window.storeSummariesToMemory = storeSummariesToMemory;
+
+  // ── 向量记忆库查看器 ──
+  function renderVecList() {
+    const statsEl = document.getElementById('vec-stats');
+    const listEl = document.getElementById('vec-list');
+    if (!listEl) return;
+    const all = window.vectorStore ? vectorStore.loadAllEmbeddings() : [];
+    const kw = ((document.getElementById('vec-filter') || {}).value || '').trim();
+    const recs = kw ? all.filter(r => (r.text || '').indexOf(kw) >= 0) : all;
+    recs.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    if (statsEl) statsEl.textContent = '共 ' + all.length + ' 条摘要向量' + (kw ? '，筛选出 ' + recs.length + ' 条' : '') + '（每轮 AI 回复的 <SUMMARY> 摘要自动入库）';
+    listEl.innerHTML = '';
+    if (!recs.length) {
+      const empty = document.createElement('div');
+      empty.className = 'vec-empty';
+      empty.textContent = kw ? '◈ 无匹配记录' : '◈ 暂无记忆记录（开启向量记忆并对话后，摘要会出现在这里）';
+      listEl.appendChild(empty);
+      return;
+    }
+    recs.forEach(r => {
+      const d = r.createdAt ? new Date(r.createdAt) : null;
+      const time = d ? (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') : '';
+      const entry = document.createElement('div');
+      entry.className = 'vec-entry';
+      const txt = document.createElement('div');
+      txt.className = 'vec-entry-text';
+      txt.textContent = r.text || '（空摘要）';
+      const meta = document.createElement('div');
+      meta.className = 'vec-entry-meta';
+      meta.textContent = (time ? time + ' ｜ ' : '') + '模型指纹 ' + (r.fingerprint || '-');
+      entry.appendChild(txt);
+      entry.appendChild(meta);
+      listEl.appendChild(entry);
+    });
+  }
+
+  function openVecOverlay() {
+    const ov = document.getElementById('vec-overlay');
+    if (!ov) return;
+    renderVecList();
+    ov.classList.add('open');
+  }
+
+  function closeVecOverlay() {
+    const ov = document.getElementById('vec-overlay');
+    if (ov) ov.classList.remove('open');
+  }
+
+  function clearVectorMemory() {
+    if (!window.vectorStore) return;
+    if (!confirm('确定清空全部记忆向量？此操作不可恢复，AI 将失去远期剧情记忆（游戏存档不受影响）。')) return;
+    window.vectorStore.clearAll().then(function() {
+      if (window.memoryRecall) window.memoryRecall.clearCache();
+      renderVecList();
+    });
+  }
+  window.openVecOverlay = openVecOverlay;
+  window.closeVecOverlay = closeVecOverlay;
+  window.clearVectorMemory = clearVectorMemory;
+  window.renderVecList = renderVecList;
 
   // ── AI 主链路 ──
   window.sendMessage = async function() {
