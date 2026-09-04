@@ -2387,6 +2387,7 @@
   <div class="bottom-bar">
     <input type="text" class="input-box" id="input-box" placeholder="输入你的行动..." onkeypress="if(event.key==='Enter') sendMessage()">
     <button class="send-btn" onclick="sendMessage()">发送</button>
+    <button class="send-btn" onclick="undoLastTurn()" title="撤销上一回合（变量与记忆同步回退）">↩</button>
     <button class="send-btn" onclick="rollDice()">🎲</button>
   </div>
 </div>
@@ -3961,6 +3962,53 @@ function clearSTPreset() {
     } catch (e) { console.warn('保存对话上下文失败:', e); }
   }
 
+  // ── 回合撤销：发送前快照（gameData + 对话上下文 + 叙事页位置），撤销时三层同步回滚 ──
+  const UNDO_STACK_KEY = 'calamity-undo-stack';
+  const UNDO_STACK_MAX = 10;
+  function loadUndoStack() {
+    try { return JSON.parse(localStorage.getItem(UNDO_STACK_KEY) || '[]'); } catch (e) { return []; }
+  }
+  function pushUndoSnapshot() {
+    try {
+      const nd = document.getElementById('narrative-display');
+      const stack = loadUndoStack();
+      stack.push({
+        ts: Date.now(),
+        gameData: JSON.parse(JSON.stringify(gameState.getGameData())),
+        chatContext: loadChatContext(),
+        narrativeCount: nd ? nd.childElementCount : 0
+      });
+      while (stack.length > UNDO_STACK_MAX) stack.shift();
+      localStorage.setItem(UNDO_STACK_KEY, JSON.stringify(stack));
+    } catch (e) { console.warn('撤销快照失败:', e); }
+  }
+  function undoLastTurn() {
+    if (window._gameBusy) return;
+    const stack = loadUndoStack();
+    if (stack.length === 0) {
+      displayNarrative('\n◈ 没有可撤销的回合\n');
+      return;
+    }
+    const snap = stack.pop();
+    try {
+      localStorage.setItem(UNDO_STACK_KEY, JSON.stringify(stack));
+      gameState.importGameData(JSON.parse(JSON.stringify(snap.gameData)));
+      localStorage.setItem(CHAT_CONTEXT_KEY, JSON.stringify(snap.chatContext || []));
+      const nd = document.getElementById('narrative-display');
+      if (nd) {
+        const target = snap.narrativeCount || 0;
+        while (nd.childElementCount > target) nd.removeChild(nd.lastElementChild);
+      }
+      refreshGameUI();
+      displayNarrative('\n◈ 已撤销上一回合，变量与记忆同步回退\n');
+    } catch (e) {
+      console.error('撤销失败:', e);
+      displayNarrative('\n❌ 撤销失败: ' + e.message + '\n');
+    }
+  }
+  window.undoLastTurn = undoLastTurn;
+  window.pushUndoSnapshot = pushUndoSnapshot;
+
   // ── AI 主链路 ──
   window.sendMessage = async function() {
     const input = document.getElementById('input-box');
@@ -3970,6 +4018,7 @@ function clearSTPreset() {
     window._gameBusy = true;
     input.value = '';
     input.disabled = true;
+    pushUndoSnapshot();  // 发送前快照：撤销时回退本轮的变量、记忆与叙事
 
     try {
       displayNarrative('\n> ' + message + '\n');
