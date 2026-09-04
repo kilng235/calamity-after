@@ -164,6 +164,19 @@ var responseParser = (function () {
     }
 
     /**
+     * 从展示文本中剥离任务块（提取后不应再向玩家显示协议标签）
+     * @param {string} text - 原文本
+     * @returns {string} 剥离后的文本
+     */
+    function stripQuestBlocks(text) {
+        if (!text) return text || '';
+        return text
+            .replace(/[\[<][\s_]*(?:新任务|新任務|NewQuest|new_quest)[\s_]*[\]>][\s\S]*?[\[<][\s_]*\/[\s_]*(?:新任务|新任務|NewQuest|new_quest)[\s_]*[\]>]/gi, '')
+            .replace(/[\[<][\s_]*(?:任务完成|任務完成|QuestComplete|quest_complete)[\s_]*[\]>][\s\S]*?[\[<][\s_]*\/[\s_]*(?:任务完成|任務完成|QuestComplete|quest_complete)[\s_]*[\]>]/gi, '')
+            .replace(/[\[<][\s_]*(?:任务失败|任務失敗|QuestFailed|quest_failed)[\s_]*[\]>][\s\S]*?[\[<][\s_]*\/[\s_]*(?:任务失败|任務失敗|QuestFailed|quest_failed)[\s_]*[\]>]/gi, '');
+    }
+
+    /**
      * 解析单个任务块内容（键值对格式）
      * @param {string} content - 任务块内容
      * @returns {Object} 任务对象
@@ -656,6 +669,9 @@ var responseParser = (function () {
                     quest: parsed
                 });
             }
+        }
+        if (quests.length > 0) {
+            cleaned = stripQuestBlocks(cleaned);
         }
 
         return {
