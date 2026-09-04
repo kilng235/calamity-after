@@ -3729,7 +3729,8 @@ function clearSTPreset() {
         ts: Date.now(),
         gameData: JSON.parse(JSON.stringify(gameState.getGameData())),
         chatContext: loadChatContext(),
-        narrativeCount: nd ? nd.childElementCount - barIn : 0
+        narrativeCount: nd ? nd.childElementCount - barIn : 0,
+        vecIds: (window.vectorStore ? vectorStore.loadAllEmbeddings().map(r => r.id) : [])
       });
       while (stack.length > UNDO_STACK_MAX) stack.shift();
       localStorage.setItem(UNDO_STACK_KEY, JSON.stringify(stack));
@@ -3762,6 +3763,16 @@ function clearSTPreset() {
         }
       }
       refreshGameUI();
+      // 同步撤销向量记忆：删除快照之后入库的摘要向量
+      if (window.vectorStore && window.memoryRecall) {
+        const beforeIds = new Set(snap.vecIds || []);
+        vectorStore.loadAllEmbeddings().forEach(rec => {
+          if (!beforeIds.has(rec.id)) {
+            vectorStore.deleteEmbedding(rec.id);
+            window.memoryRecall.removeFromCache(rec.id);
+          }
+        });
+      }
       mountUndoBar(nd);
     } catch (e) {
       console.error('撤销失败:', e);
