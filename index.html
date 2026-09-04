@@ -1529,6 +1529,16 @@
     font-size:0.78em;color:var(--ink-faded);
     margin-top:2px;text-align:right;opacity:0.85;
   }
+  .qp-hook{
+    background:rgba(138,42,26,0.05);
+    border:1px dashed rgba(138,42,26,0.4);
+    border-radius:2px;padding:7px 9px;margin-top:8px;
+  }
+  .qp-hook-head{display:flex;align-items:baseline;gap:6px}
+  .qp-hook-label{font-size:0.68em;color:var(--danger);letter-spacing:1px;font-weight:700;white-space:nowrap}
+  .qp-hook-name{font-size:0.85em;color:var(--ink);font-weight:700}
+  .qp-hook-desc{font-size:0.72em;color:var(--ink-light);margin-top:3px;font-style:italic;line-height:1.5}
+  .qp-hook-trigger{font-size:0.68em;color:var(--ink-faded);margin-top:3px}
 
   /* 中间正文区 - 羊皮纸长卷 */
   .center-area{
@@ -2055,6 +2065,7 @@
     <div class="panel-section">
       <div class="panel-title">◈ 任务简报<span class="panel-latin">Mandatum</span></div>
       <div id="quest-list"></div>
+      <div id="plot-hook"></div>
     </div>
 
     <div class="panel-section">
@@ -3378,13 +3389,6 @@ function clearSTPreset() {
       empty.className = 'qp-empty';
       empty.textContent = '◈ 暂无进行中的委托';
       list.appendChild(empty);
-      if (doneN + failN > 0) {
-        const cnt = document.createElement('div');
-        cnt.className = 'qp-count';
-        cnt.textContent = '已完成 ' + doneN + (failN ? ' · 失败 ' + failN : '');
-        list.appendChild(cnt);
-      }
-      return;
     }
     active.forEach(q => {
       const card = document.createElement('div');
@@ -3413,6 +3417,23 @@ function clearSTPreset() {
       cnt.className = 'qp-count';
       cnt.textContent = '已完成 ' + doneN + (failN ? ' · 失败 ' + failN : '');
       list.appendChild(cnt);
+    }
+
+    // 主线钩子：来自开局数据；一旦成为正式任务（出现在任意任务状态）就不再显示
+    const hookEl = document.getElementById('plot-hook');
+    if (hookEl) {
+      let hook = null;
+      try { hook = (JSON.parse(localStorage.getItem('calamityOpening') || 'null') || {}).mainPlotHook || null; } catch (e) { /* ignore */ }
+      const known = [].concat(active, Array.isArray(quests.completed) ? quests.completed : [], Array.isArray(quests.failed) ? quests.failed : [])
+        .map(q => q && q.name);
+      if (hook && hook.name && known.indexOf(hook.name) < 0) {
+        hookEl.innerHTML =
+          '<div class="qp-hook"><div class="qp-hook-head"><span class="qp-hook-label">主线钩子</span><span class="qp-hook-name">' + qpEsc(hook.name) + '</span></div>' +
+          '<div class="qp-hook-desc">' + qpEsc(hook.description || '') + '</div>' +
+          '<div class="qp-hook-trigger">触发：' + qpEsc(hook.triggerCondition || '剧情推进') + '</div></div>';
+      } else {
+        hookEl.innerHTML = '';
+      }
     }
   }
 
