@@ -2296,10 +2296,7 @@
   <!-- 中间正文区 -->
   <div class="center-area">
     <div class="candle-glow"></div>
-    <div class="narrative-display" id="narrative-display">
-      <div class="narrative-header">✦ 灾厄之后 ✦</div>
-      <p>欢迎来到灾厄之后的世界。你的冒险即将开始...</p>
-    </div>
+    <div class="narrative-display" id="narrative-display"></div>
   </div>
 
   <!-- 右侧面板 -->
@@ -3381,10 +3378,16 @@ function clearSTPreset() {
     updateEquipment(gd.equipment);
     updateInventory(gd.inventory);
 
-    // 欢迎语（仅首次进入时显示一次；时间取自存档 gameTime，与登记册开局对齐）
+    // 首次进入：优先渲染「启程」开局叙事（与登记册第ⅲ页同源），无开局数据时退回欢迎语
     const nd = document.getElementById('narrative-display');
-    if (nd && nd.childElementCount <= 1) {
-      displayNarrative(generateWelcomeMessage(gd));
+    if (nd && nd.childElementCount === 0) {
+      let openingData = null;
+      try { openingData = JSON.parse(localStorage.getItem('calamityOpening') || 'null'); } catch (e) {}
+      if (openingData && typeof window.buildOpeningIntro === 'function') {
+        displayNarrative(window.buildOpeningIntro(openingData));
+      } else {
+        displayNarrative(generateWelcomeMessage(gd));
+      }
     }
     applyDisplaySettings();
     window.gameReady = true;
@@ -3395,7 +3398,7 @@ function clearSTPreset() {
     const t = (gd && gd.gameTime) || {};
     const timeStr = '灾厄' + (t.year || 300) + '年' + (t.month || 11) + '月' + (t.day || 12) + '日 '
       + (t.hour || 7) + ':' + String(t.minute || 0).padStart(2, '0');
-    return '\n----- ✦ ' + timeStr + ' ✦ -----\n\n<content>\n\n欢迎，' + c.name + '。\n\n你是一名' + (c.race || '人类') + '冒险者，踏入了灾厄之后的废土世界。\n\n眼前是锈钉镇的入口——破败的木栅栏，焦黑的土地，空气中弥漫着灰烬的气味。\n\n远处传来佣兵们的喧闹声。\n\n你的冒险，从这里开始。\n\n</content>';
+    return '\n----- ✦ ' + timeStr + ' ✦ -----\n\n欢迎，' + c.name + '。\n\n你是一名' + (c.race || '人类') + '冒险者，踏入了灾厄之后的废土世界。\n\n眼前是锈钉镇的入口——破败的木栅栏，焦黑的土地，空气中弥漫着灰烬的气味。\n\n远处传来佣兵们的喧闹声。\n\n你的冒险，从这里开始。\n';
   }
 
   function updateHPBar(current, max) {
@@ -3808,19 +3811,6 @@ function clearSTPreset() {
   window.openSettings = function() {
     if (typeof navigate === 'function') navigate('settings');
   };
-
-  // 回车发送（Enter 发送 / Shift+Enter 换行）
-  (function() {
-    const inputBox = document.getElementById('input-box');
-    if (inputBox) {
-      inputBox.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          window.sendMessage();
-        }
-      });
-    }
-  })();
 </script>
 
 <!-- 登记册脚本（来自 register.html） -->
@@ -3915,6 +3905,38 @@ function updateOpeningNarrative(){
     p.style.animation = '';
   });
 }
+
+// 生成进入游戏时的开局叙事文本（「启程」页内容搬入游戏叙事区，供 module 块 initGame 调用）
+window.buildOpeningIntro = function(od) {
+  if (!od) return '';
+  var identity = (od.character && od.character.identity) || '佣兵';
+  var opening = IDENTITY_OPENINGS[identity] || IDENTITY_OPENINGS['佣兵'];
+  var timeStr = ((od.time && od.time.display) || '灾厄300年11月12日 07:10').replace('灾厄纪年', '灾厄');
+  var loc = (od.location && od.location.full) ? '　·　' + od.location.full : '';
+  var firstPara = '锈钉镇的清晨比想象中醒得早。天还没全亮，铁匠铺的锤声就隔着两条街传过来，一下一下，像给整座镇子敲着起床的鼓点。你裹着旧斗篷穿过主街，灰烬雾还没散，空气里混着铁锈、隔夜麦酒和木柴烧过的味道。三百年了，这座镇子就这样醒过来，日复一日。';
+  var secondPara = '佣兵公会在主街尽头，门脸不大，一块铁牌歪歪斜斜钉在门框上，写着「自由佣兵联盟」几个褪色的字。推门进去，炭火盆的暖意扑面而来，大厅里已经坐了三两拨人。柜台后一个矮人女人抬起头，' + opening.scene + '。';
+
+  var lines = [
+    '----- ✦ ' + timeStr + ' ✦ -----',
+    '',
+    '【启程 · Profectio】' + loc,
+    '',
+    firstPara,
+    '',
+    secondPara,
+    '',
+    opening.greeting,
+    ''
+  ];
+
+  var q = od.initialQuest;
+  if (q) {
+    var objs = (q.objectives || []).map(function(o) { return o.target + '（0/' + o.required + '）'; }).join('、');
+    var dl = (q.deadline && q.deadline.display) ? '，时限 ' + q.deadline.display : '';
+    lines.push('◈ 当前委托：' + q.name + '：' + objs + dl + '。');
+  }
+  return '\n' + lines.join('\n') + '\n';
+};
 
 function enterGame(){
   if(typeof saveCharacter==='function') saveCharacter();
