@@ -50,11 +50,21 @@ var vectorStore = (function() {
         return reqAsPromise(store.getAll()) || [];
     }
 
+    // 镜像中的向量统一为 Float32Array（IDB 载入的是 ArrayBuffer，需转换，否则 .length 判断失效）
+    function _normVec(v) {
+        if (v instanceof Float32Array) return v;
+        if (v instanceof ArrayBuffer) return new Float32Array(v);
+        if (Array.isArray(v)) return new Float32Array(v);
+        return null;
+    }
+
     async function init() {
         try {
             const db = await openDb();
-            _mirror = (await getAllFrom(db.transaction(STORE_L0, 'readonly').objectStore(STORE_L0))) || [];
-            _mirrorL2 = (await getAllFrom(db.transaction(STORE_L2, 'readonly').objectStore(STORE_L2))) || [];
+            _mirror = ((await getAllFrom(db.transaction(STORE_L0, 'readonly').objectStore(STORE_L0))) || [])
+                .map(r => Object.assign({}, r, { vector: _normVec(r.vector) }));
+            _mirrorL2 = ((await getAllFrom(db.transaction(STORE_L2, 'readonly').objectStore(STORE_L2))) || [])
+                .map(r => Object.assign({}, r, { vector: _normVec(r.vector) }));
             _loaded = true;
             console.log('[VectorStore] 已从 IDB 载入 L0 摘要 ' + _mirror.length + ' 条 / L2 事件 ' + _mirrorL2.length + ' 条');
         } catch (e) {
@@ -79,19 +89,20 @@ var vectorStore = (function() {
     async function saveEmbedding(id, f32, meta) {
         const rec = {
             id: id,
-            vector: f32 instanceof Float32Array ? f32.buffer.slice(0) : f32,
+            vector: _normVec(f32),
             text: (meta && meta.text) || '',
             week: (meta && meta.week) || 0,
             fingerprint: (meta && meta.fingerprint) || '',
             createdAt: (meta && meta.createdAt) || Date.now(),
-            kind: (meta && meta.kind) || 'turn'
+            kind: (meta && meta.kind) || 'turn',
+            floor: (meta && meta.floor) || 0
         };
         const idx = _mirror.findIndex(r => r.id === id);
         if (idx >= 0) _mirror[idx] = rec; else _mirror.push(rec);
         try {
             const db = await openDb();
             const store = db.transaction(STORE_L0, 'readwrite').objectStore(STORE_L0);
-            await reqAsPromise(store.put(rec));
+            await reqAsPromise(store.put(Object.assign({}, rec, { vector: rec.vector ? rec.vector.buffer.slice(0) : null })));
         } catch (e) {
             console.warn('[VectorStore] IDB 落盘失败（仅内存保留）:', e && e.message || e);
         }
@@ -111,7 +122,7 @@ var vectorStore = (function() {
     async function saveL2Embedding(id, f32, meta) {
         const rec = {
             id: id,
-            vector: f32 instanceof Float32Array ? f32.buffer.slice(0) : f32,
+            vector: _normVec(f32),
             text: (meta && meta.text) || '',
             week: (meta && meta.week) || 0,
             fingerprint: (meta && meta.fingerprint) || '',
@@ -125,7 +136,7 @@ var vectorStore = (function() {
         try {
             const db = await openDb();
             const store = db.transaction(STORE_L2, 'readwrite').objectStore(STORE_L2);
-            await reqAsPromise(store.put(rec));
+            await reqAsPromise(store.put(Object.assign({}, rec, { vector: rec.vector ? rec.vector.buffer.slice(0) : null })));
         } catch (e) {
             console.warn('[VectorStore] L2 落盘失败（仅内存保留）:', e && e.message || e);
         }

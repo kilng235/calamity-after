@@ -2106,9 +2106,10 @@
     </div>
     <div class="inv-body">
       <div id="vec-stats"></div>
-      <input type="text" id="vec-filter" placeholder="◈ 筛选摘要关键词..." oninput="renderVecList()">
+      <input type="text" id="vec-filter" placeholder="◈ 筛选纪要关键词..." oninput="renderVecList()">
       <div id="vec-list"></div>
-      <button class="btn" onclick="clearVectorMemory()" style="width:100%;margin-top:12px;border-color:var(--danger);color:var(--danger)">◈ 清空全部记忆向量 ◈</button>
+      <button class="btn" onclick="vecBackfill()" style="width:100%;margin-top:12px">◈ 补算未向量化纪要 ◈</button>
+      <button class="btn" onclick="clearVectorMemory()" style="width:100%;margin-top:8px;border-color:var(--danger);color:var(--danger)">◈ 清空全部记忆向量 ◈</button>
     </div>
   </div>
 </div>
@@ -3908,44 +3909,87 @@ function clearSTPreset() {
     }
   }
 
+  function vecNextFloor() {
+    try {
+      const n = (parseInt(localStorage.getItem('calamity-vec-floor-max')) || 0) + 1;
+      localStorage.setItem('calamity-vec-floor-max', String(n));
+      return n;
+    } catch (e) { return 0; }
+  }
+
+  // 纪要永远归档；向量化是可选附加（未启用/失败时仅存文本，可稍后补算）
   async function storeSummariesToMemory(summaries) {
-    if (!window.memoryRecall || !window.vectorStore || !window.embeddingService || !window.embeddingService.isEnabled()) return 0;
+    if (!window.vectorStore) return 0;
     const texts = (summaries || []).map(s => String(s).trim()).filter(s => s.length > 1);
     if (!texts.length) return 0;
+    const canVec = !!(window.embeddingService && window.embeddingService.isEnabled() && window.memoryRecall);
+    const floor = vecNextFloor();
+    const fp = canVec ? window.embeddingService.getFingerprint() : '';
+    let vecs = null;
+    if (canVec) {
+      try {
+        vecs = await window.embeddingService.embed(texts);
+      } catch (e) {
+        console.warn('[VectorMemory] 向量化失败，本层纪要仅归档:', e && e.message || e);
+        vecs = null;
+      }
+    }
+    let location = '';
     try {
       const gd = gameState.getGameData();
-      const location = (gd && gd.progress && gd.progress.currentLocation) || '';
-      const fp = window.embeddingService.getFingerprint();
-      const vecs = await window.embeddingService.embed(texts);
-      const newIds = [];
-      const newEventIds = [];
-      let n = 0;
-      texts.forEach((txt, i) => {
-        if (!vecs || !vecs[i]) return;
-        const id = 'emb_' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2, 8);
-        const f32 = new Float32Array(vecs[i]);
-        const npc = vecExtractNpcs(txt);
-        window.vectorStore.saveEmbedding(id, f32, { text: txt, week: 0, fingerprint: fp, createdAt: Date.now(), kind: 'turn' });
+      location = (gd && gd.progress && gd.progress.currentLocation) || '';
+    } catch (e) { /* ignore */ }
+    const newIds = [];
+    const newEventIds = [];
+    let n = 0;
+    texts.forEach((txt, i) => {
+      const id = 'emb_' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2, 8);
+      let f32 = null;
+      if (vecs && vecs[i]) f32 = new Float32Array(vecs[i]);
+      if (f32) {
+        window.vectorStore.saveEmbedding(id, f32, { text: txt, week: 0, fingerprint: fp, createdAt: Date.now(), kind: 'turn', floor: floor });
         window.memoryRecall.addToCache({ id: id, vector: f32, text: txt, week: 0, fingerprint: fp, createdAt: Date.now() });
         newIds.push(id);
-        // L2 事件层：附带 NPC/地点结构化信息（复用同一向量，无结构信息时跳过）
+      } else {
+        window.vectorStore.saveEmbedding(id, null, { text: txt, week: 0, fingerprint: '', createdAt: Date.now(), kind: 'turn', floor: floor });
+      }
+      // L2 事件层：附带 NPC/地点结构化信息（需要向量；无向量化时跳过，可稍后补算）
+      if (f32) {
+        const npc = vecExtractNpcs(txt);
         if (npc.length || location) {
           const eid = 'wevt_' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2, 8);
           window.vectorStore.saveL2Embedding(eid, f32, { text: txt, week: 0, fingerprint: fp, createdAt: Date.now(), npc: npc, location: location, keywords: [] });
           window.memoryRecall.addToCacheL2({ id: eid, vector: f32, text: txt, week: 0, fingerprint: fp, createdAt: Date.now(), npc: npc, location: location, keywords: [] });
           newEventIds.push(eid);
         }
-        n++;
-      });
-      vecPushRecentIds(newIds.concat(newEventIds));
-      if (n) console.log('[VectorMemory] 已入库 ' + n + ' 条摘要向量');
-      vecCompressArc();  // 异步篇章压缩（未达阈值时内部静默返回）
-      return n;
-    } catch (e) {
-      console.warn('[VectorMemory] 摘要入库失败（不影响主流程）:', e && e.message || e);
-      return 0;
-    }
+      }
+      n++;
+    });
+    vecPushRecentIds(newIds.concat(newEventIds));
+    if (n) console.log('[VectorMemory] 第' + floor + '层纪要已归档' + (vecs ? '并向量入库' : '（未向量化，可在记忆库补算）') + ' ' + n + ' 条');
+    vecCompressArc();  // 异步篇章压缩（未达阈值时内部静默返回）
+    return n;
   }
+
+  // 补算：为未向量化的历史纪要生成向量并入召回缓存
+  async function vecBackfillVectors() {
+    if (!window.vectorStore || !window.embeddingService || !window.embeddingService.isEnabled()) return 0;
+    const fp = window.embeddingService.getFingerprint();
+    const pending = vectorStore.loadAllEmbeddings().filter(r => (r.kind || 'turn') === 'turn' && (!r.vector || !r.vector.length));
+    if (!pending.length) return 0;
+    const vecs = await window.embeddingService.embed(pending.map(r => r.text));
+    let n = 0;
+    pending.forEach((r, i) => {
+      if (!vecs || !vecs[i]) return;
+      const f32 = new Float32Array(vecs[i]);
+      window.vectorStore.saveEmbedding(r.id, f32, { text: r.text, week: r.week, fingerprint: fp, createdAt: r.createdAt, kind: 'turn', floor: r.floor });
+      window.memoryRecall.addToCache({ id: r.id, vector: f32, text: r.text, week: r.week, fingerprint: fp, createdAt: r.createdAt });
+      n++;
+    });
+    console.log('[VectorMemory] 补算向量 ' + n + ' 条');
+    return n;
+  }
+  window.vecBackfillVectors = vecBackfillVectors;
 
   // 篇章压缩：每 N 轮单轮摘要由 LLM 压成一篇总结入库（N 可用 localStorage calamity-vec-arc-every 覆盖）
   async function vecCompressArc() {
@@ -3990,16 +4034,17 @@ function clearSTPreset() {
     const all = window.vectorStore ? vectorStore.loadAllEmbeddings() : [];
     const l2 = window.vectorStore ? vectorStore.loadAllL2Embeddings() : [];
     const arcs = all.filter(r => r.kind === 'arc').length;
+    const pending = all.filter(r => (r.kind || 'turn') === 'turn' && (!r.vector || !r.vector.length)).length;
     const kw = ((document.getElementById('vec-filter') || {}).value || '').trim();
     const match = r => !kw || (r.text || '').indexOf(kw) >= 0;
     const recs = all.filter(match);
-    recs.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-    if (statsEl) statsEl.textContent = '摘要向量 ' + all.length + ' 条（篇章总结 ' + arcs + ' 条）· 剧情事件 ' + l2.length + ' 条' + (kw ? '，筛选出 ' + recs.length + ' 条' : '');
+    recs.sort((a, b) => (b.floor || 0) - (a.floor || 0) || (b.createdAt || 0) - (a.createdAt || 0));
+    if (statsEl) statsEl.textContent = '纪要 ' + all.length + ' 条（篇章总结 ' + arcs + ' 条）· 剧情事件 ' + l2.length + ' 条' + (pending ? ' · 待补算 ' + pending + ' 条' : '') + (kw ? '，筛选出 ' + recs.length + ' 条' : '');
     listEl.innerHTML = '';
     if (!recs.length && !l2.length) {
       const empty = document.createElement('div');
       empty.className = 'vec-empty';
-      empty.textContent = kw ? '◈ 无匹配记录' : '◈ 暂无记忆记录（开启向量记忆并对话后，摘要会出现在这里）';
+      empty.textContent = kw ? '◈ 无匹配记录' : '◈ 暂无纪要（对话后每一楼的剧情纪要会自动出现在这里）';
       listEl.appendChild(empty);
       return;
     }
@@ -4013,7 +4058,8 @@ function clearSTPreset() {
       txt.textContent = r.text || '（空摘要）';
       const meta = document.createElement('div');
       meta.className = 'vec-entry-meta';
-      meta.textContent = (r.kind === 'arc' ? '篇章总结 ｜ ' : '') + (time ? time + ' ｜ ' : '') + '模型指纹 ' + (r.fingerprint || '-');
+      const state = r.kind === 'arc' ? '篇章总结' : ((r.vector && r.vector.length) ? '已向量化' : '未向量化');
+      meta.textContent = '第' + (r.floor || '?') + '层 ｜ ' + state + ' ｜ ' + (time ? time : '');
       entry.appendChild(txt);
       entry.appendChild(meta);
       listEl.appendChild(entry);
@@ -4068,6 +4114,18 @@ function clearSTPreset() {
   window.closeVecOverlay = closeVecOverlay;
   window.clearVectorMemory = clearVectorMemory;
   window.renderVecList = renderVecList;
+
+  function vecBackfill() {
+    if (!window.embeddingService || !window.embeddingService.isEnabled()) {
+      alert('请先在设置中启用并配置 Embedding 接口，再补算纪要向量。');
+      return;
+    }
+    window.vecBackfillVectors().then(function(n) {
+      alert(n > 0 ? '已为 ' + n + ' 条纪要补算向量，现在可以参与召回了。' : '没有需要补算的纪要。');
+      renderVecList();
+    });
+  }
+  window.vecBackfill = vecBackfill;
 
   // ── AI 主链路 ──
   window.sendMessage = async function() {
