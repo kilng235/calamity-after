@@ -2387,7 +2387,6 @@
   <div class="bottom-bar">
     <input type="text" class="input-box" id="input-box" placeholder="输入你的行动..." onkeypress="if(event.key==='Enter') sendMessage()">
     <button class="send-btn" onclick="sendMessage()">发送</button>
-    <button class="send-btn" onclick="undoLastTurn()" title="撤销上一回合（变量与记忆同步回退）">↩</button>
     <button class="send-btn" onclick="rollDice()">🎲</button>
   </div>
 </div>
@@ -2466,6 +2465,21 @@
     color:var(--ink-faded);font-style:italic;font-size:0.92em;
     border-left:2px solid rgba(184,148,42,0.4);padding-left:10px;
     margin:0 0 16px;
+  }
+  #narrative-display .turn-actions{
+    display:flex;justify-content:flex-end;
+    margin:2px 0 16px;
+  }
+  #narrative-display .undo-turn-btn{
+    font-family:"Cinzel","Noto Serif SC",serif;
+    font-size:0.78em;color:var(--ink-faded);
+    background:transparent;border:1px dashed var(--parchment-dark);
+    border-radius:2px;padding:4px 12px;cursor:pointer;
+    letter-spacing:1px;transition:color .2s,border-color .2s,box-shadow .2s;
+  }
+  #narrative-display .undo-turn-btn:hover{
+    color:var(--gold);border-color:var(--gold);
+    box-shadow:0 0 6px var(--gold-glow);
   }
   #narrative-display .sys-strip{
     color:var(--ink-faded);font-size:0.9em;margin:0 0 14px;
@@ -3943,6 +3957,7 @@ function clearSTPreset() {
     const display = document.getElementById('narrative-display');
     if (!display) return;
     display.appendChild(renderNarrativePage(text));
+    mountUndoBar(display);
     display.scrollTop = display.scrollHeight;
   }
 
@@ -3972,11 +3987,13 @@ function clearSTPreset() {
     try {
       const nd = document.getElementById('narrative-display');
       const stack = loadUndoStack();
+      const bar = document.getElementById('undo-turn-bar');
+      const barIn = bar && bar.parentNode === nd ? 1 : 0;
       stack.push({
         ts: Date.now(),
         gameData: JSON.parse(JSON.stringify(gameState.getGameData())),
         chatContext: loadChatContext(),
-        narrativeCount: nd ? nd.childElementCount : 0
+        narrativeCount: nd ? nd.childElementCount - barIn : 0
       });
       while (stack.length > UNDO_STACK_MAX) stack.shift();
       localStorage.setItem(UNDO_STACK_KEY, JSON.stringify(stack));
@@ -3997,7 +4014,16 @@ function clearSTPreset() {
       const nd = document.getElementById('narrative-display');
       if (nd) {
         const target = snap.narrativeCount || 0;
-        while (nd.childElementCount > target) nd.removeChild(nd.lastElementChild);
+        const bar = document.getElementById('undo-turn-bar');
+        const barIn = bar && bar.parentNode === nd ? 1 : 0;
+        let pages = nd.childElementCount - barIn;
+        while (pages > target) {
+          const last = nd.lastElementChild;
+          const node = (bar && last === bar) ? last.previousElementSibling : last;
+          if (!node) break;
+          nd.removeChild(node);
+          pages--;
+        }
       }
       refreshGameUI();
       displayNarrative('\n◈ 已撤销上一回合，变量与记忆同步回退\n');
@@ -4008,6 +4034,26 @@ function clearSTPreset() {
   }
   window.undoLastTurn = undoLastTurn;
   window.pushUndoSnapshot = pushUndoSnapshot;
+
+  // 撤销动作条：始终挂在叙事流最末（最新会话下方），栈空时隐藏
+  function mountUndoBar(display) {
+    const nd = display || document.getElementById('narrative-display');
+    if (!nd) return;
+    let bar = document.getElementById('undo-turn-bar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'undo-turn-bar';
+      bar.className = 'turn-actions';
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'undo-turn-btn';
+      btn.textContent = '↩ 撤销上一回合';
+      btn.onclick = function() { undoLastTurn(); };
+      bar.appendChild(btn);
+    }
+    bar.style.display = loadUndoStack().length > 0 ? 'flex' : 'none';
+    if (bar.parentNode !== nd || nd.lastElementChild !== bar) nd.appendChild(bar);
+  }
 
   // ── AI 主链路 ──
   window.sendMessage = async function() {
