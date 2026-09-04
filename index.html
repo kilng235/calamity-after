@@ -2304,7 +2304,6 @@
     <div class="panel-section">
       <div class="panel-title">◆ ◇ 快捷操作</div>
       <button class="action-btn" onclick="openInventory()">◈ 打开背包</button>
-      <button class="action-btn" onclick="fillTestInventory()">◈ 测试：填充背包</button>
       <button class="action-btn" onclick="openSettings()">◈ 设置</button>
     </div>
 
@@ -3768,23 +3767,6 @@ function clearSTPreset() {
   window.openInventory = openInventory;
   window.closeInventory = closeInventory;
 
-  function fillTestInventory() {
-    const gd = gameState.getGameData();
-    gd.inventory = gd.inventory || [];
-    gd.inventory.push(
-      { name: '铁剑', type: 'weapon', durability: 20, attack: '1d8', materialTier: 1 },
-      { name: '皮甲', type: 'armor', durability: 15, acBase: 11, dexBonus: 'full', materialTier: 1 },
-      { name: '治疗药水', type: 'consumable', effect: 'heal', value: 15, count: 3 },
-      { name: '火把', type: 'misc', count: 5 },
-      { name: '干粮', type: 'consumable', effect: 'food', count: 4 },
-      { name: '铁矿', type: 'material', count: 8 }
-    );
-    gameState.saveGameData();
-    refreshGameUI();
-    openInventory();
-    displayNarrative('你往背包里塞了一些测试物品。');
-  }
-  window.fillTestInventory = fillTestInventory;
   window.rollDice = function() {
     const r = Math.floor(Math.random() * 20) + 1;
     displayNarrative('\n🎲 你掷出了：' + r + '\n');
