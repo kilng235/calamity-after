@@ -2739,7 +2739,7 @@
 
         <div class="btn-row" style="">
           <button class="btn" onclick="saveAll()" data-ripple-bound="1">◈ 铭刻设置 ◈</button>
-          <button class="btn" onclick="navigate('home')" data-ripple-bound="1">◈ 返回封面 ◈</button>
+          <button class="btn" onclick="navigate(returnToPreviousView())" data-ripple-bound="1">◈ 返回上一页 ◈</button>
         </div>
 
         <div class="footer" style="">圣火骑士团 · 机要室 · 愿遗火照亮你的路</div>
@@ -2785,9 +2785,20 @@
 
 // ============ 路由系统 ============
 const VIEWS = ['home', 'create', 'game', 'settings', 'help'];
+var _routeBeforeSettings = '';  // 进入设置前的页面，供「返回上一页」使用（刷新后回退到封面）
+
+function returnToPreviousView() {
+  return (_routeBeforeSettings && VIEWS.indexOf(_routeBeforeSettings) >= 0) ? _routeBeforeSettings : 'home';
+}
 
 function navigate(route) {
   if (!VIEWS.includes(route)) route = 'home';
+
+  // 记录进入设置前的来源页面
+  var activeView = document.querySelector('section.active');
+  if (activeView && route === 'settings' && activeView.id !== 'view-settings') {
+    _routeBeforeSettings = activeView.id.replace('view-', '');
+  }
 
   VIEWS.forEach(function(v) {
     var view = document.getElementById('view-' + v);
