@@ -1690,65 +1690,60 @@
     text-shadow:0 0 6px var(--gold-glow);
   }
 
-  /* ── 六维属性 · 铭文卡 ── */
+  /* ── 六维属性 · 紧凑状态格 ── */
   .attr-list{
     display:grid;
     grid-template-columns:1fr 1fr;
-    gap:13px 10px;
-    padding:6px 2px 2px;
+    gap:6px 8px;
+    padding:2px;
     position:relative;
     z-index:2;
   }
   .attr-item{
-    background:var(--parchment-light);
-    background-image:
-      radial-gradient(ellipse 60px 40px at 20% 15%,rgba(140,100,50,0.10) 0%,transparent 70%),
-      radial-gradient(ellipse 50px 45px at 85% 80%,rgba(120,80,40,0.08) 0%,transparent 65%);
+    display:flex;
+    align-items:baseline;
+    padding:5px 8px 4px;
+    background:rgba(255,250,240,0.4);
     border:1px solid var(--parchment-dark);
-    border-radius:3px;
-    padding:12px 6px 10px;
-    text-align:center;
-    position:relative;
-    box-shadow:inset 0 0 14px rgba(120,100,60,0.10),0 1px 3px rgba(0,0,0,0.08);
-    transition:border-color .25s,box-shadow .25s,transform .25s;
-  }
-  .attr-item::before{
-    content:'';position:absolute;top:3px;left:3px;right:3px;bottom:3px;
-    border:1px solid rgba(184,148,42,0.18);
-    border-radius:2px;pointer-events:none;
+    border-radius:2px;
+    box-shadow:inset 0 0 8px rgba(120,100,60,0.07);
+    transition:border-color .2s,box-shadow .2s;
   }
   .attr-item:hover{
     border-color:var(--gold);
-    transform:translateY(-2px);
-    box-shadow:inset 0 0 14px rgba(120,100,60,0.10),0 2px 8px rgba(184,148,42,0.25);
+    box-shadow:inset 0 0 8px rgba(120,100,60,0.07),0 0 6px var(--gold-glow);
   }
   .attr-name{
-    display:block;
     font-family:"Noto Serif SC",serif;
-    font-size:0.92em;
+    font-size:0.8em;
     font-weight:700;
     color:var(--ink-light);
-    letter-spacing:3px;
-    text-shadow:0 1px 0 rgba(255,255,255,0.35);
+    letter-spacing:1px;
+    white-space:nowrap;
   }
   .attr-en{
-    display:block;
+    font-style:normal;
     font-family:"Cinzel",serif;
-    font-size:0.58em;
+    font-size:0.55em;
     color:var(--gold);
-    letter-spacing:2.5px;
-    margin-top:2px;
+    letter-spacing:1px;
+    margin-left:3px;
     opacity:0.85;
   }
+  .attr-fill{
+    flex:1;
+    min-width:4px;
+    border-bottom:1px dotted rgba(106,88,56,0.4);
+    margin:0 6px;
+    transform:translateY(-2px);
+  }
   .attr-value{
-    display:block;
-    font-family:"Cinzel Decorative","Noto Serif SC",serif;
-    font-size:1.55em;
+    font-family:"Cinzel","Noto Serif SC",serif;
+    font-size:0.95em;
     font-weight:700;
-    color:var(--ink);
-    line-height:1.15;
-    margin:6px 0 2px;
-    text-shadow:0 1px 0 rgba(255,255,255,0.4);
+    color:var(--gold-bright);
+    text-shadow:0 1px 0 rgba(255,255,255,0.35);
+    white-space:nowrap;
   }
 
   /* 中间正文区 - 羊皮纸长卷 */
@@ -3600,8 +3595,8 @@ function clearSTPreset() {
       const item = document.createElement('div');
       item.className = 'attr-item';
       item.innerHTML =
-        '<span class="attr-name">' + name + '</span>' +
-        '<span class="attr-en">' + (ATTR_EN[name] || '') + '</span>' +
+        '<span class="attr-name">' + name + '<i class="attr-en">' + (ATTR_EN[name] || '') + '</i></span>' +
+        '<span class="attr-fill"></span>' +
         '<span class="attr-value">' + value + '</span>';
       list.appendChild(item);
     });
