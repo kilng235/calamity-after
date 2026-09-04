@@ -3756,7 +3756,8 @@ function clearSTPreset() {
         gameData: JSON.parse(JSON.stringify(gameState.getGameData())),
         chatContext: loadChatContext(),
         narrativeCount: nd ? nd.childElementCount - barIn : 0,
-        vecIds: (window.vectorStore ? vectorStore.loadAllEmbeddings().map(r => r.id) : [])
+        vecIds: (window.vectorStore ? vectorStore.loadAllEmbeddings().map(r => r.id) : []),
+        l2Ids: (window.vectorStore ? vectorStore.loadAllL2Embeddings().map(r => r.id) : [])
       });
       while (stack.length > UNDO_STACK_MAX) stack.shift();
       localStorage.setItem(UNDO_STACK_KEY, JSON.stringify(stack));
@@ -3789,13 +3790,20 @@ function clearSTPreset() {
         }
       }
       refreshGameUI();
-      // 同步撤销向量记忆：删除快照之后入库的摘要向量
+      // 同步撤销向量记忆：删除快照之后入库的摘要向量与事件向量
       if (window.vectorStore && window.memoryRecall) {
         const beforeIds = new Set(snap.vecIds || []);
         vectorStore.loadAllEmbeddings().forEach(rec => {
           if (!beforeIds.has(rec.id)) {
             vectorStore.deleteEmbedding(rec.id);
             window.memoryRecall.removeFromCache(rec.id);
+          }
+        });
+        const beforeL2 = new Set(snap.l2Ids || []);
+        vectorStore.loadAllL2Embeddings().forEach(rec => {
+          if (!beforeL2.has(rec.id)) {
+            vectorStore.deleteL2Embedding(rec.id);
+            window.memoryRecall.removeFromCacheL2(rec.id);
           }
         });
       }
@@ -3834,19 +3842,66 @@ function clearSTPreset() {
     window.vectorStore.init().then(function() {
       return window.memoryRecall.init();
     }).then(function() {
+      return window.memoryRecall.initL2();
+    }).then(function() {
       console.log('[VectorMemory] 记忆缓存预热完成', window.memoryRecall.getStats());
     }).catch(function(e) { console.warn('[VectorMemory] 初始化失败:', e && e.message || e); });
   })();
 
+  const VEC_EXCLUDE_RECENT = 4;   // 最近 N 轮的摘要/事件不参与召回（与逐字上下文去重）
+  function vecArcEvery() {
+    return parseInt(localStorage.getItem('calamity-vec-arc-every')) || 50;   // 每 N 轮摘要压缩一篇章总结
+  }
+  function vecPushRecentIds(ids) {
+    if (!ids || !ids.length) return;
+    try {
+      const q = JSON.parse(localStorage.getItem('calamity-vec-recent-ids') || '[]');
+      q.push(ids);                       // 按轮分批存储，一轮的所有 id 同进同出
+      while (q.length > VEC_EXCLUDE_RECENT) q.shift();
+      localStorage.setItem('calamity-vec-recent-ids', JSON.stringify(q));
+    } catch (e) { /* ignore */ }
+  }
+  function vecRecentIds() {
+    try {
+      const q = JSON.parse(localStorage.getItem('calamity-vec-recent-ids') || '[]');
+      return q.flat ? q.flat() : [].concat.apply([], q);
+    } catch (e) { return []; }
+  }
+  function vecExtractNpcs(text) {
+    try {
+      const gd = gameState.getGameData();
+      return Object.keys((gd && gd.relationships) || {}).filter(n => n && String(text).indexOf(n) >= 0);
+    } catch (e) { return []; }
+  }
+
   async function recallMemoriesForPrompt(userMessage) {
     if (!window.memoryRecall || !window.embeddingService || !window.embeddingService.isEnabled()) return '';
     try {
-      const recalled = await window.memoryRecall.recallRelevantMemories(userMessage, 6, [], 600);
-      if (!recalled || !recalled.length) return '';
-      const lines = recalled.map(m => '- ' + String(m.text || '').trim()).filter(l => l.length > 2);
-      return lines.length
+      const qv = await window.embeddingService.embed([userMessage]);
+      const qVec = qv && qv[0] ? new Float32Array(qv[0]) : null;
+      if (!qVec) return '';
+      const excludeIds = vecRecentIds();
+      const recalled = await window.memoryRecall.recallRelevantMemories(qVec, 6, excludeIds, 600);
+      const lines = (recalled || []).map(m => '- ' + String(m.text || '').trim()).filter(l => l.length > 2);
+      let block = lines.length
         ? '【相关记忆召回】以下是向量检索出的历史剧情摘要，仅供保持剧情连贯参考（非当前对话内容）：\n' + lines.join('\n')
         : '';
+      // L2 剧情事件召回（语义 + NPC/地点词法双路）
+      try {
+        const events = await window.memoryRecall.recallL2Events(qVec, null, { excludeIds: excludeIds, intentText: userMessage, minSim: 0.55 });
+        const hits = (events || []).filter(e => e && e.text).slice(0, 4);
+        if (hits.length) {
+          const l2All = window.vectorStore ? vectorStore.loadAllL2Embeddings() : [];
+          const evLines = hits.map(e => {
+            const rec = l2All.find(r => r.id === e.id) || {};
+            const tag = [rec.npc && rec.npc.length ? 'NPC:' + rec.npc.join('/') : '', rec.location ? '地点:' + rec.location : ''].filter(Boolean).join('｜');
+            return '- ' + (tag ? '[' + tag + '] ' : '') + String(e.text).trim();
+          });
+          if (block) block += '\n';
+          block += '【相关剧情事件】\n' + evLines.join('\n');
+        }
+      } catch (e2) { console.warn('[VectorMemory] 事件召回失败:', e2 && e2.message || e2); }
+      return block;
     } catch (e) {
       console.warn('[VectorMemory] 召回失败（降级跳过）:', e && e.message || e);
       return '';
@@ -3858,22 +3913,70 @@ function clearSTPreset() {
     const texts = (summaries || []).map(s => String(s).trim()).filter(s => s.length > 1);
     if (!texts.length) return 0;
     try {
+      const gd = gameState.getGameData();
+      const location = (gd && gd.progress && gd.progress.currentLocation) || '';
       const fp = window.embeddingService.getFingerprint();
       const vecs = await window.embeddingService.embed(texts);
+      const newIds = [];
+      const newEventIds = [];
       let n = 0;
       texts.forEach((txt, i) => {
         if (!vecs || !vecs[i]) return;
         const id = 'emb_' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2, 8);
         const f32 = new Float32Array(vecs[i]);
-        window.vectorStore.saveEmbedding(id, f32, { text: txt, week: 0, fingerprint: fp, createdAt: Date.now() });
+        const npc = vecExtractNpcs(txt);
+        window.vectorStore.saveEmbedding(id, f32, { text: txt, week: 0, fingerprint: fp, createdAt: Date.now(), kind: 'turn' });
         window.memoryRecall.addToCache({ id: id, vector: f32, text: txt, week: 0, fingerprint: fp, createdAt: Date.now() });
+        newIds.push(id);
+        // L2 事件层：附带 NPC/地点结构化信息（复用同一向量，无结构信息时跳过）
+        if (npc.length || location) {
+          const eid = 'wevt_' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2, 8);
+          window.vectorStore.saveL2Embedding(eid, f32, { text: txt, week: 0, fingerprint: fp, createdAt: Date.now(), npc: npc, location: location, keywords: [] });
+          window.memoryRecall.addToCacheL2({ id: eid, vector: f32, text: txt, week: 0, fingerprint: fp, createdAt: Date.now(), npc: npc, location: location, keywords: [] });
+          newEventIds.push(eid);
+        }
         n++;
       });
+      vecPushRecentIds(newIds.concat(newEventIds));
       if (n) console.log('[VectorMemory] 已入库 ' + n + ' 条摘要向量');
+      vecCompressArc();  // 异步篇章压缩（未达阈值时内部静默返回）
       return n;
     } catch (e) {
       console.warn('[VectorMemory] 摘要入库失败（不影响主流程）:', e && e.message || e);
       return 0;
+    }
+  }
+
+  // 篇章压缩：每 N 轮单轮摘要由 LLM 压成一篇总结入库（N 可用 localStorage calamity-vec-arc-every 覆盖）
+  async function vecCompressArc() {
+    if (!window.apiService || !window.embeddingService || !window.embeddingService.isEnabled()) return;
+    try {
+      const every = vecArcEvery();
+      const all = vectorStore.loadAllEmbeddings();
+      const turns = all.filter(r => (r.kind || 'turn') === 'turn');
+      const arcs = all.filter(r => r.kind === 'arc');
+      if (turns.length - arcs.length * every < every) return;
+      const cfg = window.apiService.getConfig();
+      if (!cfg || !cfg.apiKey) return;
+      const batch = turns.slice().sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).slice(0, every);
+      const listText = batch.map((r, i) => (i + 1) + '. ' + (r.text || '')).join('\n');
+      const res = await window.apiService.sendMessages([
+        { role: 'system', content: '你是剧情记录员。将以下按时间排列的剧情摘要压缩成一段 150 字以内的篇章总结，保留关键事件、人物、因果与未决事项，直接输出总结正文，不要评论。' },
+        { role: 'user', content: listText }
+      ], { model: cfg.model, temperature: 0.3, stream: false });
+      const arcText = res && res.content ? String(res.content).trim() : '';
+      if (!arcText) return;
+      const fp = window.embeddingService.getFingerprint();
+      const vecs = await window.embeddingService.embed([arcText]);
+      if (!vecs || !vecs[0]) return;
+      const f32 = new Float32Array(vecs[0]);
+      const id = 'arc_' + Date.now();
+      const label = '【第' + (arcs.length + 1) + '篇·每' + every + '轮压缩】';
+      vectorStore.saveEmbedding(id, f32, { text: label + arcText, week: 0, fingerprint: fp, createdAt: Date.now(), kind: 'arc' });
+      memoryRecall.addToCache({ id: id, vector: f32, text: label + arcText, week: 0, fingerprint: fp, createdAt: Date.now() });
+      console.log('[VectorMemory] 篇章压缩完成:', id);
+    } catch (e) {
+      console.warn('[VectorMemory] 篇章压缩失败（下轮满足条件时重试）:', e && e.message || e);
     }
   }
   window.recallMemoriesForPrompt = recallMemoriesForPrompt;
@@ -3885,12 +3988,15 @@ function clearSTPreset() {
     const listEl = document.getElementById('vec-list');
     if (!listEl) return;
     const all = window.vectorStore ? vectorStore.loadAllEmbeddings() : [];
+    const l2 = window.vectorStore ? vectorStore.loadAllL2Embeddings() : [];
+    const arcs = all.filter(r => r.kind === 'arc').length;
     const kw = ((document.getElementById('vec-filter') || {}).value || '').trim();
-    const recs = kw ? all.filter(r => (r.text || '').indexOf(kw) >= 0) : all;
+    const match = r => !kw || (r.text || '').indexOf(kw) >= 0;
+    const recs = all.filter(match);
     recs.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-    if (statsEl) statsEl.textContent = '共 ' + all.length + ' 条摘要向量' + (kw ? '，筛选出 ' + recs.length + ' 条' : '') + '（每轮 AI 回复的 <SUMMARY> 摘要自动入库）';
+    if (statsEl) statsEl.textContent = '摘要向量 ' + all.length + ' 条（篇章总结 ' + arcs + ' 条）· 剧情事件 ' + l2.length + ' 条' + (kw ? '，筛选出 ' + recs.length + ' 条' : '');
     listEl.innerHTML = '';
-    if (!recs.length) {
+    if (!recs.length && !l2.length) {
       const empty = document.createElement('div');
       empty.className = 'vec-empty';
       empty.textContent = kw ? '◈ 无匹配记录' : '◈ 暂无记忆记录（开启向量记忆并对话后，摘要会出现在这里）';
@@ -3907,11 +4013,35 @@ function clearSTPreset() {
       txt.textContent = r.text || '（空摘要）';
       const meta = document.createElement('div');
       meta.className = 'vec-entry-meta';
-      meta.textContent = (time ? time + ' ｜ ' : '') + '模型指纹 ' + (r.fingerprint || '-');
+      meta.textContent = (r.kind === 'arc' ? '篇章总结 ｜ ' : '') + (time ? time + ' ｜ ' : '') + '模型指纹 ' + (r.fingerprint || '-');
       entry.appendChild(txt);
       entry.appendChild(meta);
       listEl.appendChild(entry);
     });
+    const evs = l2.filter(match).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    if (evs.length) {
+      const title = document.createElement('div');
+      title.className = 'inv-section-title';
+      title.textContent = '剧情事件（NPC/地点结构化）';
+      listEl.appendChild(title);
+      evs.forEach(r => {
+        const d = r.createdAt ? new Date(r.createdAt) : null;
+        const time = d ? (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') : '';
+        const entry = document.createElement('div');
+        entry.className = 'vec-entry';
+        entry.style.borderLeftColor = 'var(--danger)';
+        const txt = document.createElement('div');
+        txt.className = 'vec-entry-text';
+        txt.textContent = r.text || '（空事件）';
+        const meta = document.createElement('div');
+        meta.className = 'vec-entry-meta';
+        const tag = [(r.npc && r.npc.length ? 'NPC:' + r.npc.join('/') : ''), (r.location ? '地点:' + r.location : '')].filter(Boolean).join('｜');
+        meta.textContent = (tag ? tag + ' ｜ ' : '') + time;
+        entry.appendChild(txt);
+        entry.appendChild(meta);
+        listEl.appendChild(entry);
+      });
+    }
   }
 
   function openVecOverlay() {
