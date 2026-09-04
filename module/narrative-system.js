@@ -206,11 +206,12 @@ export function formatBattleTag(combat) {
  * @returns {string}
  */
 export function formatCheckTag(checkResult) {
+  const skillName = checkResult.skillName || checkResult.attribute;
   let output = '<check>\n';
   
   // 顶部框线
   output += '╔═══════════════════════════════╗\n';
-  output += `║  ${getSkillIcon(checkResult.skillName)} ${checkResult.skillName}检定`.padEnd(36, ' ') + '║\n';
+  output += `║  ${getSkillIcon(skillName)} ${skillName}检定`.padEnd(36, ' ') + '║\n';
   output += '╠═══════════════════════════════╣\n';
   
   // 骰值
@@ -439,7 +440,7 @@ function generateCombatIntro(combat) {
  * @returns {string}
  */
 export function generateCheckNarrative(checkResult, context) {
-  const narrative = context || `你尝试进行${checkResult.skillName}检定。`;
+  const narrative = context || `你尝试进行${checkResult.skillName || checkResult.attribute}检定。`;
   
   const checkTag = formatCheckTag(checkResult);
   

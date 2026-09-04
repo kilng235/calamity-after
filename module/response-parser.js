@@ -130,6 +130,126 @@ var responseParser = (function () {
         return summaries;
     }
 
+    // ==================== 任务块提取 ====================
+
+    /**
+     * 提取任务块（支持 [新任务]...[/新任务] 和 <新任务>...</新任务> 两种写法）
+     * @param {string} text - 原始文本
+     * @returns {Array<{type: string, content: string}>} 任务块列表
+     */
+    function extractQuestBlocks(text) {
+        if (!text) return [];
+        var quests = [];
+        
+        // 匹配 [新任务]...[/新任务] 或 <新任务>...</新任务>
+        var newQuestRegex = /[\[<][\s_]*(?:新任务|新任務|NewQuest|new_quest)[\s_]*[\]>]([\s\S]*?)[\[<][\s_]*\/[\s_]*(?:新任务|新任務|NewQuest|new_quest)[\s_]*[\]>]/gi;
+        var match;
+        while ((match = newQuestRegex.exec(text)) !== null) {
+            quests.push({ type: 'new', content: match[1].trim() });
+        }
+        
+        // 匹配 [任务完成]...[/任务完成] 或 <任务完成>...</任务完成>
+        var completeQuestRegex = /[\[<][\s_]*(?:任务完成|任務完成|QuestComplete|quest_complete)[\s_]*[\]>]([\s\S]*?)[\[<][\s_]*\/[\s_]*(?:任务完成|任務完成|QuestComplete|quest_complete)[\s_]*[\]>]/gi;
+        while ((match = completeQuestRegex.exec(text)) !== null) {
+            quests.push({ type: 'complete', content: match[1].trim() });
+        }
+        
+        // 匹配 [任务失败]...[/任务失败] 或 <任务失败>...</任务失败>
+        var failQuestRegex = /[\[<][\s_]*(?:任务失败|任務失敗|QuestFailed|quest_failed)[\s_]*[\]>]([\s\S]*?)[\[<][\s_]*\/[\s_]*(?:任务失败|任務失敗|QuestFailed|quest_failed)[\s_]*[\]>]/gi;
+        while ((match = failQuestRegex.exec(text)) !== null) {
+            quests.push({ type: 'fail', content: match[1].trim() });
+        }
+        
+        return quests;
+    }
+
+    /**
+     * 解析单个任务块内容（键值对格式）
+     * @param {string} content - 任务块内容
+     * @returns {Object} 任务对象
+     */
+    function parseQuestContent(content) {
+        if (!content) return null;
+        
+        var quest = {
+            name: '',
+            description: '',
+            type: '主线',
+            tier: '普通',
+            objectives: [],
+            rewards: {},
+            giver: null
+        };
+        
+        var lines = content.split('\n');
+        var currentSection = null;
+        var currentObjective = null;
+        
+        for (var i = 0; i < lines.length; i++) {
+            var line = lines[i].trim();
+            if (!line) continue;
+            
+            // 解析键值对（支持 "键：值" / "键=值" / "键: 值"）
+            var kvMatch = line.match(/^([^:=：]+)[=:：]\s*([\s\S]*)$/);
+            if (kvMatch) {
+                var key = kvMatch[1].trim().toLowerCase();
+                var value = kvMatch[2].trim();
+                
+                if (key === '名称' || key === 'name') {
+                    quest.name = value;
+                } else if (key === '描述' || key === 'description' || key === '说明') {
+                    quest.description = value;
+                } else if (key === '类型' || key === 'type') {
+                    quest.type = value;
+                } else if (key === '等级' || key === 'tier' || key === '难度') {
+                    quest.tier = value;
+                } else if (key === '发布者' || key === 'giver' || key === 'npc') {
+                    quest.giver = value;
+                } else if (key === '目标' || key === 'objectives') {
+                    currentSection = 'objectives';
+                    if (value) {
+                        // 单行目标
+                        quest.objectives.push({ description: value, completed: false });
+                    }
+                } else if (key === '奖励' || key === 'rewards') {
+                    currentSection = 'rewards';
+                    if (value) {
+                        // 解析奖励（如 "100金币" 或 "{gold: 100}"）
+                        var rewardMatch = value.match(/(\d+)\s*(金币|gold)/i);
+                        if (rewardMatch) {
+                            quest.rewards.gold = Number(rewardMatch[1]);
+                        }
+                        var expMatch = value.match(/(\d+)\s*(经验|exp)/i);
+                        if (expMatch) {
+                            quest.rewards.exp = Number(expMatch[1]);
+                        }
+                    }
+                }
+            } else if (line.match(/^[-*•]\s+/)) {
+                // 列表项（- / * / • 开头）
+                var itemText = line.replace(/^[-*•]\s+/, '').trim();
+                if (currentSection === 'objectives') {
+                    // 检查是否已完成（如 "[x] 收集灰烬狼皮"）
+                    var completed = /^\[x\]/i.test(itemText);
+                    itemText = itemText.replace(/^\[x\]\s*/i, '').trim();
+                    quest.objectives.push({ description: itemText, completed: completed });
+                } else if (currentSection === 'rewards') {
+                    // 解析奖励项
+                    var rewardMatch = itemText.match(/(\d+)\s*(金币|gold)/i);
+                    if (rewardMatch) {
+                        quest.rewards.gold = Number(rewardMatch[1]);
+                    }
+                    var expMatch = itemText.match(/(\d+)\s*(经验|exp)/i);
+                    if (expMatch) {
+                        quest.rewards.exp = Number(expMatch[1]);
+                    }
+                }
+            }
+        }
+        
+        return quest.name ? quest : null;
+    }
+
     // ==================== 通用 XML 块提取 ====================
 
     /**
@@ -524,6 +644,20 @@ var responseParser = (function () {
             console.error('[ResponseParser] 命令解析异常:', e);
         }
 
+        // 提取任务块
+        var questBlocks = extractQuestBlocks(cleaned);
+        var quests = [];
+        for (var i = 0; i < questBlocks.length; i++) {
+            var block = questBlocks[i];
+            var parsed = parseQuestContent(block.content);
+            if (parsed) {
+                quests.push({
+                    type: block.type,  // 'new' / 'complete' / 'fail'
+                    quest: parsed
+                });
+            }
+        }
+
         return {
             raw: rawText,
             cleanedText: cleaned,
@@ -532,6 +666,7 @@ var responseParser = (function () {
             commandBlockFound: commandBlock.found,
             commandBlockClosed: commandBlock.closed,
             commands: commands,
+            quests: quests,  // 新增：解析出的任务列表
             parseError: parseError,
             parseIncomplete: (commandBlock.found && !commandBlock.closed) || Boolean(parseError)
         };
@@ -542,6 +677,8 @@ var responseParser = (function () {
         extractMainText: extractMainText,
         extractSummaries: extractSummaries,
         extractXmlBlock: extractXmlBlock,
+        extractQuestBlocks: extractQuestBlocks,
+        parseQuestContent: parseQuestContent,
         解析命令块: 解析命令块,
         run: run
     };

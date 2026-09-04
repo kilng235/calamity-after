@@ -257,6 +257,7 @@ export function performCheck(request) {
     // 基础信息
     type: 'normal',
     attribute: request.attribute,
+    skillName: request.attribute,
     description: request.description,
     
     // 骰子结果
@@ -334,6 +335,7 @@ export function performContestCheck(request) {
   return {
     type: 'contest',
     attribute: request.attribute,
+    skillName: request.attribute,
     description: request.description,
     
     // 发起者

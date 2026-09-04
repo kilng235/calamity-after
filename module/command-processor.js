@@ -96,6 +96,39 @@ var commandProcessor = (function () {
         if (!Array.isArray(progress.completedQuests)) progress.completedQuests = [];
         if (!Array.isArray(progress.unlockedLocations)) progress.unlockedLocations = ['锈钉镇'];
 
+        // 任务系统规范化
+        var quests = gd.quests = gd.quests || {};
+        if (!Array.isArray(quests.active)) quests.active = [];
+        if (!Array.isArray(quests.completed)) quests.completed = [];
+        if (!Array.isArray(quests.failed)) quests.failed = [];
+        
+        // 规范化每个任务对象
+        function normalizeQuest(quest) {
+            if (!quest || typeof quest !== 'object') return null;
+            return {
+                id: 规范化文本(quest.id, 'quest_' + Date.now()),
+                name: 规范化文本(quest.name, '未命名任务'),
+                description: 规范化文本(quest.description, ''),
+                type: 规范化文本(quest.type, '主线'),
+                tier: 规范化文本(quest.tier, '普通'),
+                objectives: Array.isArray(quest.objectives) ? quest.objectives.map(function(obj) {
+                    return {
+                        description: 规范化文本(obj.description, ''),
+                        completed: Boolean(obj.completed)
+                    };
+                }) : [],
+                rewards: (quest.rewards && typeof quest.rewards === 'object') ? quest.rewards : {},
+                giver: 规范化文本(quest.giver, ''),
+                createdAt: Number(quest.createdAt) || Date.now(),
+                completedAt: quest.completedAt ? Number(quest.completedAt) : null,
+                status: ['active', 'completed', 'failed'].indexOf(quest.status) >= 0 ? quest.status : 'active'
+            };
+        }
+        
+        quests.active = quests.active.map(normalizeQuest).filter(Boolean);
+        quests.completed = quests.completed.map(normalizeQuest).filter(Boolean);
+        quests.failed = quests.failed.map(normalizeQuest).filter(Boolean);
+
         if (!gd.relationships || typeof gd.relationships !== 'object') gd.relationships = {};
 
         gd.gameTime = normalizeGameTime(gd.gameTime);
@@ -230,6 +263,86 @@ var commandProcessor = (function () {
     }
 
     /**
+     * 处理任务列表（新任务/完成任务/任务失败）
+     * @param {Object} sourceGameData - 当前游戏数据
+     * @param {Array<{type: string, quest: Object}>} quests - 解析出的任务列表
+     * @returns {{gameData: Object, report: {added: Array, completed: Array, failed: Array}}}
+     */
+    function applyQuests(sourceGameData, quests) {
+        var gd = JSON.parse(JSON.stringify(sourceGameData));
+        gd = normalizeGameData(gd);
+        var report = { added: [], completed: [], failed: [] };
+        
+        if (!Array.isArray(quests)) return { gameData: gd, report: report };
+        
+        quests.forEach(function(item) {
+            if (!item || !item.quest) return;
+            var quest = item.quest;
+            var type = item.type;
+            
+            if (type === 'new') {
+                // 添加新任务
+                var newQuest = {
+                    id: quest.id || 'quest_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                    name: quest.name || '未命名任务',
+                    description: quest.description || '',
+                    type: quest.type || '主线',
+                    tier: quest.tier || '普通',
+                    objectives: Array.isArray(quest.objectives) ? quest.objectives : [],
+                    rewards: quest.rewards || {},
+                    giver: quest.giver || '',
+                    createdAt: Date.now(),
+                    completedAt: null,
+                    status: 'active'
+                };
+                gd.quests.active.push(newQuest);
+                report.added.push(newQuest);
+                log('✓ 新任务：' + newQuest.name);
+                
+            } else if (type === 'complete') {
+                // 完成任务（按名称匹配）
+                var questName = quest.name;
+                var index = gd.quests.active.findIndex(function(q) { return q.name === questName; });
+                if (index >= 0) {
+                    var completedQuest = gd.quests.active[index];
+                    completedQuest.status = 'completed';
+                    completedQuest.completedAt = Date.now();
+                    gd.quests.active.splice(index, 1);
+                    gd.quests.completed.push(completedQuest);
+                    
+                    // 同步到 progress.completedQuests（向后兼容）
+                    if (!gd.progress.completedQuests.includes(completedQuest.name)) {
+                        gd.progress.completedQuests.push(completedQuest.name);
+                    }
+                    
+                    report.completed.push(completedQuest);
+                    log('✓ 任务完成：' + completedQuest.name);
+                } else {
+                    log('⚠️ 未找到进行中的任务：' + questName);
+                }
+                
+            } else if (type === 'fail') {
+                // 任务失败（按名称匹配）
+                var failQuestName = quest.name;
+                var failIndex = gd.quests.active.findIndex(function(q) { return q.name === failQuestName; });
+                if (failIndex >= 0) {
+                    var failedQuest = gd.quests.active[failIndex];
+                    failedQuest.status = 'failed';
+                    failedQuest.completedAt = Date.now();
+                    gd.quests.active.splice(failIndex, 1);
+                    gd.quests.failed.push(failedQuest);
+                    report.failed.push(failedQuest);
+                    log('✗ 任务失败：' + failedQuest.name);
+                } else {
+                    log('⚠️ 未找到进行中的任务：' + failQuestName);
+                }
+            }
+        });
+        
+        return { gameData: gd, report: report };
+    }
+    
+    /**
      * 对当前存档直接应用命令（走 CalamityStateBridge，供 pipeline 调用）。
      * 桥由 game.html 注入：{ getGameData, saveGameData, refreshUI }
      */
@@ -243,6 +356,34 @@ var commandProcessor = (function () {
         var result = applyCommands(current, commands);
         bridge.saveGameData(result.gameData);
         if (typeof bridge.refreshUI === 'function') bridge.refreshUI();
+        
+        // 触发 variableUI 防抖刷新（对齐 ST 的 VARIABLE_UPDATE_ENDED 事件）
+        if (typeof window !== 'undefined' && window.variableUI && typeof window.variableUI.schedulePopulate === 'function') {
+            window.variableUI.schedulePopulate(80);
+        }
+        
+        return result;
+    }
+    
+    /**
+     * 对当前存档直接应用任务（走 CalamityStateBridge，供 pipeline 调用）。
+     */
+    function processQuestsCurrent(quests) {
+        var bridge = (typeof window !== 'undefined') ? window.CalamityStateBridge : null;
+        if (!bridge || typeof bridge.getGameData !== 'function') {
+            log('⚠️ CalamityStateBridge 未注入，任务未应用');
+            return null;
+        }
+        var current = bridge.getGameData();
+        var result = applyQuests(current, quests);
+        bridge.saveGameData(result.gameData);
+        if (typeof bridge.refreshUI === 'function') bridge.refreshUI();
+        
+        // 触发 variableUI 防抖刷新（对齐 ST 的 VARIABLE_UPDATE_ENDED 事件）
+        if (typeof window !== 'undefined' && window.variableUI && typeof window.variableUI.schedulePopulate === 'function') {
+            window.variableUI.schedulePopulate(80);
+        }
+        
         return result;
     }
 
@@ -250,7 +391,9 @@ var commandProcessor = (function () {
 
     return {
         applyCommands: applyCommands,
+        applyQuests: applyQuests,
         processCurrent: processCurrent,
+        processQuestsCurrent: processQuestsCurrent,
         normalizeGameData: normalizeGameData,
         normalizeGameTime: normalizeGameTime,
         命令后校准: 命令后校准

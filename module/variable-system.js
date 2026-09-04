@@ -107,3 +107,10 @@ var variableSystem = (function() {
         toTemplateVars: toTemplateVars
     };
 })();
+
+if (typeof window !== 'undefined') {
+    window.variableSystem = variableSystem;
+}
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = variableSystem;
+}

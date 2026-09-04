@@ -232,6 +232,7 @@ function updateAllDisplays() {
     updateActionPointsDisplay();
     updateStatsDisplay();
     updateSLGReturnButton();  // 确保这个函数被调用
+    renderQuests();  // 渲染任务列表
     
     // 删除或注释掉这部分
     // if (GameMode === 0) {
@@ -1137,4 +1138,69 @@ function getEquipEffectText(item) {
 
 function closeItemDetailModal() {
     document.getElementById('item-detail-modal').style.display = 'none';
+}
+
+// ==================== 任务系统 UI ====================
+
+/**
+ * 渲染任务列表（从 gameData.quests.active 读取）
+ */
+function renderQuests() {
+    const container = document.getElementById('questsContainer');
+    if (!container) return;
+    
+    // 获取游戏数据
+    const gameData = (typeof window.gameData !== 'undefined') ? window.gameData : 
+                     (typeof window.CalamityStateBridge !== 'undefined' && typeof window.CalamityStateBridge.getGameData === 'function') 
+                     ? window.CalamityStateBridge.getGameData() : null;
+    
+    if (!gameData || !gameData.quests || !Array.isArray(gameData.quests.active)) {
+        container.innerHTML = '<div class="quest-empty">暂无进行中的任务</div>';
+        return;
+    }
+    
+    const activeQuests = gameData.quests.active;
+    
+    if (activeQuests.length === 0) {
+        container.innerHTML = '<div class="quest-empty">暂无进行中的任务</div>';
+        return;
+    }
+    
+    // 渲染每个任务
+    container.innerHTML = activeQuests.map(quest => {
+        const typeLabel = quest.type || '主线';
+        const tierLabel = quest.tier || '普通';
+        const giverLabel = quest.giver ? `发布者：${quest.giver}` : '';
+        const typeLine = [typeLabel, giverLabel].filter(Boolean).join(' · ');
+        
+        // 渲染目标列表
+        const objectivesHtml = (quest.objectives && quest.objectives.length > 0) 
+            ? `<div class="quest-objectives">
+                ${quest.objectives.map(obj => {
+                    const checked = obj.completed ? '✓' : '○';
+                    const completedClass = obj.completed ? ' completed' : '';
+                    return `<div class="obj-item${completedClass}">${checked} ${obj.description || ''}</div>`;
+                }).join('')}
+               </div>`
+            : '';
+        
+        // 渲染奖励
+        const rewards = quest.rewards || {};
+        const rewardParts = [];
+        if (rewards.gold) rewardParts.push(`${rewards.gold}金币`);
+        if (rewards.exp) rewardParts.push(`${rewards.exp}经验`);
+        const rewardsHtml = rewardParts.length > 0 
+            ? `<span>奖励：${rewardParts.join(' + ')}</span>` 
+            : '';
+        
+        return `
+            <div class="quest-card" data-quest-id="${quest.id}">
+              <div class="quest-name">${quest.name || '未命名任务'}</div>
+              <div class="quest-type">${typeLine}</div>
+              ${quest.description ? `<div class="quest-desc">${quest.description}</div>` : ''}
+              ${objectivesHtml}
+              ${rewardsHtml ? `<div class="quest-deadline">${rewardsHtml}</div>` : ''}
+            </div>
+        `;
+    }).join('');
 }

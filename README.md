@@ -1,26 +1,24 @@
 # 灾厄之后·重制版 - 独立前端项目
 
 > 基于姬侠传/瀚海架构的独立 Web 应用  
-> 支持 SillyTavern 兼容 + 独立前端双模式
+> 废土西幻 RPG · D20 检定 · 原生 JS 零依赖
 
 ---
 
 ## 项目概述
 
-**灾厄之后·重制版**是一款基于 D20 检定系统的废土西幻 RPG 游戏，采用姬侠传的模块化架构，支持三种运行模式：
+**灾厄之后·重制版**是一款基于 D20 检定系统的废土西幻 RPG 游戏，采用姬侠传的模块化架构，以**独立前端**方式运行（浏览器直接打开，无需构建、无需后端）。
 
-1. **SillyTavern 版本**：搭配角色卡在 ST 中运行
-2. **独立前端**：直接在浏览器中打开 `index.html` 运行
-3. **Android APK**：打包为安卓应用
+> 当前版本为「独立版」：核心游戏逻辑（检定/战斗/装备/生物/正文生成/命令引擎）与 AI 叙事层（世界书数据 → Prompt 编排）均已接线，待真实 LLM 端到端测试，详见「当前状态」。
 
 ---
 
 ## 技术栈
 
 - **前端框架**：原生 JavaScript（无依赖）
-- **模块系统**：ES6 Modules
+- **模块系统**：ES6 Modules + IIFE 混合
 - **数据存储**：IndexedDB + localStorage
-- **样式**：CSS3（废土羊皮纸主题）
+- **样式**：CSS3（废土羊皮纸/皮革主题）
 - **构建工具**：无需构建，直接运行
 
 ---
@@ -29,60 +27,67 @@
 
 ```
 灾厄之后-独立版/
-├── index.html                    # 主游戏页面（独立前端入口）
-├── index-SR.html                 # SillyTavern 流式版本
-├── start-screen.html             # 开局页面（角色创建）
-├── combat.html                   # 战斗页面
-├── forge.html                    # 锻造页面
-├── map.html                      # 地图页面
-├── faction.html                  # 势力页面
+├── index.html                    # 主游戏页面（书式 SPA：首页/创建/游戏/设置/指南）
+├── game.html                     # 独立游戏页面
+├── register.html                 # 开场登记（角色创建）
+├── settings.html                 # 设置页面
+├── start-screen.html             # 开场白页面
 │
-├── module/                       # 核心模块（46 个 JS 文件）
-│   ├── api-service.js            # LLM API 接口
-│   ├── game-state.js             # 游戏状态管理
+├── module/                       # 核心模块（27 个 JS 文件）
+│   │                             # ── 游戏逻辑层（已接线）──
+│   ├── dice-pool.js              # 骰子系统 v2.0（实时掷骰）
 │   ├── check-system.js           # D20 检定系统
-│   ├── dice-pool.js              # 骰子池管理
-│   ├── combat-system.js          # 战斗系统
-│   ├── forge-system.js           # 锻造系统
-│   ├── relation-system.js        # 关系系统
-│   ├── settlement-engine.js      # 结算协议执行器
-│   ├── prompt-data-core.js       # 核心提示词（从 YAML 生成）
-│   ├── prompt-data-npc.js        # NPC 人设（从 YAML 生成）
-│   ├── prompt-data-world.js      # 世界观（从 YAML 生成）
-│   └── ...
+│   ├── combat-system.js          # 战斗系统（回合制）
+│   ├── equipment-system.js       # 装备系统（武器/护甲/双持/耐久）
+│   ├── creature-system.js        # 生物系统（怪物/战利品）
+│   ├── narrative-system.js       # 正文生成（检定/战斗/时间标签）
+│   ├── game-state.js             # 游戏状态管理
+│   ├── command-engine.js         # 状态命令引擎（中文别名/白名单）
+│   ├── command-processor.js      # 命令调度处理器
+│   ├── game-ui.js                # UI 更新渲染
+│   ├── game-utils.js             # 通用工具函数
+│   ├── variable-system.js        # 变量系统
+│   │                             # ── AI/LLM 层（已接线）──
+│   ├── api-service.js            # LLM API 接口
+│   ├── calamity-data.js          # 世界书数据访问层（统一访问 3 个数据模块）
+│   ├── prompt-builder.js         # Prompt 编排（灾厄世界观版）
+│   ├── response-parser.js        # AI 响应解析
+│   ├── worldbook-engine.js       # 世界书引擎（关键词触发注入）
+│   ├── pipeline.js               # 消息处理流水线
+│   ├── memory-recall.js          # 记忆召回
+│   ├── embedding-service.js      # 向量化服务
+│   ├── storage-service.js        # 存档服务
+│   ├── idb-storage.js            # IndexedDB 封装
+│   ├── json-repair-helper.js     # JSON 修复工具
+│   │                             # ── 数据层（从 YAML 生成）──
+│   ├── prompt-data-core-calamity.js   # 系统规则（116 YAML 转换）
+│   ├── prompt-data-npc-calamity.js    # NPC 人设
+│   ├── prompt-data-world-calamity.js  # 世界观
+│   └── dice-pool-prerolled-backup.js  # 骰子池 v1 预掷版备份
 │
-├── styles/                       # 样式文件
-│   ├── main.css                  # 主样式
-│   ├── calamity-theme.css        # 废土主题
-│   ├── components.css            # 组件样式
-│   └── responsive.css            # 响应式布局
-│
-├── img/                          # 图片资源
-│   ├── location/                 # 场景图（11 个区域）
-│   ├── npc/                      # NPC 头像（14 个）
-│   ├── ui/                       # UI 图标
-│   └── bg/                       # 背景纹理
-│
-├── bgm/                          # BGM 音频
-│   ├── combat/                   # 战斗音乐
-│   ├── ambient/                  # 环境音乐
-│   └── ui/                       # UI 音效
-│
-├── data-source/                  # 源数据（YAML）
-│   ├── 世界书/                   # 从原项目复制
+├── data-source/                  # 源数据（YAML 世界书，116 个）
+│   ├── 世界书/                   # NPC/世界观/地理/种族/生物/系统/装备
 │   └── tools/                    # 数据转换工具
 │       └── convert-yaml-to-js.js
 │
-├── docs/                         # 文档
-│   ├── README.md                 # 主文档
-│   ├── DEVELOPMENT.md            # 开发指南
-│   ├── API.md                    # API 文档
-│   └── CHANGELOG.md              # 更新日志
+├── docs/                         # 设计文档与报告
+│   ├── 开发进度清单.md           # 开发进度清单（当前状态）
+│   ├── CURRENT-TASK.md           # 当前任务
+│   ├── UI界面系统设计.md          # UI 设计
+│   ├── 战斗系统设计.md            # 战斗系统设计
+│   ├── 生物系统设计.md            # 生物系统设计
+│   ├── 装备系统设计.md            # 装备系统设计
+│   ├── 正文生成系统设计.md        # 正文生成设计
+│   ├── CHECK-SYSTEM-DESIGN.md    # 检定系统设计
+│   ├── DICE-POOL-DESIGN.md       # 骰子池设计
+│   └── reports/                  # 历史报告（数据质量/转换）
 │
-├── apk/                          # Android 打包
-│   ├── capacitor.config.json
-│   └── package.json
+├── img/ui/                       # UI 图片资源（羊皮纸/皮革纹理）
 │
+├── 测试-*.html                   # 8 个系统测试页面
+├── CHANGELOG.md                  # 更新日志
+├── PROJECT-STATUS.md             # 项目状态（当前）
+├── SUMMARY.md                    # 项目摘要（当前）
 └── package.json                  # 项目配置
 ```
 
@@ -90,63 +95,43 @@
 
 ## 快速开始
 
-### 1. 独立前端模式
-
 ```bash
-# 直接用浏览器打开
-open index.html
-
-# 或启动本地服务器（推荐）
+# 启动本地服务器（推荐，避免浏览器模块加载限制）
 python -m http.server 8080
 # 访问 http://localhost:8080
 ```
 
-### 2. SillyTavern 模式
-
-1. 将 `data-source/世界书/` 下的条目导入 ST
-2. 在 ST 中打开 `index-SR.html`
-3. 配合小白X 插件使用
-
-### 3. Android APK
-
-```bash
-cd apk
-npm install
-npx cap sync
-npx cap open android
-```
+或直接用浏览器打开 `index.html`。
 
 ---
 
-## 开发计划
+## 当前状态
 
-### 阶段 1：数据迁移（已完成）
-- ✅ 编写数据转换脚本
-- ✅ 转换 116 个 YAML 为 JS 模块
-- ✅ 生成数据质量报告
+### ✅ 已完成（游戏逻辑层 + AI 叙事层，已接线）
 
-### 阶段 2：核心系统适配（Week 1-2）
-- [ ] 从姬侠传复制 46 个基础模块
-- [ ] 适配 D20 检定系统
-- [ ] 适配骰子池逻辑
-- [ ] 适配战斗系统
-- [ ] 适配锻造系统
+- **数据转换**：116 个 YAML → 3 个 JS 数据模块（质量 90/100）
+- **骰子系统**：v2.0 实时掷骰（D20 + 骰子池）
+- **D20 检定系统**：属性检定 + DC 判定 + 优势/劣势
+- **战斗系统**：回合制 + 命中/伤害/重击
+- **装备系统**：武器/护甲/双持/耐久度
+- **生物系统**：怪物数据 + 战利品
+- **正文生成系统**：检定/战斗/时间标签渲染
+- **命令引擎 + 命令处理器**：AI 状态命令安全应用（中文别名归一化、白名单治理）
+- **游戏状态管理**：属性/背包/关系/任务
+- **UI**：书式 SPA（首页/创建/游戏/设置/指南）+ 独立页面
+- **AI 数据层接线**：`calamity-data.js` 数据访问层 + `worldbook-engine.js` 关键词注入 + `prompt-builder.js` 灾厄世界观编排，已接入 index.html / game.html 运行时
+- **测试页**：8 个系统测试页面（AI 链路 13/13 通过，含世界书注入 + prompt 编排）
 
-### 阶段 3：UI 改造（Week 3）
-- [ ] 集成开场白界面
-- [ ] 改造主题风格（武侠 → 废土）
-- [ ] 开发地图系统（11 个区域）
-- [ ] 开发势力面板（5 大势力）
+### ⏳ 待完成（真实 LLM 端到端）
 
-### 阶段 4：ST 版本与测试（Week 4）
-- [ ] 开发 ST 流式版本
-- [ ] 测试双模式切换
-- [ ] 完善存档转换器
+- **真实 LLM 调用**：配置 API Key 后验证 世界书数据 → Prompt → LLM → 响应解析 → 命令应用
+- **输出格式校验**：确认 LLM 输出符合 `<content>` / `<命令>` / `<SUMMARY>` 闭合标签规范
 
-### 阶段 5：APK 打包（Week 5，可选）
-- [ ] Capacitor 配置
-- [ ] Android 测试
-- [ ] 性能优化
+### 🔧 已知问题
+
+1. **命令引擎测试 1 项失败**：「解析：JSON 数组写法」——测试期望解析期归一化 key，实现将归一化放在 command-engine 层（职责划分差异，端到端链路正常）
+2. **数据缺口**：6 个 NPC 缺六维属性（伊莎/塞壬/维克多/莉娜/莫拉/马库斯）
+3. **数据模块体积**：3 个数据模块合计约 620KB，首屏加载偏重（可后续按需加载）
 
 ---
 
@@ -156,20 +141,21 @@ npx cap open android
 
 - ✅ **D20 检定系统**：基于 DND 5E 简化
 - ✅ **回合制战斗**：命中判定 + 伤害计算 + 重击机制
-- ✅ **锻造系统**：17 种材料 + 144 词缀 + 检定掷骰
-- ✅ **关系系统**：5 档好感度 + 势力声望
-- ✅ **装备系统**：武器/护甲/饰品 + 耐久度
-- ✅ **背包系统**：12 槽位 + 负重管理
+- ✅ **装备系统**：武器/护甲/双持 + 耐久度
+- ✅ **生物系统**：怪物图鉴 + 战利品掉落
+- ✅ **正文生成**：检定/战斗/时间标签自动渲染
+- ✅ **命令引擎**：AI 状态命令安全应用 + 中文别名归一化
+- ✅ **背包系统**：负重管理
 - ✅ **经验成长**：等级/属性提升
 
 ### 技术特性
 
 - ✅ **零依赖**：无需 npm，直接运行 HTML
-- ✅ **模块化**：46 个独立 JS 模块，职责清晰
-- ✅ **双模式**：ST 版 + 独立前端
-- ✅ **跨平台**：Web + Android APK
+- ✅ **模块化**：27 个独立 JS 模块，职责清晰
 - ✅ **本地优先**：IndexedDB 存储，无需服务器
+- ✅ **世界书驱动**：116 条灾厄世界书数据按关键词注入 Prompt
 - ✅ **向量化召回**：语义记忆检索（可选）
+- ✅ **测试完备**：8 个系统测试页面
 
 ---
 
@@ -182,7 +168,7 @@ npx cap open android
 - ⚠️ 推荐字段完整性：20/30（6 个 NPC 缺六维属性）
 - ✅ 内容质量：30/30
 
-详见：`docs/data-quality-report.md`
+详见：`docs/reports/data-quality-report.md`
 
 ---
 
@@ -193,7 +179,7 @@ npx cap open android
 如需修改 NPC/系统规则/世界观：
 
 1. 编辑 `data-source/世界书/*.yaml`
-2. 运行转换脚本：`npm run convert`
+2. 运行转换脚本：`node data-source/tools/convert-yaml-to-js.js`
 3. 重新测试游戏
 
 ### 代码贡献
@@ -216,11 +202,3 @@ MIT License
 - 基于 [姬侠传/瀚海](https://github.com/Ji-Haitang/char_card_1) 架构
 - 使用 SillyTavern 生态
 - 灵感来源于 DND 5E
-
----
-
-## 联系方式
-
-- 项目主页：[待补充]
-- 问题反馈：[待补充]
-- 讨论社区：[待补充]

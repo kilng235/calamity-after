@@ -17,6 +17,9 @@ data-source/module/
 data-source/reports/
 data-source/世界书/系统/*.backup
 
+# ST 预设测试夹具（tools-*.js 本地验证用，第三方内容不入库）
+_tmp-polarday.json
+
 # 系统
 .DS_Store
 Thumbs.db

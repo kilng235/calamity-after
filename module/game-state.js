@@ -81,6 +81,13 @@ const defaultGameData = {
     unlockedLocations: ['佣兵镇']
   },
   
+  // 任务系统（对齐 ST 的"任务"顶层容器）
+  quests: {
+    active: [],      // 进行中的任务
+    completed: [],   // 已完成的任务
+    failed: []       // 失败的任务
+  },
+  
   // 关系系统
   relationships: {},
   
@@ -360,6 +367,134 @@ function levelUp() {
   console.log(`🎉 升级！当前等级：${gameData.character.level}`);
 }
 
+// ==================== 任务管理 ====================
+
+/**
+ * 添加新任务
+ * @param {Object} quest - 任务对象
+ * @returns {Object} 添加后的任务
+ */
+export function addQuest(quest) {
+  if (!quest || !quest.name) {
+    console.warn('⚠️ 任务对象缺少 name 字段');
+    return null;
+  }
+  
+  const newQuest = {
+    id: quest.id || `quest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    name: quest.name,
+    description: quest.description || '',
+    type: quest.type || '主线',  // 主线/支线/日常/紧急
+    tier: quest.tier || '普通',  // 普通/困难/史诗/传说
+    objectives: quest.objectives || [],  // [{description, completed}]
+    rewards: quest.rewards || {},
+    giver: quest.giver || null,  // 任务发布者
+    createdAt: quest.createdAt || Date.now(),
+    completedAt: null,
+    status: 'active'  // active/completed/failed
+  };
+  
+  gameData.quests.active.push(newQuest);
+  saveGameData();
+  console.log(`✓ 新任务：${newQuest.name}`);
+  return newQuest;
+}
+
+/**
+ * 完成任务
+ * @param {string} questId - 任务 ID
+ * @returns {boolean} 是否成功
+ */
+export function completeQuest(questId) {
+  const index = gameData.quests.active.findIndex(q => q.id === questId);
+  if (index === -1) {
+    console.warn(`⚠️ 未找到进行中的任务：${questId}`);
+    return false;
+  }
+  
+  const quest = gameData.quests.active[index];
+  quest.status = 'completed';
+  quest.completedAt = Date.now();
+  
+  // 从 active 移到 completed
+  gameData.quests.active.splice(index, 1);
+  gameData.quests.completed.push(quest);
+  
+  // 同步到 progress.completedQuests（向后兼容）
+  if (!gameData.progress.completedQuests.includes(quest.name)) {
+    gameData.progress.completedQuests.push(quest.name);
+  }
+  
+  saveGameData();
+  console.log(`✓ 任务完成：${quest.name}`);
+  return true;
+}
+
+/**
+ * 任务失败
+ * @param {string} questId - 任务 ID
+ * @returns {boolean} 是否成功
+ */
+export function failQuest(questId) {
+  const index = gameData.quests.active.findIndex(q => q.id === questId);
+  if (index === -1) {
+    console.warn(`⚠️ 未找到进行中的任务：${questId}`);
+    return false;
+  }
+  
+  const quest = gameData.quests.active[index];
+  quest.status = 'failed';
+  quest.completedAt = Date.now();
+  
+  gameData.quests.active.splice(index, 1);
+  gameData.quests.failed.push(quest);
+  
+  saveGameData();
+  console.log(`✗ 任务失败：${quest.name}`);
+  return true;
+}
+
+/**
+ * 获取进行中的任务
+ * @returns {Object[]} 进行中的任务列表
+ */
+export function getActiveQuests() {
+  return gameData.quests.active;
+}
+
+/**
+ * 根据名称查找任务
+ * @param {string} questName - 任务名称
+ * @returns {Object|null} 任务对象
+ */
+export function findQuestByName(questName) {
+  const allQuests = [
+    ...gameData.quests.active,
+    ...gameData.quests.completed,
+    ...gameData.quests.failed
+  ];
+  return allQuests.find(q => q.name === questName) || null;
+}
+
+/**
+ * 更新任务目标进度
+ * @param {string} questId - 任务 ID
+ * @param {number} objectiveIndex - 目标索引
+ * @param {boolean} completed - 是否完成
+ * @returns {boolean} 是否成功
+ */
+export function updateQuestObjective(questId, objectiveIndex, completed) {
+  const quest = gameData.quests.active.find(q => q.id === questId);
+  if (!quest || !quest.objectives[objectiveIndex]) {
+    console.warn(`⚠️ 未找到任务或目标：${questId}[${objectiveIndex}]`);
+    return false;
+  }
+  
+  quest.objectives[objectiveIndex].completed = completed;
+  saveGameData();
+  return true;
+}
+
 // ==================== 统计数据 ====================
 
 /**
@@ -529,6 +664,14 @@ export default {
   // 统计
   recordCheck,
   getStats,
+
+  // 任务
+  addQuest,
+  completeQuest,
+  failQuest,
+  getActiveQuests,
+  findQuestByName,
+  updateQuestObjective,
 
   // 迁移
   migrateFromCharacter

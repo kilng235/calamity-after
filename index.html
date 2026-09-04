@@ -1,6 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
-<head>
+<html lang="zh-CN"><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>灾厄之后·重制版</title>
@@ -43,6 +42,7 @@
     line-height:1.7;padding:20px;
     min-height:100vh;
     position:relative;overflow-x:hidden;
+    overflow-y:auto;
   }
   /* 远景慢速余烬粒子层 */
   body::before{
@@ -552,20 +552,23 @@
   #view-game{position:fixed;inset:0;z-index:50;background:#1a1510;display:none}
   #view-game.active{display:block}
   #view-game .game-exit{
-    position:fixed;top:12px;right:16px;z-index:60;
-    font-family:"Cinzel","Noto Serif SC",serif;font-size:0.75em;
-    color:var(--gold-bright);background:rgba(0,0,0,0.5);
+    font-family:"Cinzel","Noto Serif SC",serif;font-size:0.85em;
+    color:var(--gold-bright);background:rgba(0,0,0,0.3);
     border:1px solid var(--gold);border-radius:2px;
-    padding:6px 14px;cursor:pointer;letter-spacing:2px;
-    transition:all .2s;
+    padding:5px 12px;cursor:pointer;letter-spacing:1px;
+    transition:all .2s;margin-left:auto;white-space:nowrap;
+    position:relative;z-index:1;
   }
   #view-game .game-exit:hover{background:rgba(184,148,42,0.25);box-shadow:0 0 10px var(--gold-glow)}
 
   .game-container{
     display:grid;
     grid-template-columns:280px 1fr 280px;
-    grid-template-rows:60px 1fr 80px;
-    height:100vh;gap:0;position:relative;
+    grid-template-rows:60px minmax(0,1fr) 80px;
+    height:100vh;
+    min-height:100vh;
+    gap:0;position:relative;
+    overflow:hidden;
   }
   .top-bar{
     grid-column:1/4;
@@ -577,8 +580,20 @@
     box-shadow:0 4px 20px rgba(0,0,0,0.7),inset 0 1px 0 rgba(255,255,255,0.05),inset 0 -1px 0 rgba(0,0,0,0.3);
     position:relative;
   }
-  .player-name{font-size:20px;font-weight:700;letter-spacing:3px;text-shadow:0 1px 0 rgba(0,0,0,0.3),0 0 8px var(--gold-glow);display:flex;align-items:center;gap:10px}
-  .status-items{display:flex;gap:30px;font-size:14px;align-items:center}
+  .top-bar::before{
+    content:'';position:absolute;top:0;left:0;right:0;bottom:0;
+    background:repeating-conic-gradient(rgba(0,0,0,0.02) 0% 25%,transparent 0% 50%) 0 0/4px 4px;
+    pointer-events:none;
+  }
+  .bar-ornament{
+    position:absolute;top:50%;height:80%;transform:translateY(-50%);pointer-events:none;
+    opacity:0.55;z-index:0;filter:drop-shadow(0 0 4px rgba(0,0,0,0.6));
+  }
+  .bar-ornament.left{left:6px}
+  .bar-ornament.right{right:6px}
+  .rank-badge{width:30px;height:30px;object-fit:contain;filter:drop-shadow(0 0 6px var(--gold-glow))}
+  .player-name{font-size:20px;font-weight:700;letter-spacing:3px;text-shadow:0 1px 0 rgba(0,0,0,0.3),0 0 8px var(--gold-glow);display:flex;align-items:center;gap:10px;position:relative;z-index:1}
+  .status-items{display:flex;gap:30px;font-size:14px;align-items:center;position:relative;z-index:1}
   .status-item{display:flex;align-items:center;gap:8px}
   .ui-icon{width:18px;height:18px;object-fit:contain;vertical-align:middle;filter:drop-shadow(0 0 3px rgba(0,0,0,0.5))}
   .hp-bar{width:130px;height:20px;background:url('img/ui/ui-hp-frame.png') center/100% 100% no-repeat;border-radius:7px;overflow:hidden;box-shadow:inset 0 1px 3px rgba(0,0,0,0.5),0 0 6px rgba(0,0,0,0.4);position:relative;padding:4px 7px}
@@ -613,28 +628,1394 @@
   .right-panel{background:var(--parchment-dark);border-left:2px solid var(--leather);overflow-y:auto;padding:15px}
   .action-btn{display:block;width:100%;border:1px solid var(--gold);border-radius:2px;padding:11px 16px;margin-bottom:10px;font-size:14px;font-family:"Cinzel","Noto Serif SC",serif;cursor:pointer;letter-spacing:2px;background:linear-gradient(180deg,rgba(184,148,42,0.12) 0%,rgba(184,148,42,0.04) 100%);color:var(--ink-light);text-shadow:0 1px 0 rgba(255,255,255,0.3);box-shadow:0 1px 3px rgba(0,0,0,0.1);transition:all .2s;position:relative;overflow:hidden;text-align:center}
   .action-btn:hover{background:linear-gradient(180deg,rgba(184,148,42,0.2) 0%,rgba(184,148,42,0.08) 100%);border-color:var(--gold-bright);box-shadow:0 1px 3px rgba(0,0,0,0.1),0 0 10px var(--gold-glow);color:var(--gold)}
-  .bottom-bar{grid-column:1/4;background:linear-gradient(135deg,var(--leather-light) 0%,var(--leather) 30%,var(--leather-dark) 70%,var(--leather) 100%);border-top:2px solid var(--gold);padding:15px 20px;display:flex;gap:10px;align-items:center}
-  .input-box{flex:1;padding:12px;background:rgba(255,250,240,0.5);border:none;border-bottom:1px solid var(--parchment-dark);font-family:"Noto Serif SC",serif;font-size:14px;color:var(--ink)}
+  .bottom-bar{grid-column:1/4;background:linear-gradient(135deg,var(--leather-light) 0%,var(--leather) 30%,var(--leather-dark) 70%,var(--leather) 100%);border-top:2px solid var(--gold);padding:15px 20px;display:flex;gap:10px;align-items:center;position:relative}
+  .bottom-bar::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:repeating-conic-gradient(rgba(0,0,0,0.02) 0% 25%,transparent 0% 50%) 0 0/4px 4px;pointer-events:none}
+  .input-box{flex:1;padding:12px;background:rgba(255,250,240,0.5);border:none;border-bottom:1px solid var(--parchment-dark);font-family:"Noto Serif SC",serif;font-size:14px;color:var(--ink);position:relative;z-index:1}
   .input-box:focus{outline:none;border-bottom-color:var(--gold);box-shadow:0 1px 0 var(--gold-glow)}
   .input-box::placeholder{color:var(--ink-faded);opacity:0.5;font-style:italic}
-  .send-btn{padding:12px 24px;border:1px solid var(--gold);border-radius:2px;font-family:"Cinzel","Noto Serif SC",serif;font-size:14px;font-weight:700;letter-spacing:2px;background:linear-gradient(180deg,rgba(184,148,42,0.12) 0%,rgba(184,148,42,0.04) 100%);color:var(--ink-light);cursor:pointer;transition:all .2s}
+  .send-btn{padding:12px 24px;border:1px solid var(--gold);border-radius:2px;font-family:"Cinzel","Noto Serif SC",serif;font-size:14px;font-weight:700;letter-spacing:2px;background:linear-gradient(180deg,rgba(184,148,42,0.12) 0%,rgba(184,148,42,0.04) 100%);color:var(--ink-light);cursor:pointer;transition:all .2s;position:relative;z-index:1}
   .send-btn:hover{background:linear-gradient(180deg,rgba(184,148,42,0.2) 0%,rgba(184,148,42,0.08) 100%);border-color:var(--gold-bright);box-shadow:0 0 10px var(--gold-glow);color:var(--gold)}
   #view-game ::-webkit-scrollbar{width:8px;height:8px}
   #view-game ::-webkit-scrollbar-track{background:var(--parchment-dark)}
   #view-game ::-webkit-scrollbar-thumb{background:var(--gold);border-radius:4px}
   #view-game ::-webkit-scrollbar-thumb:hover{background:var(--gold-bright)}
+
+  /* ─ 背包弹窗 ── */
+  .inv-overlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.6);display:none;align-items:center;justify-content:center}
+  .inv-overlay.open{display:flex}
+  .inv-panel{width:520px;max-height:80vh;background:var(--parchment);
+    background-image:radial-gradient(ellipse 80px 60px at 15% 20%,rgba(140,100,50,0.10) 0%,transparent 70%),
+      radial-gradient(ellipse 60px 80px at 85% 35%,rgba(120,80,40,0.08) 0%,transparent 65%),
+      radial-gradient(ellipse 100px 50px at 70% 75%,rgba(140,100,50,0.07) 0%,transparent 60%);
+    border:2px solid var(--gold);border-radius:4px;box-shadow:0 8px 40px rgba(0,0,0,0.7);
+    display:flex;flex-direction:column;overflow:hidden;position:relative}
+  .inv-header{display:flex;align-items:center;justify-content:space-between;
+    padding:12px 16px;border-bottom:1px solid var(--gold);
+    background:linear-gradient(135deg,var(--leather-light) 0%,var(--leather) 100%);color:var(--gold-bright);
+    font-family:"Cinzel","Noto Serif SC",serif;font-size:16px;letter-spacing:3px}
+  .inv-close{background:none;border:none;color:var(--gold-bright);font-size:20px;cursor:pointer;padding:0 4px;line-height:1}
+  .inv-close:hover{color:#fff;text-shadow:0 0 8px var(--gold-glow)}
+  .inv-body{flex:1;overflow-y:auto;padding:12px 16px}
+  .inv-section-title{font-family:"Cinzel","Noto Serif SC",serif;font-size:13px;color:var(--gold);
+    letter-spacing:2px;margin:12px 0 8px;padding-bottom:4px;border-bottom:1px solid rgba(184,148,42,0.3)}
+  .inv-section-title:first-child{margin-top:0}
+  .inv-slot{display:flex;align-items:center;justify-content:space-between;
+    padding:8px 10px;margin-bottom:6px;background:rgba(180,160,120,0.12);
+    border:1px solid var(--parchment-dark);border-radius:2px;font-size:13px}
+  .inv-slot-name{flex:1;color:var(--ink)}
+  .inv-slot-type{font-size:11px;color:var(--ink-faded);margin-right:10px}
+  .inv-slot-dur{font-size:11px;color:var(--amber);margin-right:10px}
+  .inv-slot-btn{padding:3px 10px;font-size:11px;font-family:"Cinzel","Noto Serif SC",serif;
+    border:1px solid var(--gold);border-radius:2px;cursor:pointer;
+    background:linear-gradient(180deg,rgba(184,148,42,0.12) 0%,rgba(184,148,42,0.04) 100%);
+    color:var(--ink-light);letter-spacing:1px;transition:all .15s}
+  .inv-slot-btn:hover{background:rgba(184,148,42,0.25);color:var(--gold)}
+  .inv-slot-btn.danger{border-color:var(--danger);color:var(--danger)}
+  .inv-slot-btn.danger:hover{background:rgba(138,42,26,0.15)}
+  .inv-empty{color:var(--ink-faded);font-style:italic;font-size:13px;padding:8px 0}
+  .inv-footer{padding:8px 16px;border-top:1px solid rgba(184,148,42,0.3);
+    font-size:12px;color:var(--ink-faded);text-align:right}
+
+/* ═══ 登记册样式（来自 register.html） ═══ */
+
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Cinzel+Decorative:wght@400;700&family=Noto+Serif+SC:wght@400;700&display=swap');
+
+  :root{
+    --parchment:#d8c8a0;
+    --parchment-dark:#c4b088;
+    --parchment-light:#e8dcc0;
+    --ink:#2a1e10;
+    --ink-light:#4a3820;
+    --ink-faded:#6a5838;
+    --gold:#b8942a;
+    --gold-bright:#d4aa38;
+    --gold-glow:rgba(184,148,42,0.3);
+    --gold-light:#e8c860;
+    --leather:#3a2818;
+    --leather-dark:#2a1c10;
+    --leather-light:#5a4028;
+    --red-ink:#8a2a1a;
+    --blue-ink:#1a3a6a;
+    --rune:#7a6020;
+    --rune-glow:rgba(184,148,42,0.15);
+    --danger:#8a2a1a;
+    --amber:#a07828;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+
+  body{
+    background:#1a1510;
+    background-image:
+      /* 底部火光映照 */
+      radial-gradient(ellipse 80% 40% at 50% 110%,rgba(180,80,30,0.15) 0%,transparent 60%),
+      radial-gradient(ellipse 60% 30% at 50% 100%,rgba(200,120,40,0.08) 0%,transparent 70%),
+      radial-gradient(ellipse at 30% 40%,rgba(90,64,40,0.15) 0%,transparent 50%),
+      radial-gradient(ellipse at 70% 70%,rgba(60,40,20,0.1) 0%,transparent 50%);
+    color:var(--ink);
+    font-family:"Noto Serif SC","Songti SC","SimSun",serif;
+    line-height:1.7;padding:20px;
+    min-height:100vh;
+    position:relative;overflow-x:hidden;
+    overflow-y:auto;
+  }
+  /* 远景慢速余烬粒子层 */
+  body::before{
+    content:'';position:fixed;top:0;left:0;right:0;bottom:0;
+    pointer-events:none;z-index:1;opacity:0.4;
+    background-image:
+      radial-gradient(circle at 10% 20%,rgba(200,160,60,0.3) 1px,transparent 1.5px),
+      radial-gradient(circle at 30% 60%,rgba(220,180,80,0.2) 1px,transparent 1.5px),
+      radial-gradient(circle at 55% 30%,rgba(180,140,40,0.25) 1px,transparent 1.5px),
+      radial-gradient(circle at 75% 70%,rgba(200,160,60,0.2) 1px,transparent 1.5px),
+      radial-gradient(circle at 90% 45%,rgba(220,180,80,0.15) 1px,transparent 1.5px),
+      radial-gradient(circle at 20% 85%,rgba(180,140,40,0.2) 1px,transparent 1.5px),
+      radial-gradient(circle at 65% 15%,rgba(200,160,60,0.25) 1px,transparent 1.5px),
+      radial-gradient(circle at 85% 85%,rgba(220,180,80,0.18) 1px,transparent 1.5px);
+    animation:emberDrift 20s ease-in-out infinite alternate;
+  }
+  @keyframes emberDrift{
+    0%{transform:translateY(0) translateX(0)}
+    100%{transform:translateY(-20px) translateX(10px)}
+  }
+
+  /* ── 皮革封面（外层容器） ── */
+  .book-cover{
+    max-width:720px;margin:0 auto;
+    background:
+      linear-gradient(135deg,var(--leather-light) 0%,var(--leather) 30%,var(--leather-dark) 70%,var(--leather) 100%);
+    border:3px solid var(--leather-dark);
+    border-radius:4px;
+    padding:16px 20px;
+    box-shadow:
+      0 4px 20px rgba(0,0,0,0.7),
+      inset 0 1px 0 rgba(255,255,255,0.05),
+      inset 0 -1px 0 rgba(0,0,0,0.3);
+    position:relative;
+  }
+  /* 皮革纹理 */
+  .book-cover::before{
+    content:'';position:absolute;top:0;left:0;right:0;bottom:0;
+    background:
+      repeating-conic-gradient(rgba(0,0,0,0.02) 0% 25%,transparent 0% 50%) 0 0/4px 4px,
+      /* 暗纹压花 */
+      radial-gradient(circle at 50% 12%,rgba(184,148,42,0.03) 0%,transparent 20%);
+    pointer-events:none;border-radius:4px;
+  }
+  /* 书脊凸起 */
+  .book-cover::after{
+    content:'';position:absolute;top:0;left:-2px;bottom:0;width:8px;
+    background:linear-gradient(90deg,
+      rgba(0,0,0,0.3) 0%,
+      rgba(255,255,255,0.03) 40%,
+      rgba(255,255,255,0.05) 50%,
+      rgba(0,0,0,0.15) 60%,
+      rgba(0,0,0,0.25) 100%);
+    border-radius:2px 0 0 2px;
+    pointer-events:none;
+  }
+  /* 金属铆钉 */
+  .rivet{
+    position:absolute;width:12px;height:12px;border-radius:50%;
+    background:radial-gradient(circle at 35% 35%,#a08860,#6a5030 50%,#3a2818);
+    border:1px solid #2a1c10;
+    box-shadow:0 1px 3px rgba(0,0,0,0.5),inset 0 1px 1px rgba(255,220,150,0.2);
+    z-index:10;
+  }
+  .rivet.tl{top:8px;left:8px}.rivet.tr{top:8px;right:8px}
+  .rivet.bl{bottom:8px;left:8px}.rivet.br{bottom:8px;right:8px}
+
+  /* ── 羊皮纸页面 ── */
+  .page{
+    display:none;
+    background:var(--parchment);
+    background-image:
+      /* 茶渍/墨渍斑点 */
+      radial-gradient(ellipse 80px 60px at 15% 20%,rgba(140,100,50,0.10) 0%,transparent 70%),
+      radial-gradient(ellipse 60px 80px at 85% 35%,rgba(120,80,40,0.08) 0%,transparent 65%),
+      radial-gradient(ellipse 100px 50px at 70% 75%,rgba(140,100,50,0.07) 0%,transparent 60%),
+      radial-gradient(ellipse 50px 70px at 25% 65%,rgba(100,70,30,0.06) 0%,transparent 60%),
+      radial-gradient(ellipse 40px 40px at 50% 90%,rgba(120,80,40,0.05) 0%,transparent 70%),
+      radial-gradient(ellipse 30px 25px at 90% 88%,rgba(100,70,30,0.08) 0%,transparent 70%),
+      /* 基础色调渐变 */
+      radial-gradient(ellipse at 25% 25%,rgba(180,160,120,0.3) 0%,transparent 50%),
+      radial-gradient(ellipse at 75% 75%,rgba(160,140,100,0.2) 0%,transparent 50%),
+      radial-gradient(ellipse at 50% 50%,rgba(200,180,140,0.15) 0%,transparent 70%);
+    border:1px solid var(--parchment-dark);
+    padding:32px 28px 24px;
+    position:relative;
+    box-shadow:
+      inset 0 0 30px rgba(120,100,60,0.15),
+      inset 0 0 80px rgba(100,80,40,0.08),
+      /* 边缘磨损阴影 */
+      inset 15px 0 25px -15px rgba(80,50,20,0.12),
+      inset -15px 0 25px -15px rgba(80,50,20,0.12),
+      inset 0 15px 25px -15px rgba(80,50,20,0.10),
+      inset 0 -15px 25px -15px rgba(80,50,20,0.14);
+  }
+  .page.active{display:block;animation:pageOpen .6s ease-out}
+  @keyframes pageOpen{
+    0%{opacity:0;transform:rotateY(-5deg) scale(0.97)}
+    100%{opacity:1;transform:rotateY(0) scale(1)}
+  }
+  /* 纸张纤维噪点 */
+  .page::before{
+    content:'';position:absolute;top:0;left:0;right:0;bottom:0;
+    background:repeating-conic-gradient(rgba(100,80,50,0.015) 0% 25%,transparent 0% 50%) 0 0/3px 3px;
+    pointer-events:none;
+    z-index:1;
+  }
+  /* 页面阴影（书脊效果） */
+  .page::after{
+    content:'';position:absolute;top:0;left:0;bottom:0;width:20px;
+    background:linear-gradient(90deg,rgba(80,60,30,0.15),transparent);
+    pointer-events:none;
+    z-index:1;
+  }
+  /* 烛光摇曳遮罩 */
+  .page .candle-glow{
+    position:absolute;top:0;left:0;right:0;bottom:0;
+    pointer-events:none;z-index:2;
+    background:
+      radial-gradient(ellipse 120px 80px at 85% 15%,rgba(255,200,100,0.06) 0%,transparent 60%),
+      radial-gradient(ellipse 80px 100px at 10% 85%,rgba(255,180,60,0.04) 0%,transparent 60%);
+    animation:candleFlicker 4s ease-in-out infinite;
+    mix-blend-mode:soft-light;
+  }
+  @keyframes candleFlicker{
+    0%,100%{opacity:0.7;transform:scale(1)}
+    20%{opacity:0.9;transform:scale(1.02) translateY(-1px)}
+    40%{opacity:0.6;transform:scale(0.98) translateY(1px)}
+    60%{opacity:0.85;transform:scale(1.01)}
+    80%{opacity:0.75;transform:scale(0.99) translateY(-0.5px)}
+  }
+
+  /* ── 手抄本装饰边框 ── */
+  .manuscript-border{
+    position:absolute;top:8px;left:8px;right:8px;bottom:8px;
+    border:1px solid var(--gold);
+    pointer-events:none;opacity:0.4;
+  }
+  .manuscript-border::before{
+    content:'';position:absolute;top:3px;left:3px;right:3px;bottom:3px;
+    border:1px solid var(--gold);opacity:0.3;
+  }
+  /* 角饰 */
+  .corner-ornament{
+    position:absolute;width:24px;height:24px;opacity:0.35;
+    color:var(--gold);font-size:16px;line-height:24px;text-align:center;
+    font-family:"Cinzel Decorative",serif;
+  }
+  .corner-ornament.tl{top:2px;left:4px}.corner-ornament.tr{top:2px;right:4px}
+  .corner-ornament.bl{bottom:2px;left:4px}.corner-ornament.br{bottom:2px;right:4px}
+
+  /* ── 装饰分隔 ── */
+  .deco-line{
+    text-align:center;font-size:0.7em;letter-spacing:4px;
+    margin-bottom:8px;user-select:none;color:var(--gold);opacity:0.5;
+  }
+  .divider{
+    height:1px;margin:20px 30px;border:none;position:relative;
+    background:linear-gradient(90deg,
+      transparent 0%,var(--gold) 15%,var(--gold-bright) 50%,var(--gold) 85%,transparent 100%);
+    opacity:0.4;
+  }
+  .divider::after{
+    content:'❖';position:absolute;top:-9px;left:50%;transform:translateX(-50%);
+    color:var(--gold);font-size:12px;opacity:0.6;
+    text-shadow:0 0 6px var(--gold-glow);
+    background:var(--parchment);padding:0 8px;
+  }
+  .divider::before{
+    content:'';position:absolute;top:-3px;left:50%;transform:translateX(-50%);
+    width:60px;height:7px;
+    background:
+      linear-gradient(90deg,transparent 0%,var(--gold) 20%,transparent 20%,transparent 40%,var(--gold) 40%,var(--gold) 60%,transparent 60%,transparent 80%,var(--gold) 80%,transparent 100%);
+    opacity:0.15;
+  }
+
+  /* ── 标题 ── */
+  h1{
+    font-family:"Cinzel Decorative","Noto Serif SC",serif;
+    color:var(--gold);font-size:1.5em;margin-bottom:4px;text-align:center;
+    letter-spacing:4px;
+    text-shadow:0 1px 0 rgba(0,0,0,0.1),0 0 8px var(--gold-glow);
+    animation:titleGlow 6s ease-in-out infinite;
+  }
+  @keyframes titleGlow{
+    0%,100%{text-shadow:0 1px 0 rgba(0,0,0,0.1),0 0 8px var(--gold-glow)}
+    50%{text-shadow:0 1px 0 rgba(0,0,0,0.1),0 0 16px rgba(184,148,42,0.4)}
+  }
+  .subtitle{
+    text-align:center;font-size:0.72em;color:var(--ink-faded);
+    letter-spacing:3px;margin-bottom:12px;font-style:italic;
+  }
+
+  h2{
+    font-family:"Cinzel","Noto Serif SC",serif;
+    color:var(--ink-light);font-size:1.0em;margin:22px 0 12px;
+    padding:6px 14px 6px 16px;
+    border-left:3px solid var(--gold);
+    letter-spacing:2px;
+    position:relative;
+    background:linear-gradient(90deg,rgba(184,148,42,0.08) 0%,transparent 100%);
+    border-radius:0 2px 2px 0;
+  }
+  h2::before{
+    content:'✦';position:absolute;left:-7px;top:50%;transform:translateY(-50%);
+    font-size:0.65em;color:var(--gold-bright);
+    text-shadow:0 0 6px var(--gold-glow);
+    z-index:1;
+  }
+  h2::after{
+    content:'';position:absolute;right:10px;top:50%;transform:translateY(-50%);
+    width:30px;height:1px;
+    background:linear-gradient(90deg,var(--gold),transparent);
+    opacity:0.3;
+  }
+
+  p{color:var(--ink);font-size:0.92em;margin-bottom:10px;text-indent:2em}
+
+  /* ── 表单 ── */
+  label{
+    display:block;font-size:0.85em;margin:12px 0 4px;
+    color:var(--ink-faded);letter-spacing:1px;
+    font-family:"Cinzel","Noto Serif SC",serif;
+  }
+  input[type=text],input[type=number],select,textarea{
+    width:100%;
+    background:rgba(255,250,240,0.5);
+    color:var(--ink);
+    border:none;border-bottom:1px solid var(--parchment-dark);
+    padding:6px 8px;
+    font-family:"Noto Serif SC",serif;font-size:0.92em;
+    transition:border-color .2s;
+  }
+  input[type=text]:focus,input[type=number]:focus,select:focus,textarea:focus{
+    outline:none;border-bottom-color:var(--gold);
+    box-shadow:0 1px 0 var(--gold-glow);
+  }
+  input[type=text]::placeholder{color:var(--ink-faded);opacity:0.5;font-style:italic}
+  select{
+    cursor:pointer;appearance:none;-webkit-appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6' fill='%23b8942a'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 8px center;padding-right:26px;
+    background-color:rgba(255,250,240,0.5);
+  }
+  select option{background:var(--parchment);color:var(--ink)}
+
+  /* ── 属性行 ── */
+  .attr-row{display:flex;align-items:center;gap:10px;margin:10px 0;padding:6px 8px;
+    position:relative;border-radius:2px;
+    background:linear-gradient(90deg,rgba(180,160,120,0.05) 0%,rgba(180,160,120,0.02) 50%,transparent 100%);
+    border:1px solid transparent;transition:border-color .2s,background .2s;
+  }
+  .attr-row:hover{
+    border-color:rgba(184,148,42,0.15);
+    background:linear-gradient(90deg,rgba(180,160,120,0.08) 0%,rgba(180,160,120,0.03) 50%,transparent 100%);
+  }
+  .attr-row span.name{
+    width:52px;color:var(--ink-light);font-weight:bold;
+    font-family:"Cinzel","Noto Serif SC",serif;
+    letter-spacing:3px;font-size:0.9em;
+    position:relative;
+  }
+  .attr-row span.name::after{
+    content:'❖';position:absolute;right:-4px;top:50%;transform:translateY(-50%);
+    font-size:0.5em;color:var(--gold);opacity:0.3;
+  }
+  .attr-row .slider-wrap{
+    flex:1;position:relative;height:20px;display:flex;align-items:center;
+  }
+  /* 符文刻度 */
+  .attr-row .slider-wrap::before{
+    content:'';position:absolute;top:50%;left:0;right:0;height:1px;transform:translateY(-50%);
+    background:repeating-linear-gradient(90deg,
+      transparent 0,transparent 7px,
+      rgba(184,148,42,0.12) 7px,rgba(184,148,42,0.12) 8px);
+    pointer-events:none;
+  }
+  /* 关键刻度点（3,8,10,15,18） */
+  .attr-row .slider-wrap::after{
+    content:'';position:absolute;top:50%;left:0;right:0;height:3px;transform:translateY(-50%);
+    background:
+      radial-gradient(circle at 0% 50%,var(--gold) 1px,transparent 1.5px),
+      radial-gradient(circle at 33.3% 50%,var(--gold) 1px,transparent 1.5px),
+      radial-gradient(circle at 46.7% 50%,var(--gold-bright) 1.5px,transparent 2px),
+      radial-gradient(circle at 80% 50%,var(--gold) 1px,transparent 1.5px),
+      radial-gradient(circle at 100% 50%,var(--gold) 1px,transparent 1.5px);
+    pointer-events:none;opacity:0.4;
+  }
+  .attr-row input[type=range]{
+    flex:1;-webkit-appearance:none;appearance:none;height:3px;
+    background:linear-gradient(90deg,
+      var(--parchment-dark) 0%,
+      var(--gold) var(--fill,0%),
+      var(--parchment-dark) var(--fill,0%),
+      var(--parchment-dark) 100%);
+    outline:none;cursor:pointer;opacity:0.85;
+    position:relative;z-index:2;
+    border-radius:2px;
+  }
+  .attr-row input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;
+    width:18px;height:18px;cursor:pointer;
+    background:
+      radial-gradient(circle at 35% 30%,rgba(255,248,220,0.9) 0%,transparent 40%),
+      radial-gradient(circle at 40% 35%,var(--gold-light) 0%,var(--gold) 45%,var(--rune) 100%);
+    border-radius:50%;
+    border:2px solid var(--leather);
+    box-shadow:
+      0 2px 6px rgba(0,0,0,0.35),
+      0 0 8px var(--gold-glow),
+      inset 0 -1px 2px rgba(0,0,0,0.2);
+    transition:transform .15s,box-shadow .15s;
+  }
+  .attr-row input[type=range]::-webkit-slider-thumb:hover{
+    transform:scale(1.15);
+    box-shadow:
+      0 2px 8px rgba(0,0,0,0.4),
+      0 0 16px rgba(184,148,42,0.5),
+      0 0 30px rgba(184,148,42,0.2),
+      inset 0 -1px 2px rgba(0,0,0,0.2);
+  }
+  .attr-row input[type=range]::-moz-range-thumb{
+    width:16px;height:16px;cursor:pointer;
+    background:radial-gradient(circle at 40% 35%,var(--gold-light),var(--gold) 50%,var(--rune));
+    border-radius:50%;border:2px solid var(--leather);
+    box-shadow:0 1px 4px rgba(0,0,0,0.3),0 0 6px var(--gold-glow);
+  }
+  .attr-row span.val{
+    width:36px;text-align:center;color:var(--ink);font-weight:bold;font-size:1em;
+    font-family:"Cinzel",serif;transition:color .2s,text-shadow .2s;
+    position:relative;
+  }
+  .attr-row span.val.flash{
+    color:var(--gold-bright);
+    text-shadow:0 0 10px var(--gold-glow),0 0 20px rgba(184,148,42,0.3);
+    animation:valPulse .3s ease-out;
+  }
+  @keyframes valPulse{
+    0%{transform:scale(1)}
+    50%{transform:scale(1.15)}
+    100%{transform:scale(1)}
+  }
+  .attr-row span.mod{width:42px;text-align:center;color:var(--ink-faded);font-size:0.85em;
+    font-family:"Cinzel",serif;
+  }
+  .attr-row span.mod.neg{color:var(--danger)}
+
+  /* ── 信息栏 ── */
+  .info-line{
+    background:rgba(180,160,120,0.12);
+    border:1px solid var(--parchment-dark);border-left:3px solid var(--gold);
+    padding:10px 14px;margin:12px 0;font-size:0.88em;color:var(--ink-light);
+  }
+
+  /* ── 按钮 ── */
+  .btn{
+    display:block;width:100%;
+    border:1px solid var(--gold);border-radius:2px;
+    padding:11px 16px;font-size:0.9em;
+    font-family:"Cinzel","Noto Serif SC",serif;
+    cursor:pointer;margin-top:16px;letter-spacing:2px;
+    background:linear-gradient(180deg,rgba(184,148,42,0.12) 0%,rgba(184,148,42,0.04) 100%);
+    color:var(--ink-light);
+    text-shadow:0 1px 0 rgba(255,255,255,0.3);
+    box-shadow:0 1px 3px rgba(0,0,0,0.1);
+    transition:all .2s;position:relative;overflow:hidden;
+  }
+  .btn:hover{
+    background:linear-gradient(180deg,rgba(184,148,42,0.2) 0%,rgba(184,148,42,0.08) 100%);
+    border-color:var(--gold-bright);
+    box-shadow:0 1px 3px rgba(0,0,0,0.1),0 0 10px var(--gold-glow);
+    color:var(--gold);
+  }
+  .btn:active{transform:translateY(1px);box-shadow:none}
+  /* 涟漪效果 */
+  .btn .ripple{
+    position:absolute;border-radius:50%;
+    background:radial-gradient(circle,rgba(232,200,96,0.5) 0%,rgba(184,148,42,0.3) 40%,transparent 70%);
+    transform:scale(0);animation:rippleAnim .6s ease-out forwards;
+    pointer-events:none;
+  }
+  @keyframes rippleAnim{
+    to{transform:scale(4);opacity:0}
+  }
+  .btn.copy{border-color:var(--gold);color:var(--gold)}
+  .btn.copy:hover{background:rgba(184,148,42,0.18);color:var(--gold-bright)}
+  .tag-btn{font-size:0.84em}
+
+  /* ── 特质面板 ── */
+  .talent-panel{
+    background:rgba(180,160,120,0.08);
+    border:1px solid var(--parchment-dark);
+    padding:10px 14px;margin-top:6px;display:grid;grid-template-columns:repeat(3,1fr);gap:2px 10px;
+  }
+  .tag-option{font-size:0.84em;color:var(--ink)}
+  .tag-option label{cursor:pointer;margin:3px 0;display:flex;align-items:center;gap:6px;transition:color .15s}
+  .tag-option label:hover{color:var(--gold)}
+  .tag-option input[type=checkbox]{
+    appearance:none;-webkit-appearance:none;
+    width:13px;height:13px;border:1px solid var(--parchment-dark);border-radius:1px;
+    background:rgba(255,250,240,0.6);cursor:pointer;position:relative;flex-shrink:0;
+  }
+  .tag-option input[type=checkbox]:checked{background:var(--gold);border-color:var(--gold-bright)}
+  .tag-option input[type=checkbox]:checked::after{
+    content:'✦';position:absolute;top:-2px;left:1px;font-size:10px;color:var(--parchment-light);
+  }
+
+  /* ── 其他 ── */
+  textarea.out{
+    width:100%;height:180px;margin-top:12px;
+    font-family:"Noto Serif SC",serif;font-size:0.82em;
+    color:var(--ink-faded);background:rgba(255,250,240,0.4);
+    border:1px solid var(--parchment-dark);
+  }
+  .race-hint{
+    font-size:0.82em;color:var(--ink-faded);margin-top:4px;padding-left:8px;
+    border-left:2px solid var(--gold);margin-left:2px;font-style:italic;
+  }
+  .race-hint:empty{display:none}
+
+  .pts-ok{color:var(--ink)}
+  .pts-low{color:var(--amber)}
+  .pts-zero{color:var(--danger)}
+
+  /* ── 页脚 ── */
+  .footer{
+    text-align:center;font-size:0.65em;color:var(--ink-faded);
+    margin-top:20px;padding-top:10px;letter-spacing:2px;
+    border-top:1px solid var(--parchment-dark);opacity:0.5;
+    font-family:"Cinzel","Noto Serif SC",serif;
+  }
+  .page-num{
+    text-align:center;font-size:0.7em;color:var(--ink-faded);
+    margin-top:8px;font-family:"Cinzel",serif;letter-spacing:2px;opacity:0.4;
+  }
+
+  /* ── 世界观段落 ── */
+  .lore-p{
+    position:relative;padding-left:20px;text-indent:0!important;
+    opacity:0;transform:translateY(8px);animation:loreIn .7s ease-out forwards;
+    line-height:1.9;
+  }
+  .lore-p:nth-of-type(1){animation-delay:.2s}
+  .lore-p:nth-of-type(2){animation-delay:.4s}
+  .lore-p:nth-of-type(3){animation-delay:.6s}
+  .lore-p:nth-of-type(4){animation-delay:.8s}
+  .lore-p::before{
+    content:'❧';position:absolute;left:0;top:2px;
+    color:var(--gold);font-size:0.8em;opacity:0.5;
+  }
+  /* 首字下沉 */
+  .lore-p:first-of-type::first-letter{
+    font-family:"Cinzel Decorative","Noto Serif SC",serif;
+    font-size:3.6em;float:left;line-height:0.9;
+    padding:4px 10px 2px 0;margin-left:-2px;
+    color:var(--gold-bright);
+    text-shadow:
+      0 0 10px var(--gold-glow),
+      0 1px 0 rgba(0,0,0,0.15);
+    background:linear-gradient(135deg,var(--gold-light) 0%,var(--gold) 50%,var(--rune) 100%);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+    background-clip:text;
+  }
+  @keyframes loreIn{to{opacity:1;transform:translateY(0)}}
+
+  /* ── 纹章 ── */
+  .crest{
+    text-align:center;margin:8px 0 12px;opacity:0.25;
+    font-size:2em;line-height:1;
+    text-shadow:0 1px 0 rgba(0,0,0,0.1);
+    color:var(--gold);
+  }
+
+  /* ── 粒子画布 ── */
+  #ember-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9998;opacity:0.5}
+
+  /* ── 状态栏 ── */
+  .status-bar{
+    display:flex;justify-content:space-between;align-items:center;
+    font-size:0.68em;color:var(--ink-faded);letter-spacing:1px;
+    padding:4px 0;margin-bottom:6px;
+    border-bottom:1px solid rgba(184,148,42,0.2);
+    font-family:"Cinzel","Noto Serif SC",serif;
+  }
+
+  /* ── 开局信息 ── */
+  .opening-info{
+    background:
+      linear-gradient(135deg,rgba(184,148,42,0.06) 0%,rgba(180,160,120,0.1) 50%,rgba(184,148,42,0.04) 100%);
+    border:1px solid var(--parchment-dark);
+    padding:14px 18px;margin:16px 0;
+    border-radius:3px;
+    position:relative;
+    box-shadow:inset 0 1px 3px rgba(120,100,60,0.1);
+  }
+  .opening-info::before{
+    content:'⏣';position:absolute;top:-8px;left:16px;
+    font-size:16px;color:var(--gold);opacity:0.6;
+    background:var(--parchment);padding:0 6px;
+  }
+  .info-row{
+    display:flex;gap:8px;margin:5px 0;
+    font-size:0.9em;align-items:center;
+  }
+  .info-row .label{
+    color:var(--gold);font-weight:bold;min-width:50px;
+    font-family:"Cinzel","Noto Serif SC",serif;
+    letter-spacing:1px;
+  }
+  .info-row .value{
+    color:var(--ink);
+    font-style:italic;
+  }
+
+  /* ── 叙事框 ── */
+  .narrative-box{
+    background:
+      radial-gradient(ellipse 80px 60px at 15% 20%,rgba(140,100,50,0.08) 0%,transparent 70%),
+      radial-gradient(ellipse 60px 80px at 85% 75%,rgba(120,80,40,0.06) 0%,transparent 65%),
+      rgba(255,250,240,0.3);
+    border:1px solid var(--parchment-dark);
+    padding:20px 18px;margin:16px 0;
+    border-radius:3px;
+    line-height:1.9;
+    position:relative;
+    box-shadow:
+      inset 0 0 20px rgba(120,100,60,0.08),
+      inset 8px 0 15px -8px rgba(80,50,20,0.06),
+      inset -8px 0 15px -8px rgba(80,50,20,0.06);
+  }
+  .narrative-box::before{
+    content:'';position:absolute;top:6px;left:6px;right:6px;bottom:6px;
+    border:1px solid rgba(184,148,42,0.12);
+    border-radius:2px;pointer-events:none;
+  }
+  .narrative-box .lore-p{
+    opacity:0;transform:translateY(10px);
+    animation:loreFadeIn .8s ease-out forwards;
+  }
+  .narrative-box .lore-p:nth-of-type(1){animation-delay:.3s}
+  .narrative-box .lore-p:nth-of-type(2){animation-delay:.6s}
+  .narrative-box .lore-p:nth-of-type(3){animation-delay:.9s}
+  @keyframes loreFadeIn{to{opacity:1;transform:translateY(0)}}
+  .narrative-box #identityGreeting{
+    color:var(--gold);
+    font-style:italic;
+    border-left:2px solid var(--gold);
+    padding-left:12px;
+    margin-left:4px;
+  }
+
+  /* ── 任务卡片 ── */
+  .quest-card{
+    background:
+      linear-gradient(135deg,rgba(184,148,42,0.08) 0%,rgba(180,160,120,0.12) 50%,rgba(184,148,42,0.06) 100%);
+    border:1px solid var(--gold);
+    padding:16px;margin:14px 0;
+    border-radius:3px;
+    position:relative;
+    box-shadow:0 2px 8px rgba(184,148,42,0.1);
+  }
+  .quest-card::before{
+    content:'📜';position:absolute;top:-10px;right:12px;
+    font-size:20px;opacity:0.7;
+    background:var(--parchment);padding:0 6px;
+  }
+  .quest-name{
+    font-size:1.15em;color:var(--gold-bright);font-weight:bold;
+    margin-bottom:8px;
+    font-family:"Cinzel","Noto Serif SC",serif;
+    letter-spacing:1px;
+    text-shadow:0 1px 0 rgba(255,255,255,0.3);
+  }
+  .quest-type{
+    font-size:0.85em;color:var(--ink-faded);margin-bottom:10px;
+    padding-bottom:8px;
+    border-bottom:1px solid rgba(184,148,42,0.2);
+    font-style:italic;
+  }
+  .quest-desc{
+    font-size:0.9em;color:var(--ink);margin-bottom:12px;
+    line-height:1.7;
+  }
+  .quest-objectives{
+    background:rgba(255,250,240,0.5);
+    padding:10px 14px;margin:10px 0;
+    border-radius:2px;
+    border-left:3px solid var(--gold);
+  }
+  .obj-item{
+    font-size:0.85em;color:var(--ink);margin:4px 0;
+    padding-left:16px;position:relative;
+  }
+  .obj-item::before{
+    content:'◈';position:absolute;left:0;
+    color:var(--gold);font-size:0.8em;
+  }
+  .quest-deadline{
+    font-size:0.85em;color:var(--ink-faded);
+    margin-top:10px;padding-top:10px;
+    border-top:1px dashed var(--parchment-dark);
+    display:flex;justify-content:space-between;
+  }
+  .quest-empty{
+    font-size:0.9em;color:var(--ink-faded);
+    font-style:italic;padding:16px;text-align:center;
+    background:rgba(180,160,120,0.08);
+    border:1px dashed var(--parchment-dark);
+    border-radius:3px;margin:14px 0;
+  }
+  .obj-item.completed{
+    color:var(--ink-faded);text-decoration:line-through;opacity:0.6;
+  }
+
+  /* ── 钩子卡片 ── */
+  .hook-card{
+    background:
+      radial-gradient(ellipse at 50% 50%,rgba(138,42,26,0.06) 0%,rgba(138,42,26,0.02) 70%),
+      rgba(138,42,26,0.04);
+    border:1px solid var(--danger);
+    padding:16px;margin:14px 0;
+    border-radius:3px;
+    position:relative;
+    box-shadow:0 2px 8px rgba(138,42,26,0.08);
+    overflow:hidden;
+  }
+  .hook-card::before{
+    content:'?';position:absolute;top:-5px;right:10px;
+    font-size:48px;color:var(--danger);opacity:0.08;
+    font-family:"Cinzel Decorative",serif;font-weight:bold;
+  }
+  .hook-card::after{
+    content:'';position:absolute;top:0;left:0;right:0;bottom:0;
+    background:repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 10px,
+      rgba(138,42,26,0.02) 10px,
+      rgba(138,42,26,0.02) 20px
+    );
+    pointer-events:none;
+  }
+  .hook-name{
+    font-size:1.05em;color:var(--danger);font-weight:bold;
+    margin-bottom:8px;
+    font-family:"Cinzel","Noto Serif SC",serif;
+    letter-spacing:1px;
+    position:relative;z-index:1;
+  }
+  .hook-desc{
+    font-size:0.9em;color:var(--ink);margin-bottom:10px;
+    font-style:italic;line-height:1.7;
+    position:relative;z-index:1;
+  }
+  .hook-trigger{
+    font-size:0.8em;color:var(--ink-faded);
+    padding:4px 8px;
+    background:rgba(138,42,26,0.06);
+    border-radius:2px;
+    display:inline-block;
+    position:relative;z-index:1;
+  }
+
+  /* ── 启程按钮特效 ── */
+  #p3 .btn[onclick="enterGame()"]{
+    background:linear-gradient(180deg,rgba(184,148,42,0.18) 0%,rgba(184,148,42,0.08) 100%);
+    border:2px solid var(--gold-bright);
+    font-size:1em;
+    padding:14px 20px;
+    letter-spacing:3px;
+    position:relative;
+    overflow:hidden;
+    animation:btnPulse 3s ease-in-out infinite;
+  }
+  @keyframes btnPulse{
+    0%,100%{box-shadow:0 0 5px var(--gold-glow)}
+    50%{box-shadow:0 0 20px var(--gold-glow),0 0 40px rgba(184,148,42,0.1)}
+  }
+  #p3 .btn[onclick="enterGame()"]::before{
+    content:'';position:absolute;top:0;left:-100%;
+    width:100%;height:100%;
+    background:linear-gradient(90deg,transparent,rgba(232,200,96,0.2),transparent);
+    animation:btnShine 4s ease-in-out infinite;
+  }
+  @keyframes btnShine{
+    0%{left:-100%}
+    50%,100%{left:100%}
+  }
+
+  /* ── Page 3 入场动画 ── */
+  #p3.active{
+    animation:pageOpenReveal .8s ease-out;
+  }
+  @keyframes pageOpenReveal{
+    0%{
+      opacity:0;
+      transform:rotateY(-8deg) scale(0.95);
+      filter:brightness(0.7);
+    }
+    40%{
+      opacity:1;
+      filter:brightness(1);
+    }
+    100%{
+      transform:rotateY(0) scale(1);
+      filter:brightness(1);
+    }
+  }
+
+  /* ── Page 3 章节标题特效 ── */
+  #p3 h1{
+    position:relative;
+    display:inline-block;
+  }
+  #p3 h1::after{
+    content:'';
+    position:absolute;
+    bottom:-4px;left:0;right:0;
+    height:2px;
+    background:linear-gradient(90deg,transparent,var(--gold),transparent);
+    animation:titleGlow 2s ease-in-out infinite alternate;
+  }
+  @keyframes titleGlow{
+    0%{opacity:0.3}
+    100%{opacity:0.8}
+  }
+
+  /* ── Page 3 分隔线特效 ── */
+  #p3 hr.divider{
+    position:relative;
+  }
+  #p3 hr.divider::after{
+    content:'✦';
+    position:absolute;
+    top:-8px;left:50%;
+    transform:translateX(-50%);
+    color:var(--gold);
+    font-size:12px;
+    background:var(--parchment);
+    padding:0 8px;
+    opacity:0.5;
+  }
+
+
+/* ═══ 游戏视图样式（来自 game.html） ═══ */
+
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Cinzel+Decorative:wght@400;700&family=Noto+Serif+SC:wght@400;700&display=swap');
+
+  :root{
+    --parchment:#d8c8a0;
+    --parchment-dark:#c4b088;
+    --parchment-light:#e8dcc0;
+    --ink:#2a1e10;
+    --ink-light:#4a3820;
+    --ink-faded:#6a5838;
+    --gold:#b8942a;
+    --gold-bright:#d4aa38;
+    --gold-glow:rgba(184,148,42,0.3);
+    --gold-light:#e8c860;
+    --leather:#3a2818;
+    --leather-dark:#2a1c10;
+    --leather-light:#5a4028;
+    --red-ink:#8a2a1a;
+    --blue-ink:#1a3a6a;
+    --rune:#7a6020;
+    --rune-glow:rgba(184,148,42,0.15);
+    --danger:#8a2a1a;
+    --amber:#a07828;
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+
+  body{
+    background:#1a1510;
+    background-image:
+      radial-gradient(ellipse 80% 40% at 50% 110%,rgba(180,80,30,0.15) 0%,transparent 60%),
+      radial-gradient(ellipse 60% 30% at 50% 100%,rgba(200,120,40,0.08) 0%,transparent 70%),
+      radial-gradient(ellipse at 30% 40%,rgba(90,64,40,0.15) 0%,transparent 50%),
+      radial-gradient(ellipse at 70% 70%,rgba(60,40,20,0.1) 0%,transparent 50%);
+    color:var(--ink);
+    font-family:"Noto Serif SC","Songti SC","SimSun",serif;
+    line-height:1.7;
+    min-height:100vh;
+    position:relative;
+    overflow-x:hidden;
+    overflow-y:auto;
+  }
+
+  /* 粒子画布 */
+  #ember-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9998;opacity:0.5}
+
+  /* 主容器 */
+  .game-container{
+    display:grid;
+    grid-template-columns:280px 1fr 280px;
+    grid-template-rows:60px minmax(0,1fr) 80px;
+    height:100vh;
+    min-height:100vh;
+    gap:0;
+    position:relative;
+    z-index:1;
+    overflow:hidden;
+  }
+
+  /* 顶部状态栏 - 皮革书脊风格 */
+  .top-bar{
+    grid-column:1/4;
+    background:
+      linear-gradient(135deg,var(--leather-light) 0%,var(--leather) 30%,var(--leather-dark) 70%,var(--leather) 100%);
+    border-bottom:2px solid var(--gold);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:0 20px;
+    color:var(--gold-bright);
+    font-family:"Cinzel","Noto Serif SC",serif;
+    box-shadow:
+      0 4px 20px rgba(0,0,0,0.7),
+      inset 0 1px 0 rgba(255,255,255,0.05),
+      inset 0 -1px 0 rgba(0,0,0,0.3);
+    position:relative;
+  }
+
+  /* 顶部栏皮革纹理 */
+  .top-bar::before{
+    content:'';
+    position:absolute;
+    top:0;left:0;right:0;bottom:0;
+    background:
+      repeating-conic-gradient(rgba(0,0,0,0.02) 0% 25%,transparent 0% 50%) 0 0/4px 4px;
+    pointer-events:none;
+  }
+
+  /* 顶栏两端角饰贴图 */
+  .bar-ornament{
+    position:absolute;top:50%;height:80%;
+    transform:translateY(-50%);pointer-events:none;
+    opacity:0.55;z-index:0;
+    filter:drop-shadow(0 0 4px rgba(0,0,0,0.6));
+  }
+  .bar-ornament.left{left:6px}
+  .bar-ornament.right{right:6px}
+
+  .player-name{
+    font-size:20px;
+    font-weight:700;
+    letter-spacing:3px;
+    text-shadow:0 1px 0 rgba(0,0,0,0.3),0 0 8px var(--gold-glow);
+    position:relative;
+    z-index:1;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+
+  .rank-badge{
+    width:30px;height:30px;object-fit:contain;
+    filter:drop-shadow(0 0 6px var(--gold-glow));
+  }
+
+  /* UI 小图标（贴图版状态图标） */
+  .ui-icon{
+    width:18px;height:18px;object-fit:contain;
+    vertical-align:middle;
+    filter:drop-shadow(0 0 3px rgba(0,0,0,0.5));
+  }
+  .status-item img.ui-icon{flex-shrink:0}
+
+  .status-items{
+    display:flex;
+    gap:30px;
+    font-size:14px;
+    position:relative;
+    z-index:1;
+  }
+
+  .status-item{
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+
+  /* HP条 - 锈金属槽贴图 + 余烬填充 */
+  .hp-bar{
+    width:130px;
+    height:20px;
+    background:url('img/ui/ui-hp-frame.png') center/100% 100% no-repeat;
+    border-radius:7px;
+    overflow:hidden;
+    box-shadow:inset 0 1px 3px rgba(0,0,0,0.5),0 0 6px rgba(0,0,0,0.4);
+    position:relative;
+    padding:4px 7px;
+  }
+
+  .hp-fill{
+    height:100%;
+    background:linear-gradient(90deg,#4caf50,#8bc34a);
+    transition:width 0.3s;
+    box-shadow:0 0 6px rgba(76,175,80,0.5);
+    position:relative;
+    overflow:hidden;
+  }
+
+  /* 余烬纹理叠加层 */
+  .hp-fill::after{
+    content:'';
+    position:absolute;top:0;left:0;right:0;bottom:0;
+    background:url('img/ui/ui-hp-fill.png') center/cover no-repeat;
+    mix-blend-mode:overlay;
+    opacity:0.6;
+  }
+
+  /* 左侧面板 - 羊皮纸风格 */
+  .left-panel{
+    background:var(--parchment-dark);
+    border-right:2px solid var(--leather);
+    overflow-y:auto;
+    padding:15px;
+    position:relative;
+  }
+
+  /* 面板区块 - 羊皮纸页面 */
+  .panel-section{
+    margin-bottom:20px;
+    background:var(--parchment);
+    background-image:
+      radial-gradient(ellipse 80px 60px at 15% 20%,rgba(140,100,50,0.10) 0%,transparent 70%),
+      radial-gradient(ellipse 60px 80px at 85% 35%,rgba(120,80,40,0.08) 0%,transparent 65%),
+      radial-gradient(ellipse 100px 50px at 70% 75%,rgba(140,100,50,0.07) 0%,transparent 60%),
+      radial-gradient(ellipse at 25% 25%,rgba(180,160,120,0.3) 0%,transparent 50%),
+      radial-gradient(ellipse at 75% 75%,rgba(160,140,100,0.2) 0%,transparent 50%);
+    padding:12px;
+    border-radius:4px;
+    border:1px solid var(--parchment-dark);
+    position:relative;
+    box-shadow:
+      inset 0 0 30px rgba(120,100,60,0.15),
+      inset 0 0 80px rgba(100,80,40,0.08),
+      inset 15px 0 25px -15px rgba(80,50,20,0.12),
+      inset -15px 0 25px -15px rgba(80,50,20,0.12),
+      inset 0 15px 25px -15px rgba(80,50,20,0.10),
+      inset 0 -15px 25px -15px rgba(80,50,20,0.14);
+  }
+
+  /* 羊皮纸纤维噪点 */
+  .panel-section::before{
+    content:'';
+    position:absolute;
+    top:0;left:0;right:0;bottom:0;
+    background:repeating-conic-gradient(rgba(100,80,50,0.015) 0% 25%,transparent 0% 50%) 0 0/3px 3px;
+    pointer-events:none;
+    z-index:1;
+  }
+
+  .panel-title{
+    font-family:"Cinzel","Noto Serif SC",serif;
+    font-size:16px;
+    font-weight:700;
+    color:var(--gold);
+    margin-bottom:10px;
+    padding-bottom:5px;
+    border-bottom:1px solid var(--gold);
+    letter-spacing:2px;
+    text-shadow:0 1px 0 rgba(0,0,0,0.1),0 0 8px var(--gold-glow);
+    position:relative;
+    z-index:2;
+  }
+
+  .panel-title::before{
+    content:'✦';
+    margin-right:6px;
+    color:var(--gold-bright);
+    text-shadow:0 0 6px var(--gold-glow);
+  }
+
+  .attr-list{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    font-size:13px;
+    position:relative;
+    z-index:2;
+  }
+
+  .attr-item{
+    background:var(--parchment-light);
+    background-image:
+      radial-gradient(ellipse at 30% 30%,rgba(180,160,120,0.2) 0%,transparent 50%);
+    padding:6px 10px;
+    border-radius:2px;
+    display:flex;
+    justify-content:space-between;
+    border:1px solid var(--parchment-dark);
+    font-family:"Cinzel","Noto Serif SC",serif;
+    letter-spacing:1px;
+  }
+
+  .attr-item span:first-child{
+    color:var(--ink-light);
+    font-weight:700;
+  }
+
+  .attr-item span:last-child{
+    color:var(--gold);
+    font-weight:700;
+  }
+
+  /* 中间正文区 - 羊皮纸长卷 */
+  .center-area{
+    background:var(--parchment);
+    background-image:
+      radial-gradient(ellipse 80px 60px at 15% 20%,rgba(140,100,50,0.10) 0%,transparent 70%),
+      radial-gradient(ellipse 60px 80px at 85% 35%,rgba(120,80,40,0.08) 0%,transparent 65%),
+      radial-gradient(ellipse 100px 50px at 70% 75%,rgba(140,100,50,0.07) 0%,transparent 60%),
+      radial-gradient(ellipse 50px 70px at 25% 65%,rgba(100,70,30,0.06) 0%,transparent 60%),
+      radial-gradient(ellipse at 25% 25%,rgba(180,160,120,0.3) 0%,transparent 50%),
+      radial-gradient(ellipse at 75% 75%,rgba(160,140,100,0.2) 0%,transparent 50%),
+      radial-gradient(ellipse at 50% 50%,rgba(200,180,140,0.15) 0%,transparent 70%);
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+    position:relative;
+  }
+
+  /* 烛光摇曳遮罩 */
+  .center-area .candle-glow{
+    position:absolute;
+    top:0;left:0;right:0;bottom:0;
+    pointer-events:none;
+    z-index:2;
+    background:
+      radial-gradient(ellipse 120px 80px at 85% 15%,rgba(255,200,100,0.06) 0%,transparent 60%),
+      radial-gradient(ellipse 80px 100px at 10% 85%,rgba(255,180,60,0.04) 0%,transparent 60%);
+    animation:candleFlicker 4s ease-in-out infinite;
+    mix-blend-mode:soft-light;
+  }
+
+  @keyframes candleFlicker{
+    0%,100%{opacity:0.7;transform:scale(1)}
+    20%{opacity:0.9;transform:scale(1.02) translateY(-1px)}
+    40%{opacity:0.6;transform:scale(0.98) translateY(1px)}
+    60%{opacity:0.85;transform:scale(1.01)}
+    80%{opacity:0.75;transform:scale(0.99) translateY(-0.5px)}
+  }
+
+  .narrative-display{
+    flex:1;
+    overflow-y:auto;
+    padding:20px;
+    font-size:15px;
+    line-height:1.8;
+    position:relative;
+    z-index:3;
+  }
+
+  /* 右侧面板 */
+  .right-panel{
+    background:var(--parchment-dark);
+    border-left:2px solid var(--leather);
+    overflow-y:auto;
+    padding:15px;
+    position:relative;
+  }
+
+  /* 操作按钮 - 手抄本风格 */
+  .action-btn{
+    display:block;
+    width:100%;
+    border:1px solid var(--gold);
+    border-radius:2px;
+    padding:11px 16px;
+    margin-bottom:10px;
+    font-size:14px;
+    font-family:"Cinzel","Noto Serif SC",serif;
+    cursor:pointer;
+    letter-spacing:2px;
+    background:linear-gradient(180deg,rgba(184,148,42,0.12) 0%,rgba(184,148,42,0.04) 100%);
+    color:var(--ink-light);
+    text-shadow:0 1px 0 rgba(255,255,255,0.3);
+    box-shadow:0 1px 3px rgba(0,0,0,0.1);
+    transition:all .2s;
+    position:relative;
+    overflow:hidden;
+  }
+
+  .action-btn:hover{
+    background:linear-gradient(180deg,rgba(184,148,42,0.2) 0%,rgba(184,148,42,0.08) 100%);
+    border-color:var(--gold-bright);
+    box-shadow:0 1px 3px rgba(0,0,0,0.1),0 0 10px var(--gold-glow);
+    color:var(--gold);
+  }
+
+  .action-btn:active{
+    transform:translateY(1px);
+    box-shadow:none;
+  }
+
+  .action-btn:disabled{
+    background:var(--parchment-dark);
+    color:var(--ink-faded);
+    cursor:not-allowed;
+    border-color:var(--parchment-dark);
+    transform:none;
+  }
+
+  /* 按钮涟漪效果 */
+  .action-btn .ripple{
+    position:absolute;
+    border-radius:50%;
+    background:radial-gradient(circle,rgba(232,200,96,0.5) 0%,rgba(184,148,42,0.3) 40%,transparent 70%);
+    transform:scale(0);
+    animation:rippleAnim .6s ease-out forwards;
+    pointer-events:none;
+  }
+
+  @keyframes rippleAnim{
+    to{transform:scale(4);opacity:0}
+  }
+
+  /* 底部输入栏 - 皮革书底 */
+  .bottom-bar{
+    grid-column:1/4;
+    background:
+      linear-gradient(135deg,var(--leather-light) 0%,var(--leather) 30%,var(--leather-dark) 70%,var(--leather) 100%);
+    border-top:2px solid var(--gold);
+    padding:15px 20px;
+    display:flex;
+    gap:10px;
+    align-items:center;
+    position:relative;
+  }
+
+  /* 底部栏皮革纹理 */
+  .bottom-bar::before{
+    content:'';
+    position:absolute;
+    top:0;left:0;right:0;bottom:0;
+    background:
+      repeating-conic-gradient(rgba(0,0,0,0.02) 0% 25%,transparent 0% 50%) 0 0/4px 4px;
+    pointer-events:none;
+  }
+
+  .input-box{
+    flex:1;
+    padding:12px;
+    background:rgba(255,250,240,0.5);
+    border:none;
+    border-bottom:1px solid var(--parchment-dark);
+    font-family:"Noto Serif SC",serif;
+    font-size:14px;
+    color:var(--ink);
+    transition:border-color .2s;
+    position:relative;
+    z-index:1;
+  }
+
+  .input-box:focus{
+    outline:none;
+    border-bottom-color:var(--gold);
+    box-shadow:0 1px 0 var(--gold-glow);
+  }
+
+  .input-box::placeholder{
+    color:var(--ink-faded);
+    opacity:0.5;
+    font-style:italic;
+  }
+
+  .send-btn{
+    padding:12px 24px;
+    border:1px solid var(--gold);
+    border-radius:2px;
+    font-family:"Cinzel","Noto Serif SC",serif;
+    font-size:14px;
+    font-weight:700;
+    letter-spacing:2px;
+    background:linear-gradient(180deg,rgba(184,148,42,0.12) 0%,rgba(184,148,42,0.04) 100%);
+    color:var(--ink-light);
+    cursor:pointer;
+    transition:all .2s;
+    position:relative;
+    overflow:hidden;
+    z-index:1;
+  }
+
+  .send-btn:hover{
+    background:linear-gradient(180deg,rgba(184,148,42,0.2) 0%,rgba(184,148,42,0.08) 100%);
+    border-color:var(--gold-bright);
+    box-shadow:0 1px 3px rgba(0,0,0,0.1),0 0 10px var(--gold-glow);
+    color:var(--gold);
+  }
+
+  .send-btn:active{
+    transform:translateY(1px);
+    box-shadow:none;
+  }
+
+  /* 滚动条 - 金色符文风格 */
+  ::-webkit-scrollbar{
+    width:8px;
+    height:8px;
+  }
+
+  ::-webkit-scrollbar-track{
+    background:var(--parchment-dark);
+  }
+
+  ::-webkit-scrollbar-thumb{
+    background:var(--gold);
+    border-radius:4px;
+    box-shadow:0 0 4px var(--gold-glow);
+  }
+
+  ::-webkit-scrollbar-thumb:hover{
+    background:var(--gold-bright);
+    box-shadow:0 0 8px var(--gold-glow);
+  }
+
+  /* 正文样式 */
+  .narrative-display p{
+    color:var(--ink);
+    margin-bottom:10px;
+    text-indent:2em;
+  }
+
+  .narrative-display .narrative-header{
+    text-align:center;
+    color:var(--gold-bright);
+    font-size:18px;
+    margin-bottom:20px;
+    font-family:"Cinzel Decorative","Noto Serif SC",serif;
+    letter-spacing:4px;
+    text-shadow:0 1px 0 rgba(0,0,0,0.1),0 0 8px var(--gold-glow);
+  }
+
+  /* 装备/背包列表 */
+  #equipment-list,#inventory-list{
+    font-size:13px;
+    position:relative;
+    z-index:2;
+  }
+
+  #equipment-list div,#inventory-list div{
+    margin-bottom:5px;
+    padding:4px 8px;
+    background:rgba(180,160,120,0.08);
+    border-left:2px solid var(--gold);
+    font-family:"Cinzel","Noto Serif SC",serif;
+  }
+
+  /* ─ 背包弹窗 ── */
+  .inv-overlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.6);display:none;align-items:center;justify-content:center}
+  .inv-overlay.open{display:flex}
+  .inv-panel{width:520px;max-height:80vh;background:var(--parchment);
+    background-image:radial-gradient(ellipse 80px 60px at 15% 20%,rgba(140,100,50,0.10) 0%,transparent 70%),
+      radial-gradient(ellipse 60px 80px at 85% 35%,rgba(120,80,40,0.08) 0%,transparent 65%),
+      radial-gradient(ellipse 100px 50px at 70% 75%,rgba(140,100,50,0.07) 0%,transparent 60%);
+    border:2px solid var(--gold);border-radius:4px;box-shadow:0 8px 40px rgba(0,0,0,0.7);
+    display:flex;flex-direction:column;overflow:hidden;position:relative}
+  .inv-header{display:flex;align-items:center;justify-content:space-between;
+    padding:12px 16px;border-bottom:1px solid var(--gold);
+    background:linear-gradient(135deg,var(--leather-light) 0%,var(--leather) 100%);color:var(--gold-bright);
+    font-family:"Cinzel","Noto Serif SC",serif;font-size:16px;letter-spacing:3px}
+  .inv-close{background:none;border:none;color:var(--gold-bright);font-size:20px;cursor:pointer;padding:0 4px;line-height:1}
+  .inv-close:hover{color:#fff;text-shadow:0 0 8px var(--gold-glow)}
+  .inv-body{flex:1;overflow-y:auto;padding:12px 16px}
+  .inv-section-title{font-family:"Cinzel","Noto Serif SC",serif;font-size:13px;color:var(--gold);
+    letter-spacing:2px;margin:12px 0 8px;padding-bottom:4px;border-bottom:1px solid rgba(184,148,42,0.3)}
+  .inv-section-title:first-child{margin-top:0}
+  .inv-slot{display:flex;align-items:center;justify-content:space-between;
+    padding:8px 10px;margin-bottom:6px;background:rgba(180,160,120,0.12);
+    border:1px solid var(--parchment-dark);border-radius:2px;font-size:13px}
+  .inv-slot-name{flex:1;color:var(--ink)}
+  .inv-slot-type{font-size:11px;color:var(--ink-faded);margin-right:10px}
+  .inv-slot-dur{font-size:11px;color:var(--amber);margin-right:10px}
+  .inv-slot-btn{padding:3px 10px;font-size:11px;font-family:"Cinzel","Noto Serif SC",serif;
+    border:1px solid var(--gold);border-radius:2px;cursor:pointer;
+    background:linear-gradient(180deg,rgba(184,148,42,0.12) 0%,rgba(184,148,42,0.04) 100%);
+    color:var(--ink-light);letter-spacing:1px;transition:all .15s}
+  .inv-slot-btn:hover{background:rgba(184,148,42,0.25);color:var(--gold)}
+  .inv-slot-btn.danger{border-color:var(--danger);color:var(--danger)}
+  .inv-slot-btn.danger:hover{background:rgba(138,42,26,0.15)}
+  .inv-empty{color:var(--ink-faded);font-style:italic;font-size:13px;padding:8px 0}
+  .inv-footer{padding:8px 16px;border-top:1px solid rgba(184,148,42,0.3);
+    font-size:12px;color:var(--ink-faded);text-align:right}
+
 </style>
 </head>
 <body>
 
-<canvas id="ember-canvas"></canvas>
+<canvas id="ember-canvas" width="1374" height="870"></canvas>
 
 <div class="book-cover">
   <div class="rivet tl"></div><div class="rivet tr"></div>
   <div class="rivet bl"></div><div class="rivet br"></div>
 
   <!-- ═══ 页面：封面（首页） ═══ -->
-  <section id="view-home" class="page active">
+  <section id="view-home" class="page">
     <div class="candle-glow"></div>
     <div class="manuscript-border"></div>
     <div class="corner-ornament tl">✦</div><div class="corner-ornament tr">✦</div>
@@ -648,223 +2029,1204 @@
       <hr class="divider">
 
       <div style="max-width:380px;margin:0 auto;">
-        <a href="#" class="btn primary" id="btn-continue-game">▶ 继续冒险</a>
-        <a href="#" class="btn" id="btn-new-game">✦ 翻开新的登记册</a>
+        <a href="#" class="btn primary disabled" id="btn-continue-game" data-ripple-bound="1">▶ 继续冒险（尚无卷宗）</a>
+        <a href="#" class="btn" id="btn-new-game" data-ripple-bound="1">✦ 翻开新的登记册</a>
 
         <hr class="divider">
 
-        <a href="#" class="btn" data-route="settings">⚙ 设置</a>
-        <a href="#" class="btn" data-route="help">? 冒险指南</a>
+        <a href="#" class="btn" data-route="settings" data-ripple-bound="1">⚙ 设置</a>
+        <a href="#" class="btn" data-route="help" data-ripple-bound="1">? 冒险指南</a>
       </div>
     </div>
   </section>
 
-  <!-- ═══ 页面：登记册（两页向导，迁自 start-screen） ═══ -->
-  <section id="view-create" class="view">
+<!-- ═══ 视图：登记册（内嵌 register.html，含 Page 1-3） ═══ -->
+<section id="view-create" class="view">
 
-    <!-- ── 子页 1：世界观 ── -->
-    <div class="page active" id="create-p1">
-      <div class="candle-glow"></div>
-      <div class="manuscript-border"></div>
-      <div class="corner-ornament tl">❧</div><div class="corner-ornament tr">❧</div>
-      <div class="corner-ornament bl">❧</div><div class="corner-ornament br">❧</div>
 
-      <div class="status-bar">
-        <span>圣火骑士团 · 联合登记处</span>
-        <span>灾厄 300 年</span>
+<div class="book-cover">
+  <div class="rivet tl"></div><div class="rivet tr"></div>
+  <div class="rivet bl"></div><div class="rivet br"></div>
+
+  <!-- ═══ PAGE 1: 世界观 ═══ -->
+  <div class="page active" id="p1">
+    <div class="candle-glow"></div>
+    <div class="manuscript-border"></div>
+    <div class="corner-ornament tl">❧</div><div class="corner-ornament tr">❧</div>
+    <div class="corner-ornament bl">❧</div><div class="corner-ornament br">❧</div>
+
+    <div class="status-bar">
+      <span>圣火骑士团 · 联合登记处</span>
+      <span>灾厄 300 年</span>
+    </div>
+    <div class="crest">⚔</div>
+    <div class="deco-line">─── ✦ ───</div>
+    <h1>灾厄之后</h1>
+    <div class="subtitle">—— After the Calamity ——</div>
+    <hr class="divider">
+    <h2>◈ 世界观</h2>
+    <p class="lore-p">三百年前，诸神黄昏——所有神明同时陨落，七日七夜天空燃烧。王国崩塌，文明倒退，魔法紊乱，空间撕裂，生物变异。</p>
+    <p class="lore-p">废墟上，五大势力各据一方：圣火骑士团守护旧神遗火，自由佣兵联盟为金币而战，深渊之子追寻灾厄真相，漂泊者议会游走护弱，旧日遗民挖掘文明遗产。</p>
+    <p class="lore-p">灾厄中，八个异世界种族坠入此界——矮人、精灵、羊人、虎族、犬人、灵耳族、兔耳族、猫人，如今与人类共存于灰烬废土。</p>
+    <p class="lore-p">故事始于灾厄 300 年，锈钉镇——五大势力交汇的边境小镇。你，将是下一个踏入这个破碎世界的人。</p>
+    <hr class="divider">
+    <button class="btn" onclick="switchPage(2)" data-ripple-bound="1">◈ 确认，翻开登记册 ◈</button>
+    <div class="footer">圣火骑士团 · 联合登记处 · 灾厄 300 年</div>
+    <div class="page-num">— ⅰ —</div>
+  </div>
+
+  <!-- ═══ PAGE 2: 角色登记 ═══ -->
+  <div class="page" id="p2">
+    <div class="candle-glow"></div>
+    <div class="manuscript-border"></div>
+    <div class="corner-ornament tl">❧</div><div class="corner-ornament tr">❧</div>
+    <div class="corner-ornament bl">❧</div><div class="corner-ornament br">❧</div>
+
+    <div class="status-bar">
+      <span>冒险者登记档案</span>
+      <span>Archivum</span>
+    </div>
+    <div class="deco-line">─── ✦ ───</div>
+    <h1>冒险者登记</h1>
+    <div class="subtitle">—— Adventurer Archivum ——</div>
+    <hr class="divider">
+
+    <h2>◈ Ⅰ. 基本信息</h2>
+    <label>◈ 姓名</label>
+    <input type="text" id="name" placeholder="例：铁根·卡兹 / 无名者" oninput="generateOutput()">
+    <label>◈ 性别</label>
+    <select id="gender" onchange="generateOutput()">
+      <option value="男">男</option>
+      <option value="女">女</option>
+      <option value="其他">其他</option>
+    </select>
+    <label>◈ 年龄 (16~80)</label>
+    <input type="number" id="age" min="16" max="80" value="25" oninput="generateOutput()">
+    <label>◈ 种族</label>
+    <select id="race" onchange="updateRaceHint();generateOutput()">
+      <option value="人类">人类 [天赋：魅力]</option>
+      <option value="矮人">矮人 [天赋：力量]</option>
+      <option value="精灵">精灵 [天赋：智力]</option>
+      <option value="羊人">羊人 [天赋：力量]</option>
+      <option value="虎族">虎族 [天赋：力量]</option>
+      <option value="犬人">犬人 [天赋：敏捷]</option>
+      <option value="灵耳族">灵耳族 [天赋：敏捷]</option>
+      <option value="兔耳族">兔耳族 [天赋：力量]</option>
+      <option value="猫人">猫人 [天赋：敏捷]</option>
+    </select>
+    <div class="race-hint" id="raceHint">◈ 适应力：跨种族社交/跨势力交涉不劣势</div>
+    <label>◈ 身份</label>
+    <select id="identity" onchange="generateOutput()">
+      <option value="佣兵">佣兵</option>
+      <option value="拾荒者">拾荒者</option>
+      <option value="学者">学者</option>
+      <option value="猎人">猎人</option>
+      <option value="商贩">商贩</option>
+      <option value="工匠">工匠</option>
+      <option value="医师">医师</option>
+    </select>
+    <label>◈ 特质 (最多 2 项，相关检定获优势)</label>
+    <div class="tag-select">
+      <button type="button" class="btn tag-btn" onclick="toggleTraitPanel()" id="traitBtn" data-ripple-bound="1">[ 展开特质铭刻 ]</button>
+      <div class="talent-panel" id="talentPanel" style="display:none">
+        <div style="grid-column:1/-1;margin-bottom:4px;color:var(--ink-faded);font-size:0.8em;border:none;padding:0;font-style:normal">◈ 最多铭刻 2 项；第 3 项将自动消除</div>
+        <div class="tag-option"><label><input type="checkbox" class="trait-cb" value="武艺" onchange="onTraitChange()"> 武艺（武器/徒手）</label></div>
+        <div class="tag-option"><label><input type="checkbox" class="trait-cb" value="潜行" onchange="onTraitChange()"> 潜行（隐蔽）</label></div>
+        <div class="tag-option"><label><input type="checkbox" class="trait-cb" value="巧手" onchange="onTraitChange()"> 巧手（开锁/偷窃）</label></div>
+        <div class="tag-option"><label><input type="checkbox" class="trait-cb" value="攀爬" onchange="onTraitChange()"> 攀爬（攀越）</label></div>
+        <div class="tag-option"><label><input type="checkbox" class="trait-cb" value="警觉" onchange="onTraitChange()"> 警觉（追踪/侦查/聆听）</label></div>
+        <div class="tag-option"><label><input type="checkbox" class="trait-cb" value="医疗" onchange="onTraitChange()"> 医疗（急救）</label></div>
+        <div class="tag-option"><label><input type="checkbox" class="trait-cb" value="学识" onchange="onTraitChange()"> 学识（鉴定/魔法）</label></div>
+        <div class="tag-option"><label><input type="checkbox" class="trait-cb" value="工艺" onchange="onTraitChange()"> 工艺（锻造/炼金）</label></div>
+        <div class="tag-option"><label><input type="checkbox" class="trait-cb" value="交涉" onchange="onTraitChange()"> 交涉（说服/交易）</label></div>
       </div>
-      <div class="crest">⚔</div>
-      <div class="deco-line">─── ✦ ───</div>
-      <h1>灾厄之后</h1>
-      <div class="subtitle">—— After the Calamity ——</div>
-      <hr class="divider">
-      <h2>◈ 世界观</h2>
-      <p class="lore-p">三百年前，诸神黄昏——所有神明同时陨落，七日七夜天空燃烧。王国崩塌，文明倒退，魔法紊乱，空间撕裂，生物变异。</p>
-      <p class="lore-p">废墟上，五大势力各据一方：圣火骑士团守护旧神遗火，自由佣兵联盟为金币而战，深渊之子追寻灾厄真相，漂泊者议会游走护弱，旧日遗民挖掘文明遗产。</p>
-      <p class="lore-p">灾厄中，八个异世界种族坠入此界——矮人、精灵、羊人、虎族、犬人、灵耳族、兔耳族、猫人，如今与人类共存于灰烬废土。</p>
-      <p class="lore-p">故事始于灾厄 300 年，锈钉镇——五大势力交汇的边境小镇。你，将是下一个踏入这个破碎世界的人。</p>
-      <hr class="divider">
-      <button class="btn" onclick="switchCreatePage(2)">◈ 确认，翻开登记册 ◈</button>
-      <a href="#" class="btn" data-route="home" style="opacity:0.7">❮ 合上扉页，返回封面</a>
-      <div class="footer">圣火骑士团 · 联合登记处 · 灾厄 300 年</div>
-      <div class="page-num">— ⅰ —</div>
+      <div class="race-hint" id="traitSummary">◈ 未铭刻特质（相关检定无优势）</div>
     </div>
 
-    <!-- ── 子页 2：角色登记 ── -->
-    <div class="page" id="create-p2">
-      <div class="candle-glow"></div>
-      <div class="manuscript-border"></div>
-      <div class="corner-ornament tl">❧</div><div class="corner-ornament tr">❧</div>
-      <div class="corner-ornament bl">❧</div><div class="corner-ornament br">❧</div>
+    <hr class="divider">
+    <h2>◈ Ⅱ. 六维属性 <span style="font-size:0.75em;color:var(--ink-faded);font-weight:normal">[基础8 · 18点 · 范围3~18]</span></h2>
+    <div class="info-line">◈ 剩余可分配：<span id="pointsLeft" class="pts-ok" style="font-weight:bold">18</span> 点 <span style="color:var(--ink-faded);font-size:0.85em">[拖动魔晶分配，超出自动回退]</span></div>
+    <div class="attr-row"><span class="name">力量</span><div class="slider-wrap"><input type="range" id="str" min="3" max="18" value="8" oninput="updateAttr('str')" style="--fill: 33.33333333333333%;"></div><span class="val" id="strV">8</span><span class="mod neg" id="strM">-1</span></div>
+    <div class="attr-row"><span class="name">敏捷</span><div class="slider-wrap"><input type="range" id="dex" min="3" max="18" value="8" oninput="updateAttr('dex')" style="--fill: 33.33333333333333%;"></div><span class="val" id="dexV">8</span><span class="mod neg" id="dexM">-1</span></div>
+    <div class="attr-row"><span class="name">体质</span><div class="slider-wrap"><input type="range" id="con" min="3" max="18" value="8" oninput="updateAttr('con')" style="--fill: 33.33333333333333%;"></div><span class="val" id="conV">8</span><span class="mod neg" id="conM">-1</span></div>
+    <div class="attr-row"><span class="name">感知</span><div class="slider-wrap"><input type="range" id="wis" min="3" max="18" value="8" oninput="updateAttr('wis')" style="--fill: 33.33333333333333%;"></div><span class="val" id="wisV">8</span><span class="mod neg" id="wisM">-1</span></div>
+    <div class="attr-row"><span class="name">智力</span><div class="slider-wrap"><input type="range" id="int" min="3" max="18" value="8" oninput="updateAttr('int')" style="--fill: 33.33333333333333%;"></div><span class="val" id="intV">8</span><span class="mod neg" id="intM">-1</span></div>
+    <div class="attr-row"><span class="name">魅力</span><div class="slider-wrap"><input type="range" id="cha" min="3" max="18" value="8" oninput="updateAttr('cha')" style="--fill: 33.33333333333333%;"></div><span class="val" id="chaV">8</span><span class="mod neg" id="chaM">-1</span></div>
+    <div class="info-line">◈ HP: 100/100 ｜ MP: <span id="mp">40</span> ｜ AC: <span id="ac">9</span> ｜ 负重: <span id="load">26</span>kg</div>
 
-      <div class="status-bar">
-        <span>冒险者登记档案</span>
-        <span>Archivum</span>
-      </div>
-      <div class="deco-line">─── ✦ ───</div>
-      <h1>冒险者登记</h1>
-      <div class="subtitle">—— Adventurer Archivum ——</div>
-      <hr class="divider">
+    <hr class="divider">
+    <h2>◈ Ⅲ. 档案输出</h2>
+    <p style="font-size:0.8em;color:var(--ink-faded);text-indent:0">◈ 确认无误后，复制以下铭文发送给 AI。</p>
+    <textarea class="out" id="out" readonly=""></textarea>
+    <button class="btn copy" onclick="copyOutput()" data-ripple-bound="1">◈ 复制铭文到剪贴板 ◈</button>
+    <button class="btn" onclick="saveCharacter();switchPage(3);" style="margin-top:8px" data-ripple-bound="1">◈ 翻入冒险卷轴 ◈</button>
+    <div class="footer">圣火骑士团 · 联合登记处 · 愿遗火照亮你的路</div>
+    <div class="page-num">— ⅱ —</div>
+  </div>
 
-      <h2>◈ Ⅰ. 基本信息</h2>
-      <label>◈ 姓名</label>
-      <input type="text" id="name" placeholder="例：铁根·卡兹 / 无名者" oninput="generateOutput()">
-      <label>◈ 性别</label>
-      <select id="gender" onchange="generateOutput()">
-        <option value="男">男</option>
-        <option value="女">女</option>
-        <option value="其他">其他</option>
-      </select>
-      <label>◈ 年龄 (16~80)</label>
-      <input type="number" id="age" min="16" max="80" value="25" oninput="generateOutput()">
-      <label>◈ 种族</label>
-      <select id="race" onchange="updateRaceHint();generateOutput()">
-        <option value="人类">人类 [天赋：魅力]</option>
-        <option value="矮人">矮人 [天赋：力量]</option>
-        <option value="精灵">精灵 [天赋：智力]</option>
-        <option value="羊人">羊人 [天赋：力量]</option>
-        <option value="虎族">虎族 [天赋：力量]</option>
-        <option value="犬人">犬人 [天赋：敏捷]</option>
-        <option value="灵耳族">灵耳族 [天赋：敏捷]</option>
-        <option value="兔耳族">兔耳族 [天赋：力量]</option>
-        <option value="猫人">猫人 [天赋：敏捷]</option>
-      </select>
-      <div class="race-hint" id="raceHint"></div>
-      <label>◈ 身份</label>
-      <select id="identity" onchange="generateOutput()">
-        <option value="佣兵">佣兵</option>
-        <option value="拾荒者">拾荒者</option>
-        <option value="学者">学者</option>
-        <option value="猎人">猎人</option>
-        <option value="商贩">商贩</option>
-        <option value="工匠">工匠</option>
-        <option value="医师">医师</option>
-      </select>
-      <label>◈ 特质 (最多 2 项，相关检定获优势)</label>
-      <div class="tag-select">
-        <button type="button" class="btn tag-btn" onclick="toggleTraitPanel()" id="traitBtn">[ 展开特质铭刻 ]</button>
-        <div class="talent-panel" id="talentPanel" style="display:none">
-          <div style="grid-column:1/-1;margin-bottom:4px;color:var(--ink-faded);font-size:0.8em;border:none;padding:0;font-style:normal">◈ 最多铭刻 2 项；第 3 项将自动消除</div>
-          <div class="tag-option"><label><input type="checkbox" class="trait-cb" value="武艺" onchange="onTraitChange()"> 武艺（武器/徒手）</label></div>
-          <div class="tag-option"><label><input type="checkbox" class="trait-cb" value="潜行" onchange="onTraitChange()"> 潜行（隐蔽）</label></div>
-          <div class="tag-option"><label><input type="checkbox" class="trait-cb" value="巧手" onchange="onTraitChange()"> 巧手（开锁/偷窃）</label></div>
-          <div class="tag-option"><label><input type="checkbox" class="trait-cb" value="攀爬" onchange="onTraitChange()"> 攀爬（攀越）</label></div>
-          <div class="tag-option"><label><input type="checkbox" class="trait-cb" value="警觉" onchange="onTraitChange()"> 警觉（追踪/侦查/聆听）</label></div>
-          <div class="tag-option"><label><input type="checkbox" class="trait-cb" value="医疗" onchange="onTraitChange()"> 医疗（急救）</label></div>
-          <div class="tag-option"><label><input type="checkbox" class="trait-cb" value="学识" onchange="onTraitChange()"> 学识（鉴定/魔法）</label></div>
-          <div class="tag-option"><label><input type="checkbox" class="trait-cb" value="工艺" onchange="onTraitChange()"> 工艺（锻造/炼金）</label></div>
-          <div class="tag-option"><label><input type="checkbox" class="trait-cb" value="交涉" onchange="onTraitChange()"> 交涉（说服/交易）</label></div>
-        </div>
-        <div class="race-hint" id="traitSummary">◈ 未铭刻特质（相关检定无优势）</div>
-      </div>
+  <!-- ═══ PAGE 3: 开局叙事 ═══ -->
+  <div class="page" id="p3">
+    <div class="candle-glow"></div>
+    <div class="manuscript-border"></div>
+    <div class="corner-ornament tl">❧</div><div class="corner-ornament tr">❧</div>
+    <div class="corner-ornament bl">❧</div><div class="corner-ornament br">❧</div>
 
-      <hr class="divider">
-      <h2>◈ Ⅱ. 六维属性 <span style="font-size:0.75em;color:var(--ink-faded);font-weight:normal">[基础8 · 18点 · 范围3~18]</span></h2>
-      <div class="info-line">◈ 剩余可分配：<span id="pointsLeft" class="pts-ok" style="font-weight:bold">18</span> 点 <span style="color:var(--ink-faded);font-size:0.85em">[拖动魔晶分配，超出自动回退]</span></div>
-      <div class="attr-row"><span class="name">力量</span><div class="slider-wrap"><input type="range" id="str" min="3" max="18" value="8" oninput="updateAttr('str')"></div><span class="val" id="strV">8</span><span class="mod" id="strM">-1</span></div>
-      <div class="attr-row"><span class="name">敏捷</span><div class="slider-wrap"><input type="range" id="dex" min="3" max="18" value="8" oninput="updateAttr('dex')"></div><span class="val" id="dexV">8</span><span class="mod" id="dexM">-1</span></div>
-      <div class="attr-row"><span class="name">体质</span><div class="slider-wrap"><input type="range" id="con" min="3" max="18" value="8" oninput="updateAttr('con')"></div><span class="val" id="conV">8</span><span class="mod" id="conM">-1</span></div>
-      <div class="attr-row"><span class="name">感知</span><div class="slider-wrap"><input type="range" id="wis" min="3" max="18" value="8" oninput="updateAttr('wis')"></div><span class="val" id="wisV">8</span><span class="mod" id="wisM">-1</span></div>
-      <div class="attr-row"><span class="name">智力</span><div class="slider-wrap"><input type="range" id="int" min="3" max="18" value="8" oninput="updateAttr('int')"></div><span class="val" id="intV">8</span><span class="mod" id="intM">-1</span></div>
-      <div class="attr-row"><span class="name">魅力</span><div class="slider-wrap"><input type="range" id="cha" min="3" max="18" value="8" oninput="updateAttr('cha')"></div><span class="val" id="chaV">8</span><span class="mod" id="chaM">-1</span></div>
-      <div class="info-line">◈ HP: 100/100 ｜ MP: <span id="mp">40</span> ｜ AC: <span id="ac">9</span> ｜ 负重: <span id="load">26</span>kg</div>
-
-      <hr class="divider">
-      <h2>◈ Ⅲ. 档案输出</h2>
-      <p style="font-size:0.8em;color:var(--ink-faded);text-indent:0">◈ 确认无误后，铭刻档案进入废土。</p>
-      <textarea class="out" id="out" readonly></textarea>
-      <button class="btn copy" onclick="createCharacter()">◈ 铭刻档案并发送 ◈</button>
-      <a href="#" class="btn" data-route="home" style="opacity:0.7">❮ 返回封面</a>
-      <div class="footer">圣火骑士团 · 联合登记处 · 愿遗火照亮你的路</div>
-      <div class="page-num">— ⅱ —</div>
+    <div class="status-bar">
+      <span>冒险者启程</span>
+      <span>Profectio</span>
     </div>
-  </section>
+    <div class="deco-line">─── ✦ ───</div>
+    <h1>启程</h1>
+    <div class="subtitle">—— Profectio ——</div>
+    <hr class="divider">
 
-  <!-- ═══ 页面：冒险（迁自 game.html，全屏三栏） ═══ -->
-  <section id="view-game" class="view">
-    <button class="game-exit" onclick="navigate('home')">❮ 合上卷轴，返回封面</button>
-    <div class="game-container">
-      <!-- 顶部状态栏 -->
-      <div class="top-bar">
-        <div class="player-name" id="player-name">
-          <span>冒险者</span>
-        </div>
-        <div class="status-items">
-          <div class="status-item">
-            <div class="hp-bar">
-              <div class="hp-fill" id="hp-fill" style="width: 100%;"></div>
-            </div>
-            <span id="hp-text">30/30</span>
-          </div>
-          <div class="status-item">
-            <span class="ui-icon">🪙</span>
-            <span id="gold-text">50</span>
-          </div>
-          <div class="status-item">
-            <span class="ui-icon">🌟</span>
-            <span id="fate-points">1/1</span>
-          </div>
-        </div>
+    <!-- 时间与地点 -->
+    <div class="opening-info" id="openingInfo">
+      <div class="info-row">
+        <span class="label">⏣ 时间</span>
+        <span class="value" id="openTime">灾厄纪年300年11月12日 07:10</span>
       </div>
-
-      <!-- 左侧面板 -->
-      <div class="left-panel">
-        <div class="panel-section">
-          <div class="panel-title">角色信息</div>
-          <div style="font-size: 13px; margin-bottom: 10px;">
-            <div><strong>种族：</strong><span id="char-race">人类</span></div>
-            <div><strong>等级：</strong><span id="char-level">1</span></div>
-            <div><strong>经验：</strong><span id="char-exp">0/100</span></div>
-          </div>
-        </div>
-        <div class="panel-section">
-          <div class="panel-title">六维属性</div>
-          <div class="attr-list" id="attr-list"></div>
-        </div>
-        <div class="panel-section">
-          <div class="panel-title">装备</div>
-          <div id="equipment-list" style="font-size: 13px;"></div>
-        </div>
-        <div class="panel-section">
-          <div class="panel-title">背包</div>
-          <div id="inventory-list" style="font-size: 13px;"><div style="color: var(--ink-faded);">空</div></div>
-        </div>
-      </div>
-
-      <!-- 中间正文区 -->
-      <div class="center-area">
-        <div class="narrative-display" id="narrative-display">
-          <div class="narrative-header">✦ 灾厄之后 ✦</div>
-        </div>
-      </div>
-
-      <!-- 右侧面板 -->
-      <div class="right-panel">
-        <div class="panel-section">
-          <div class="panel-title">快捷操作</div>
-          <button class="action-btn" onclick="openInventory()">◈ 打开背包</button>
-          <button class="action-btn" onclick="navigate('settings')">◈ 设置</button>
-        </div>
-        <div class="panel-section">
-          <div class="panel-title">战斗信息</div>
-          <div id="combat-info" style="font-size: 13px;">
-            <div style="color: var(--ink-faded);">当前无战斗</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 底部输入栏 -->
-      <div class="bottom-bar">
-        <input type="text" class="input-box" id="input-box" placeholder="输入你的行动..."
-          onkeypress="if(event.key==='Enter'&&!event.shiftKey) sendMessage()">
-        <button class="send-btn" onclick="sendMessage()">发送</button>
-        <button class="send-btn" onclick="rollDice()">🎲</button>
+      <div class="info-row">
+        <span class="label">⏣ 地点</span>
+        <span class="value" id="openLocation">佣兵镇·锈钉，佣兵公会大厅</span>
       </div>
     </div>
-  </section>
+
+    <!-- 叙事正文 -->
+    <div class="narrative-box" id="narrativeBox">
+      <p class="lore-p">锈钉镇的清晨比想象中醒得早。天还没全亮，铁匠铺的锤声就隔着两条街传过来，一下一下，像给整座镇子敲着起床的鼓点。你裹着旧斗篷穿过主街，灰烬雾还没散，空气里混着铁锈、隔夜麦酒和木柴烧过的味道。三百年了，这座镇子就这样醒过来，日复一日。</p>
+      <p class="lore-p" id="identityScene">佣兵公会在主街尽头，门脸不大，一块铁牌歪歪斜斜钉在门框上，写着「自由佣兵联盟」几个褪色的字。推门进去，炭火盆的暖意扑面而来，大厅里已经坐了三两拨人。柜台后一个矮人女人抬起头，来公会报到登记，接待员递上登记表。</p>
+      <p class="lore-p" id="identityGreeting">「新面孔。名字、种族、特质，自己填，填完盖手印。」</p>
+    </div>
+
+    <hr class="divider">
+
+    <!-- 当前任务（动态渲染） -->
+    <h2>◈ 当前任务</h2>
+    <div id="questsContainer">
+      <div class="quest-empty">暂无进行中的任务</div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- 主线钩子 -->
+    <h2>◈ 主线钩子</h2>
+    <div class="hook-card" id="hookCard">
+      <div class="hook-name">老维特失踪</div>
+      <div class="hook-desc">告示板角落的泛黄旧单，墨迹洇开，铁钉生锈。似乎钉在那里很久了。</div>
+      <div class="hook-trigger">触发条件：主动询问</div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- 启程按钮 -->
+    <button class="btn" onclick="enterGame()" data-ripple-bound="1">◈ 踏入灰烬废土 ◈</button>
+    <div class="footer">圣火骑士团 · 联合登记处 · 愿遗火照亮你的路</div>
+    <div class="page-num">— ⅲ —</div>
+  </div>
+</div></section>
+
+<!-- ═══ 视图：游戏（嵌入 game.html 兼容） ═══ -->
+<section id="view-game" class="view">
+<canvas id="ember-canvas"></canvas>
+
+
+
+<div class="game-container">
+  <!-- 顶部状态栏 -->
+  <div class="top-bar">
+    <img src="img/ui/ui-ornament-left.png" class="bar-ornament left" alt="" onerror="this.style.display='none'">
+    <img src="img/ui/ui-ornament-right.png" class="bar-ornament right" alt="" onerror="this.style.display='none'">
+    <div class="player-name" id="player-name">
+      <img src="img/ui/ui-rank.png" class="rank-badge" alt="等级" onerror="this.style.display='none'">
+      <span>冒险者</span>
+    </div>
+    <div class="status-items">
+      <div class="status-item">
+        <img src="img/ui/ui-hp.png" class="ui-icon" alt="HP" onerror="this.style.display='none'">
+        <div class="hp-bar">
+          <div class="hp-fill" id="hp-fill" style="width: 100%;"></div>
+        </div>
+        <span id="hp-text">30/30</span>
+      </div>
+      <div class="status-item">
+        <img src="img/ui/ui-gold.png" class="ui-icon" alt="金币" onerror="this.style.display='none'">
+        <span id="gold-text">50</span>
+      </div>
+      <div class="status-item">
+        <img src="img/ui/ui-fate.png" class="ui-icon" alt="命运点" onerror="this.style.display='none'">
+        <span id="fate-points">3/3</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 左侧面板 -->
+  <div class="left-panel">
+    <div class="panel-section">
+      <div class="panel-title">◈ 角色信息</div>
+      <div style="font-size: 13px; margin-bottom: 10px;">
+        <div><strong>种族：</strong><span id="char-race">人类</span></div>
+        <div><strong>等级：</strong><span id="char-level">1</span></div>
+        <div><strong>经验：</strong><span id="char-exp">0</span></div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title">◈ 六维属性</div>
+      <div class="attr-list" id="attr-list">
+        <!-- 动态生成 -->
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title">◈ 装备</div>
+      <div id="equipment-list" style="font-size: 13px;">
+        <!-- 动态生成 -->
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title">◈ 背包</div>
+      <div id="inventory-list" style="font-size: 13px;">
+        <div style="color: var(--ink-faded);">空</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 中间正文区 -->
+  <div class="center-area">
+    <div class="candle-glow"></div>
+    <div class="narrative-display" id="narrative-display">
+      <div class="narrative-header">✦ 灾厄之后 ✦</div>
+      <p>欢迎来到灾厄之后的世界。你的冒险即将开始...</p>
+    </div>
+  </div>
+
+  <!-- 右侧面板 -->
+  <div class="right-panel">
+    <div class="panel-section">
+      <div class="panel-title">◆ ◇ 快捷操作</div>
+      <button class="action-btn" onclick="openInventory()">◈ 打开背包</button>
+      <button class="action-btn" onclick="fillTestInventory()">◈ 测试：填充背包</button>
+      <button class="action-btn" onclick="openSettings()">◈ 设置</button>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title">◈ 战斗信息</div>
+      <div id="combat-info" style="font-size: 13px;">
+        <div style="color: var(--ink-faded);">当前无战斗</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 底部输入栏 -->
+  <div class="bottom-bar">
+    <input type="text" class="input-box" id="input-box" placeholder="输入你的行动..." onkeypress="if(event.key==='Enter') sendMessage()">
+    <button class="send-btn" onclick="sendMessage()">发送</button>
+    <button class="send-btn" onclick="rollDice()">🎲</button>
+  </div>
+</div>
+
+<!-- 背包弹窗 -->
+<div class="inv-overlay" id="inv-overlay" onclick="if(event.target===this)closeInventory()">
+  <div class="inv-panel">
+    <div class="inv-header">
+      <span>◈ 背包与装备 ◈</span>
+      <button class="inv-close" onclick="closeInventory()"></button>
+    </div>
+    <div class="inv-body" id="inv-body"></div>
+    <div class="inv-footer" id="inv-footer"></div>
+  </div>
+</div>
+
+<!-- 用 <script> 同步加载 IIFE 模块（不依赖 ES module 上下文） -->
+
+
+<script src="./module/json-repair-helper.js"></script>
+<script src="./module/command-engine.js"></script>
+<script src="./module/command-processor.js"></script>
+<script src="./module/calamity-data.js"></script>
+<script src="./module/worldbook-engine.js"></script>
+<script src="./module/api-service.js"></script>
+<script src="./module/prompt-builder.js"></script>
+<script src="./module/preset-importer.js"></script>
+<script src="./module/response-parser.js"></script>
+<script src="./module/variable-system.js"></script>
+<script src="./module/variable-utils.js"></script>
+<script src="./module/variable-ui.js"></script>
+
+<script>
+ 加载并挂载到 window
+  const apiService = window.apiService;
+  const promptBuilder = window.promptBuilder;
+  const responseParser = window.responseParser;
+  const commandProcessor = window.commandProcessor;
+  const worldbookEngine = window.worldbookEngine;
+
+  // 全局状态
+  window.currentCombat = null;
+  let isProcessing = false;  // 防止重复提交
+
+  // ==================== 变量→UI 绑定注册 ====================
+
+  /**
+   * 注册默认 UI 绑定槽位（对齐 ST 的 registerSlot 范式）
+   * 将 gameData 字段绑定到对应的 HTML 元素，数据变更时自动刷新
+   */
+  function registerDefaultSlots() {
+    if (!window.variableUI || !window.variableUtils) {
+      console.warn('[UI绑定] variableUI 或 variableUtils 未加载');
+      return;
+    }
+
+    var ui = window.variableUI;
+    var utils = window.variableUtils;
+
+    // ── 顶部状态栏 ──
+
+    // 角色名
+    ui.registerSlot('#player-name span', 'character.name', { always: true });
+
+    // HP 文本（复合格式：current/max）
+    ui.registerSlot('#hp-text', 'hp', {
+      always: true,
+      formatter: function(data) {
+        var hp = data.hp || {};
+        return (hp.current || 0) + '/' + (hp.max || 0);
+      },
+      secondarySelector: '#hp-fill',
+      secondaryFormatter: function(data) {
+        var hp = data.hp || {};
+        var pct = hp.max > 0 ? Math.round((hp.current / hp.max) * 100) : 0;
+        return { width: pct + '%' };
+      }
+    });
+
+    // 金币
+    ui.registerSlot('#gold-text', 'currency.gold', { always: true });
+
+    // 命运点（复合格式：current/max）
+    ui.registerSlot('#fate-points', 'fatePoints', {
+      always: true,
+      formatter: function(data) {
+        var fp = data.fatePoints || {};
+        return (fp.current || 0) + '/' + (fp.max || 0);
+      }
+    });
+
+    // ── 左侧面板：角色信息 ──
+
+    // 种族
+    ui.registerSlot('#char-race', 'character.race', { always: true });
+
+    // 等级
+    ui.registerSlot('#char-level', 'character.level', { always: true });
+
+    // 经验（复合格式：current/max）
+    ui.registerSlot('#char-exp', 'character', {
+      always: true,
+      formatter: function(data) {
+        var c = data.character || {};
+        return (c.exp || 0) + '/' + (c.expToNextLevel || 100);
+      }
+    });
+
+    console.log('[UI绑定] 已注册', ui.getSlots().length, '个槽位');
+  }
+
+  // 初始化
+  function init() {
+    // 唯一真源：gameData（calamity-game-state）
+    gameState.initGameData();
+    let gd = gameState.getGameData();
+
+    // 兼容旧档：从 localStorage['character'] 迁移一次
+    gameState.migrateFromCharacter();
+    gd = gameState.getGameData();
+
+    // 从开局系统同步角色数据（register.html 创建的开局数据）
+    // 先保存开局数据用于叙事，再同步
+    var openingJson = localStorage.getItem('calamityOpening');
+    var openingData = null;
+    if (openingJson) {
+      try { openingData = JSON.parse(openingJson); } catch (e) {}
+    }
+
+    syncFromOpeningSystem(gd);
+
+    // 从未创建过角色（迁移后仍是默认名）→ 回开局页
+    if (gd.character.name === '旅行者' && !localStorage.getItem('character') && !localStorage.getItem('calamityOpeningSynced')) {
+      window.location.href = 'start-screen.html';
+      return;
+    }
+
+    // 更新UI（全部来自 gameData）
+    document.querySelector('#player-name span').textContent = gd.character.name;
+    document.getElementById('char-race').textContent = gd.character.race || '人类';
+    document.getElementById('char-level').textContent = gd.character.level;
+    document.getElementById('char-exp').textContent = `${gd.character.exp}/${gd.character.expToNextLevel}`;
+    document.getElementById('gold-text').textContent = gd.currency.gold;
+    document.getElementById('fate-points').textContent = `${gd.fatePoints.current}/${gd.fatePoints.max}`;
+
+    updateHPBar(gd.hp.current, gd.hp.max);
+    updateAttributes(gd.attributes);
+    updateEquipment(gd.equipment);
+    updateInventory(gd.inventory);
+
+    // 注册变量→UI 绑定并触发首次刷新
+    registerDefaultSlots();
+    if (window.variableUI) window.variableUI.populateAll({ force: true });
+
+    // 显示欢迎消息（如果有开局数据，使用开局叙事）
+    if (openingData) {
+      displayNarrative(generateOpeningNarrative(openingData));
+    } else {
+      displayNarrative(generateWelcomeMessage(gd.character));
+    }
+
+    // 应用显示设置
+    applyDisplaySettings();
+  }
+
+  // 从开局系统同步角色数据到 gameData
+  function syncFromOpeningSystem(gd) {
+    var openingJson = localStorage.getItem('calamityOpening');
+    if (!openingJson) return;
+
+    try {
+      var opening = JSON.parse(openingJson);
+      var c = opening.character;
+      var s = opening.stats;
+
+      // 同步角色基本信息
+      gd.character.name = c.name;
+      gd.character.race = c.race;
+      gd.character.identity = c.identity;
+      gd.character.gender = c.gender;
+      gd.character.age = c.age;
+      gd.character.level = s.level;
+
+      // 同步六维属性
+      if (c.attributes) {
+        gd.attributes.strength = c.attributes['力量'] || 10;
+        gd.attributes.dexterity = c.attributes['敏捷'] || 10;
+        gd.attributes.constitution = c.attributes['体质'] || 10;
+        gd.attributes.wisdom = c.attributes['感知'] || 10;
+        gd.attributes.intelligence = c.attributes['智力'] || 10;
+        gd.attributes.charisma = c.attributes['魅力'] || 10;
+      }
+
+      // 同步HP/MP
+      gd.hp.current = s.hp;
+      gd.hp.max = s.hpMax;
+      gd.mp = { current: s.mp, max: s.mpMax };
+
+      // 同步金币/命运点
+      gd.currency.gold = s.gold;
+      gd.fatePoints.current = s.fatePoint;
+      gd.fatePoints.max = 1;
+
+      // 同步初始装备
+      if (opening.equipment && opening.equipment.mainHand) {
+        gd.equipment.mainHand = opening.equipment.mainHand;
+      }
+
+      // 标记已同步，避免重复
+      localStorage.removeItem('calamityOpening');
+      localStorage.setItem('calamityOpeningSynced', 'true');
+    } catch (e) {
+      console.warn('开局数据同步失败:', e);
+    }
+  }
+
+  // 身份差异化开场数据
+  var IDENTITY_OPENINGS = {
+    '佣兵': { scene: '来公会报到登记，接待员递上登记表', greeting: '「新面孔。名字、种族、特质，自己填，填完盖手印。」' },
+    '拾荒者': { scene: '顺路兑战利品，顺手接单', greeting: '「又来兑货？正好，昨晚上新贴了个活。」' },
+    '学者': { scene: '雇向导查资料，接单作野外保障', greeting: '「要雇向导？灰烬森林那边正好有个委托，顺路。」' },
+    '猎人': { scene: '卖猎物顺带问行情，接单', greeting: '「今天的猎物不错。正好有个材料狩猎的活，接不接？」' },
+    '商贩': { scene: '谈供货押运，接单', greeting: '「要谈押运？正好有个灰烬森林的活，顺路。」' },
+    '工匠': { scene: '交订单修装备，接单', greeting: '「修装备？正好，修完有个活给你看看。」' },
+    '医师': { scene: '收药材卖药剂，接单', greeting: '「收药材？正好有个灰烬森林的活，需要医师。」' }
+  };
+
+  // 生成开局叙事
+  function generateOpeningNarrative(opening) {
+    var identity = opening.character.identity || '佣兵';
+    var o = IDENTITY_OPENINGS[identity] || IDENTITY_OPENINGS['佣兵'];
+    var time = opening.time.display;
+    var q = opening.initialQuest;
+    var objText = q.objectives.map(function(ob) { return ob.target + ' ' + ob.current + '/' + ob.required; }).join('、');
+
+    return '----- ✦ ' + time + ' ✦ -----\n\n<content>\n\n' +
+      '锈钉镇的清晨比想象中醒得早。天还没全亮，铁匠铺的锤声就隔着两条街传过来，一下一下，像给整座镇子敲着起床的鼓点。你裹着旧斗篷穿过主街，灰烬雾还没散，空气里混着铁锈、隔夜麦酒和木柴烧过的味道。三百年了，这座镇子就这样醒过来，日复一日。\n\n' +
+      '佣兵公会在主街尽头，门脸不大，一块铁牌歪歪斜斜钉在门框上，写着「自由佣兵联盟」几个褪色的字。推门进去，炭火盆的暖意扑面而来，大厅里已经坐了三两拨人。柜台后一个矮人女人抬起头，' + o.scene + '。\n\n' +
+      o.greeting + '\n\n' +
+      '你填完表，她扫了一眼，从柜台下抽出一张皱巴巴的纸：「正好，昨晚上新贴的。灰烬森林材料狩猎，灰烬狼皮三张，焦木蜥鳞片两片，三天限期，按市价收。狼皮一张三金，鳞片一片五金，公会抽一成。接不接？」\n\n' +
+      '告示板的角落里，还钉着一张边角泛黄的旧单子，墨迹被潮气洇开大半，只隐约能认出几个字：老维特，失踪，赏金待定。铁钉已经生锈，像是钉在那里很久了。\n\n' +
+      '你把材料狩猎的单子从木钉上取下来，卷好，塞进斗篷内袋。出城时铁匠铺门口的矮人铁匠看了一眼你腰间的铁剑，咧嘴一笑：「新来的吧，第一单活？」你没答话，他也不再问，回身继续敲他的铁。镇门口的老守门人叼着烟斗，扫过你的登记凭证，摆摆手：「灰烬森林别往深了走，天黑前回来。」\n\n' +
+      '公会大门在你身后合上，灰烬雾正从镇外漫进来。灰烬森林的方向，天边泛着一层灰白。\n\n' +
+      '接下来，往哪走，是你自己的事了。\n\n' +
+      '<status>\n当前任务：' + q.name + '（' + q.deadline.display + '限期）\n' +
+      '目标：' + objText + '\n</status>';
+  }
+  
+  // 生成欢迎消息
+  function generateWelcomeMessage(character) {
+    return `
+----- ✦ 灾厄303年5月12日 14:00 ✦ -----
+
+<content>
+
+欢迎，${character.name}。
+
+你是一名${character.race}冒险者，踏入了灾厄之后的废土世界。
+
+眼前是锈钉镇的入口，这里是五大势力交汇的边境小镇。破败的木栅栏，焦黑的土地，空气中弥漫着灰烬的气味。
+
+远处传来佣兵们的喧闹声，镇子中心的圣火骑士团哨所竖立着燃烧的旗帜。
+
+你的冒险，从这里开始。
+
+</content>
+    `;
+  }
+  
+  // 更新HP条
+  function updateHPBar(current, max) {
+    const percent = (current / max) * 100;
+    document.getElementById('hp-fill').style.width = percent + '%';
+    document.getElementById('hp-text').textContent = `${current}/${max}`;
+    
+    // 颜色变化
+    const fill = document.getElementById('hp-fill');
+    if (percent < 30) {
+      fill.style.background = 'linear-gradient(90deg, #f44336, #e91e63)';
+    } else if (percent < 60) {
+      fill.style.background = 'linear-gradient(90deg, #ff9800, #ffc107)';
+    } else {
+      fill.style.background = 'linear-gradient(90deg, #4caf50, #8bc34a)';
+    }
+  }
+  
+  // 更新属性显示
+  function updateAttributes(attributes) {
+    const list = document.getElementById('attr-list');
+    list.innerHTML = '';
+    
+    Object.entries(attributes).forEach(([name, value]) => {
+      const modifier = checkSystem.calculateModifier(value);
+      const modStr = modifier >= 0 ? `+${modifier}` : modifier;
+      
+      const item = document.createElement('div');
+      item.className = 'attr-item';
+      item.innerHTML = `<span>${name}</span><span>${value} (${modStr})</span>`;
+      list.appendChild(item);
+    });
+  }
+  
+  // 更新装备显示
+  function updateEquipment(equipment) {
+    const list = document.getElementById('equipment-list');
+    list.innerHTML = '';
+
+    if (!equipment || Object.keys(equipment).length === 0) {
+      list.innerHTML = '<div style="color: var(--ink-faded);">无装备</div>';
+      return;
+    }
+
+    // 槽位名中英文映射
+    const slotNames = {
+      mainHand: '主手',
+      offHand: '副手',
+      body: '身体',
+      head: '头部',
+      hands: '手部',
+      legs: '腿部',
+      feet: '脚部',
+      shoulders: '肩部',
+      accessory1: '饰品1',
+      accessory2: '饰品2'
+    };
+
+    let shown = 0;
+    Object.entries(equipment).forEach(([slot, item]) => {
+      if (item) {
+        const div = document.createElement('div');
+        const slotName = slotNames[slot] || slot;
+        div.textContent = `${slotName}: ${item.name}`;
+        div.style.marginBottom = '5px';
+        list.appendChild(div);
+        shown++;
+      }
+    });
+    if (shown === 0) list.innerHTML = '<div style="color: var(--ink-faded);">无装备</div>';
+  }
+
+  // 更新背包显示
+  function updateInventory(inventory) {
+    const list = document.getElementById('inventory-list');
+    list.innerHTML = '';
+
+    if (!Array.isArray(inventory) || inventory.length === 0) {
+      list.innerHTML = '<div style="color: var(--ink-faded);">空</div>';
+      return;
+    }
+    inventory.forEach(item => {
+      const div = document.createElement('div');
+      const count = item.count || item.quantity || 1;
+      div.textContent = count > 1 ? `${item.name} ×${count}` : item.name;
+      div.style.marginBottom = '5px';
+      list.appendChild(div);
+    });
+  }
+
+  // 刷新全部状态栏（命令应用/本地结算后调用）
+  window.refreshStatusDisplay = function() {
+    const gd = gameState.getGameData();
+    document.querySelector('#player-name span').textContent = gd.character.name;
+    document.getElementById('char-race').textContent = gd.character.race || '人类';
+    document.getElementById('char-level').textContent = gd.character.level;
+    document.getElementById('char-exp').textContent = `${gd.character.exp}/${gd.character.expToNextLevel}`;
+    document.getElementById('gold-text').textContent = gd.currency.gold;
+    document.getElementById('fate-points').textContent = `${gd.fatePoints.current}/${gd.fatePoints.max}`;
+    updateHPBar(gd.hp.current, gd.hp.max);
+    updateAttributes(gd.attributes);
+    updateEquipment(gd.equipment);
+    updateInventory(gd.inventory);
+  };
+  
+  // 显示正文
+  function displayNarrative(text) {
+    const display = document.getElementById('narrative-display');
+    const div = document.createElement('div');
+    div.style.marginBottom = '20px';
+    div.style.whiteSpace = 'pre-wrap';
+    div.textContent = text;
+    display.appendChild(div);
+    display.scrollTop = display.scrollHeight;
+  }
+  
+  // 发送消息
+  window.sendMessage = async function() {
+    const input = document.getElementById('input-box');
+    const message = input.value.trim();
+    
+    if (!message || isProcessing) return;
+    
+    isProcessing = true;
+    input.value = '';
+    input.disabled = true;
+    
+    try {
+      // 显示玩家输入
+      displayNarrative(`\n> ${message}\n`);
+      
+      // 显示加载提示
+      const loadingDiv = document.createElement('div');
+      loadingDiv.id = 'loading-indicator';
+      loadingDiv.textContent = '🌀 AI 思考中...';
+      loadingDiv.style.cssText = 'padding: 10px; color: #ffd700; font-style: italic;';
+      document.getElementById('narrative-display').appendChild(loadingDiv);
+      
+      // 获取当前游戏数据
+      const gd = gameState.getGameData();
+      
+// 构建提示词
+      let prompt;
+      try {
+        prompt = promptBuilder.buildMessages({
+          gameData: gd,
+          userMessage: message
+        });
+      } catch (e) {
+        console.warn('buildMessages 调用异常，使用最小提示词:', e);
+        prompt = { messages: [
+          { role: 'system', content: '你是一名灾厄之后废土世界的叙事者。' },
+          { role: 'user', content: message }
+        ] };
+      }
+
+      // 调用 AI（通过 api-service）
+      const apiConfig = apiService.getConfig();
+      if (!apiConfig || !apiConfig.apiKey) {
+        throw new Error('未配置 API Key，请前往设置页面配置');
+      }
+
+      const aiResult = await apiService.sendMessages({
+        messages: prompt.messages,
+        model: apiConfig.model,
+        temperature: 0.8,
+        stream: false
+      });
+
+      const responseContent = aiResult && aiResult.content
+        ? aiResult.content
+        : (typeof aiResult === 'string' ? aiResult : '');
+      
+      // 移除加载提示
+      if (loadingDiv.parentNode) {
+        loadingDiv.remove();
+      }
+      
+// 解析 AI 响应
+      const parsed = responseParser.run(responseContent);
+
+      // 显示正文（包含框线版检定卡和战斗卡）
+      displayNarrative('\n' + parsed.mainText);
+
+      // 应用命令到 gameData
+      if (parsed.commands && parsed.commands.length > 0) {
+        const result = commandProcessor.applyCommands(gd, parsed.commands);
+
+        if (result.report && result.report.rejected && result.report.rejected.length > 0) {
+          console.warn('命令被拒绝:', result.report.rejected);
+          displayNarrative('\n\n⚠️ 部分命令未能执行（非法路径或类型不匹配）\n');
+        }
+
+        // 保存更新后的 gameData
+        gameState.importGameData(result.gameData);
+
+        // 刷新 UI
+        refreshUI();
+      }
+
+      // 保存对话历史（可选）
+      saveToHistory(message, responseContent);
+      
+    } catch (error) {
+      console.error('AI 调用失败:', error);
+      displayNarrative(`\n❌ 错误: ${error.message}\n`);
+      
+      // 移除加载提示
+      const loadingDiv = document.getElementById('loading-indicator');
+      if (loadingDiv) {
+        loadingDiv.remove();
+      }
+    } finally {
+      isProcessing = false;
+      input.disabled = false;
+      input.focus();
+    }
+  };
+  
+  // 刷新 UI（根据 gameData 更新所有显示）
+  function refreshUI() {
+    const gd = gameState.getGameData();
+    
+    // 更新角色信息
+    document.getElementById('char-level').textContent = gd.character.level;
+    document.getElementById('char-exp').textContent = `${gd.character.exp}/${gd.character.expToNextLevel}`;
+    document.getElementById('gold-text').textContent = gd.currency.gold;
+    document.getElementById('fate-points').textContent = `${gd.fatePoints.current}/${gd.fatePoints.max}`;
+    
+    // 更新 HP 条
+    updateHPBar(gd.hp.current, gd.hp.max);
+    
+    // 更新属性
+    updateAttributes(gd.attributes);
+    
+    // 更新装备
+    updateEquipment(gd.equipment);
+    
+    // 更新背包
+    updateInventory(gd.inventory);
+    
+    // 更新时间显示（如果有）
+    if (gd.gameTime) {
+      const timeStr = `灾厄${gd.gameTime.year}年${gd.gameTime.month}月${gd.gameTime.day}日 ${String(gd.gameTime.hour).padStart(2, '0')}:${String(gd.gameTime.minute).padStart(2, '0')}`;
+      const timeDisplay = document.getElementById('time-display');
+      if (timeDisplay) {
+        timeDisplay.textContent = timeStr;
+      }
+    }
+  }
+  
+  // 保存对话历史
+  function saveToHistory(userInput, aiResponse) {
+    try {
+      const history = JSON.parse(localStorage.getItem('calamity-chat-history') || '[]');
+      history.push({
+        timestamp: Date.now(),
+        user: userInput,
+        ai: aiResponse
+      });
+      
+      // 只保留最近 50 条
+      if (history.length > 50) {
+        history.splice(0, history.length - 50);
+      }
+      
+      localStorage.setItem('calamity-chat-history', JSON.stringify(history));
+    } catch (e) {
+      console.warn('保存历史失败:', e);
+    }
+  }
+  
+  /* 调试用快捷函数（已从 UI 移除）
+  // 快捷战斗
+  window.quickBattle = function() {
+    const gd = gameState.getGameData();
+    const character = {
+      name: gd.character.name,
+      level: gd.character.level,
+      attributes: gd.attributes,
+      hp: { ...gd.hp },
+      ac: gd.character.ac,
+      equipment: gd.equipment
+    };
+
+    const combat = combatSystem.startCombat(character, ['灰烬狼']);
+    window.currentCombat = combat;
+
+    // 自动战斗演示
+    let round = 0;
+    const interval = setInterval(() => {
+      if (combat.status !== 'active' || round >= 5) {
+        clearInterval(interval);
+
+        // 显示战斗结果
+        const narrative = narrativeSystem.generateCombatNarrative(combat);
+        displayNarrative(narrative);
+
+        // 更新角色状态（写回 gameData 唯一真源）
+        gd.hp.current = Math.max(0, Math.min(gd.hp.max, combat.player.hp.current));
+        gameState.saveGameData();
+
+        if (combat.status === 'victory' && combat.rewards) {
+          gameState.addExp(combat.rewards.exp);
+          gameState.addGold(combat.rewards.gold);
+        }
+        window.refreshStatusDisplay();
+
+        window.currentCombat = null;
+        return;
+      }
+
+      const actor = combatSystem.getCurrentActor(combat);
+      if (actor && actor.type === 'player') {
+        const targets = combatSystem.getAliveEnemies(combat);
+        if (targets.length > 0) {
+          combatSystem.playerAttack(combat, targets[0].id, 'mainHand');
+        }
+      }
+
+      round++;
+    }, 100);
+  };
+
+  // 快捷检定
+  window.quickCheck = function() {
+    const gd = gameState.getGameData();
+
+    const result = checkSystem.performCheck({
+      attribute: '感知',
+      dc: 15,
+      description: '观察周围环境',
+      gameState: {
+        attributes: gd.attributes,
+        proficiencyBonus: gd.character.proficiencyBonus
+      }
+    });
+
+    const context = '你仔细观察周围的环境。';
+    const narrative = narrativeSystem.generateCheckNarrative(result, context);
+    displayNarrative(narrative);
+  };
+  */
+  
+  // ─ 背包系统 ──
+  const SLOT_NAMES = { mainHand:'主手', offHand:'副手', body:'身体', head:'头部', hands:'手部', legs:'腿部', feet:'脚部', shoulders:'肩部', accessory1:'饰品1', accessory2:'饰品2' };
+  const TYPE_LABELS = { weapon:'武器', armor:'护甲', consumable:'消耗品', material:'材料', quest:'任务', misc:'杂项' };
+
+  function openInventory() {
+    const gd = gameState.getGameData();
+    const body = document.getElementById('inv-body');
+    const footer = document.getElementById('inv-footer');
+    if (!body) return;
+    body.innerHTML = '';
+
+    const eqTitle = document.createElement('div');
+    eqTitle.className = 'inv-section-title';
+    eqTitle.textContent = '已装备';
+    body.appendChild(eqTitle);
+
+    const eq = gd.equipment || {};
+    let eqCount = 0;
+    Object.entries(eq).forEach(([slot, item]) => {
+      if (!item) return;
+      eqCount++;
+      const row = document.createElement('div');
+      row.className = 'inv-slot';
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'inv-slot-name';
+      nameSpan.textContent = (SLOT_NAMES[slot] || slot) + ' · ' + item.name;
+      row.appendChild(nameSpan);
+      if (item.durability !== undefined) {
+        const dur = document.createElement('span');
+        dur.className = 'inv-slot-dur';
+        dur.textContent = '耐久 ' + item.durability;
+        row.appendChild(dur);
+      }
+      const btn = document.createElement('button');
+      btn.className = 'inv-slot-btn';
+      btn.textContent = '卸下';
+      btn.onclick = () => invUnequip(slot);
+      row.appendChild(btn);
+      body.appendChild(row);
+    });
+    if (eqCount === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'inv-empty';
+      empty.textContent = '无装备';
+      body.appendChild(empty);
+    }
+
+    const invTitle = document.createElement('div');
+    invTitle.className = 'inv-section-title';
+    invTitle.textContent = '背包';
+    body.appendChild(invTitle);
+
+    const inv = gd.inventory || [];
+    if (!inv.length) {
+      const empty = document.createElement('div');
+      empty.className = 'inv-empty';
+      empty.textContent = '背包是空的';
+      body.appendChild(empty);
+    } else {
+      inv.forEach((item, idx) => {
+        const row = document.createElement('div');
+        row.className = 'inv-slot';
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'inv-slot-name';
+        const count = item.count || item.quantity || 1;
+        nameSpan.textContent = item.name + (count > 1 ? ' ×' + count : '');
+        row.appendChild(nameSpan);
+        const typeLabel = TYPE_LABELS[item.type] || item.type || '';
+        if (typeLabel) {
+          const typeSpan = document.createElement('span');
+          typeSpan.className = 'inv-slot-type';
+          typeSpan.textContent = typeLabel;
+          row.appendChild(typeSpan);
+        }
+        if (item.durability !== undefined) {
+          const dur = document.createElement('span');
+          dur.className = 'inv-slot-dur';
+          dur.textContent = '耐久 ' + item.durability;
+          row.appendChild(dur);
+        }
+        if (item.type === 'weapon' || item.type === 'armor') {
+          const eqBtn = document.createElement('button');
+          eqBtn.className = 'inv-slot-btn';
+          eqBtn.textContent = '装备';
+          eqBtn.onclick = () => invEquip(idx);
+          row.appendChild(eqBtn);
+        }
+        if (item.type === 'consumable') {
+          const useBtn = document.createElement('button');
+          useBtn.className = 'inv-slot-btn';
+          useBtn.textContent = '使用';
+          useBtn.onclick = () => invUse(idx);
+          row.appendChild(useBtn);
+        }
+        const dropBtn = document.createElement('button');
+        dropBtn.className = 'inv-slot-btn danger';
+        dropBtn.textContent = '丢弃';
+        dropBtn.onclick = () => invDrop(idx);
+        row.appendChild(dropBtn);
+        body.appendChild(row);
+      });
+    }
+
+    footer.textContent = '物品数：' + inv.length + '  金币：' + (gd.currency?.gold || 0);
+    document.getElementById('inv-overlay').classList.add('open');
+  }
+
+  function closeInventory() {
+    document.getElementById('inv-overlay').classList.remove('open');
+  }
+
+  function invUnequip(slot) {
+    const gd = gameState.getGameData();
+    const item = gd.equipment?.[slot];
+    if (!item) return;
+    gd.inventory = gd.inventory || [];
+    gd.inventory.push(item);
+    gd.equipment[slot] = null;
+    gameState.saveGameData();
+    refreshGameUI();
+    openInventory();
+    displayNarrative('你卸下了 ' + item.name + '。');
+  }
+
+  function invEquip(idx) {
+    const gd = gameState.getGameData();
+    const item = gd.inventory?.[idx];
+    if (!item) return;
+    const slot = item.type === 'armor' ? 'body' : 'mainHand';
+    const old = gd.equipment?.[slot];
+    gd.equipment = gd.equipment || {};
+    gd.equipment[slot] = item;
+    gd.inventory.splice(idx, 1);
+    if (old) gd.inventory.push(old);
+    gameState.saveGameData();
+    refreshGameUI();
+    openInventory();
+    displayNarrative('你装备了 ' + item.name + '。');
+  }
+
+  function invUse(idx) {
+    const gd = gameState.getGameData();
+    const item = gd.inventory?.[idx];
+    if (!item) return;
+    if (item.type === 'consumable' && item.effect === 'heal') {
+      const heal = item.value || 10;
+      gd.hp.current = Math.min(gd.hp.max, gd.hp.current + heal);
+      displayNarrative('你使用了 ' + item.name + '，恢复了 ' + heal + ' 点生命。');
+    } else {
+      displayNarrative('你使用了 ' + item.name + '。');
+    }
+    const count = item.count || item.quantity || 1;
+    if (count > 1) { item.count = count - 1; }
+    else { gd.inventory.splice(idx, 1); }
+    gameState.saveGameData();
+    refreshGameUI();
+    openInventory();
+  }
+
+  function invDrop(idx) {
+    const gd = gameState.getGameData();
+    const item = gd.inventory?.[idx];
+    if (!item) return;
+    gd.inventory.splice(idx, 1);
+    gameState.saveGameData();
+    refreshGameUI();
+    openInventory();
+    displayNarrative('你丢弃了 ' + item.name + '。');
+  }
+
+  window.openInventory = openInventory;
+  window.closeInventory = closeInventory;
+
+  function fillTestInventory() {
+    const gd = gameState.getGameData();
+    gd.inventory = gd.inventory || [];
+    gd.inventory.push(
+      { name: '铁剑', type: 'weapon', durability: 20, attack: '1d8', materialTier: 1 },
+      { name: '皮甲', type: 'armor', durability: 15, acBase: 11, dexBonus: 'full', materialTier: 1 },
+      { name: '治疗药水', type: 'consumable', effect: 'heal', value: 15, count: 3 },
+      { name: '火把', type: 'misc', count: 5 },
+      { name: '干粮', type: 'consumable', effect: 'food', count: 4 },
+      { name: '铁矿', type: 'material', count: 8 }
+    );
+    gameState.saveGameData();
+    refreshGameUI();
+    openInventory();
+    displayNarrative('你往背包里塞了一些测试物品。');
+  }
+  window.fillTestInventory = fillTestInventory;
+  
+  // 打开设置
+  window.openSettings = function() {
+    window.location.href = 'settings.html';
+  };
+
+  // 应用显示设置（粒子/烛光/字号），读取 localStorage.settings
+  function applyDisplaySettings() {
+    var s;
+    try { s = JSON.parse(localStorage.getItem('settings') || 'null'); } catch (e) { s = null; }
+    var d = (s && s.display) || {};
+    var canvas = document.getElementById('ember-canvas');
+    if (canvas && d.particles === false) canvas.style.display = 'none';
+    var glow = document.querySelector('.center-area .candle-glow');
+    if (glow && d.candlelight === false) glow.style.display = 'none';
+    if (d.fontSize) {
+      var narrative = document.getElementById('narrative-display');
+      if (narrative) narrative.style.fontSize = d.fontSize + 'px';
+    }
+  }
+  
+  // 骰子
+  window.rollDice = function() {
+    const result = Math.floor(Math.random() * 20) + 1;
+    displayNarrative(`\n🎲 你掷出了：${result}\n`);
+  };
+  
+  // 页面加载时初始化
+  window.addEventListener('DOMContentLoaded', () => {
+    init();
+    
+    // 绑定回车键发送
+    const inputBox = document.getElementById('input-box');
+    if (inputBox) {
+      inputBox.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          window.sendMessage();
+        }
+      });
+    }
+  });
+
+  /* ══ 按钮涟漪效果 ══ */
+  (function(){
+    var btns=document.querySelectorAll('.action-btn,.send-btn');
+    for(var i=0;i<btns.length;i++){
+      btns[i].addEventListener('click',function(e){
+        var rect=this.getBoundingClientRect();
+        var x=e.clientX-rect.left,y=e.clientY-rect.top;
+        var size=Math.max(rect.width,rect.height);
+        var ripple=document.createElement('span');
+        ripple.className='ripple';
+        ripple.style.width=ripple.style.height=size+'px';
+        ripple.style.left=(x-size/2)+'px';
+        ripple.style.top=(y-size/2)+'px';
+        this.appendChild(ripple);
+        setTimeout(function(){ripple.remove()},600);
+      });
+    }
+  })();
+
+  /* ══ 金色魔法粉尘粒子 ══ */
+  (function(){
+    var canvas=document.getElementById('ember-canvas'),ctx=canvas.getContext('2d'),particles=[],MAX=28;
+    function resize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight}
+    resize();window.addEventListener('resize',resize);
+    function P(){
+      this.x=Math.random()*canvas.width;
+      this.y=-10;
+      this.size=Math.random()*2+0.5;
+      this.speedY=Math.random()*0.3+0.05;
+      this.driftX=(Math.random()-0.5)*0.3;
+      this.opacity=Math.random()*0.4+0.15;
+      this.fadeRate=Math.random()*0.001+0.0005;
+      this.wobble=Math.random()*Math.PI*2;
+      this.wobbleSpeed=Math.random()*0.01+0.003;
+      if(Math.random()<0.7){this.r=200+Math.floor(Math.random()*40);this.g=160+Math.floor(Math.random()*40);this.b=40+Math.floor(Math.random()*30)}
+      else{this.r=240;this.g=220;this.b=180}
+    }
+    function loop(){
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      while(particles.length<MAX)particles.push(new P());
+      for(var i=particles.length-1;i>=0;i--){
+        var p=particles[i];p.y+=p.speedY;p.wobble+=p.wobbleSpeed;
+        p.x+=p.driftX+Math.sin(p.wobble)*0.15;p.opacity-=p.fadeRate;
+        if(p.opacity<=0||p.y>canvas.height+10){particles.splice(i,1);continue}
+        ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
+        ctx.fillStyle='rgba('+p.r+','+p.g+','+p.b+','+p.opacity+')';ctx.fill();
+        ctx.beginPath();ctx.arc(p.x,p.y,p.size*2.5,0,Math.PI*2);
+        ctx.fillStyle='rgba('+p.r+','+p.g+','+p.b+','+(p.opacity*0.08)+')';ctx.fill();
+      }
+      requestAnimationFrame(loop);
+    }
+    loop();
+  })();
+
+</script>
+</section>
 
   <!-- ═══ 页面：设置（迁自 settings.html） ═══ -->
-  <section id="view-settings" class="view">
+  <section id="view-settings" class="view active">
     <div class="page active">
       <div class="candle-glow"></div>
       <div class="manuscript-border"></div>
@@ -872,12 +3234,12 @@
       <div class="corner-ornament bl">✦</div><div class="corner-ornament br">✦</div>
       <div style="position:relative;z-index:5;">
         <div class="deco-line">─── ✦ ───</div>
-        <h1>⚙ 卷宗设置</h1>
-        <div class="subtitle">—— Arcanum Configuratum ——</div>
-        <hr class="divider">
+        <h1 style="width: 616px; height: 37.7969px;">⚙ 卷宗设置</h1><div class="subtitle" style="">—— Arcanum Configuratum ——</div>
+        
+        <hr class="divider" style="">
 
-        <h2>◈ Ⅰ. AI 配置</h2>
-        <div class="field-grid">
+        <h2 style="">◈ Ⅰ. AI 配置</h2>
+        <div class="field-grid" style="">
           <div>
             <label>◈ API 类型</label>
             <select id="api-type">
@@ -893,9 +3255,9 @@
             </select>
           </div>
         </div>
-        <label>◈ 接口地址 Endpoint</label>
-        <input type="text" id="endpoint" placeholder="例：https://api.openai.com/v1">
-        <div class="field-grid">
+        <label style="">◈ 接口地址 Endpoint</label>
+        <input type="text" id="endpoint" placeholder="例：https://api.openai.com/v1" style="">
+        <div class="field-grid" style="">
           <div>
             <label>◈ API 密钥</label>
             <input type="password" id="api-key" placeholder="sk-...">
@@ -906,21 +3268,19 @@
             <datalist id="model-list"></datalist>
           </div>
         </div>
-        <button type="button" class="inline-btn" onclick="fetchModelList()">⟳ 拉取模型列表</button>
-        <button type="button" class="inline-btn" onclick="testConnection()">⚡ 测试连接</button>
-        <button type="button" class="inline-btn" onclick="togglePreset()">⌘ 切换设置</button>
+        <button type="button" class="inline-btn" onclick="fetchModelList()" style="">⟳ 拉取模型列表</button>
+        <button type="button" class="inline-btn" onclick="testConnection()" style="">⚡ 测试连接</button>
+        <button type="button" class="inline-btn" onclick="togglePreset()" style="">⌘ 切换设置</button>
         <div id="preset-container" style="display:none"></div>
-        <div class="feedback" id="api-feedback"></div>
+        <div class="feedback" id="api-feedback" style="width: 616px; height: 20px; transform: matrix(1, 0, 0, 1, 0, -1.1875);"></div>
 
-        <button type="button" class="inline-btn" onclick="sendTestMsg()">📨 发送测试消息</button>
-        <div class="feedback" id="test-result" style="min-height:2.6em"></div>
+        
+        <button type="button" class="inline-btn" onclick="sendTestMsg()" style="">📨 发送测试消息</button><div class="feedback" id="test-result" style="min-height: 2.6em;"></div>
 
-        <label>◈ 温度 Temperature <span id="temp-val" style="color:var(--gold)">0.9</span></label>
-        <input type="range" id="temperature" min="0" max="2" step="0.05" value="0.9"
-               style="width:100%;accent-color:var(--gold)"
-               oninput="document.getElementById('temp-val').textContent=this.value">
+        <label style="">◈ 温度 Temperature <span id="temp-val" style="color:var(--gold)">0.9</span></label>
+        <input type="range" id="temperature" min="0" max="2" step="0.05" value="0.9" style="width: 100%; accent-color: var(--gold); --fill: 300%;" oninput="document.getElementById('temp-val').textContent=this.value">
 
-        <div class="field-grid" style="margin-top:8px">
+        <div class="field-grid" style="margin-top: 8px;">
           <div>
             <label>◈ 最大输出 Token</label>
             <input type="number" id="max-output-tokens" min="100" max="128000" step="100" value="18000">
@@ -931,7 +3291,7 @@
           </div>
         </div>
 
-        <div class="field-grid">
+        <div class="field-grid" style="">
           <div>
             <label>◈ Top P <input type="checkbox" id="top-p-enabled" style="accent-color:var(--gold);vertical-align:middle"> 启用</label>
             <input type="number" id="top-p" min="0" max="1" step="0.01" value="1">
@@ -949,60 +3309,58 @@
             <input type="number" id="pres-penalty" min="-2" max="2" step="0.05" value="0.2">
           </div>
         </div>
-        <div class="hint">惩罚与 Top P/Top K 默认不启用（勾选后才随请求发送）。</div>
+        <div class="hint" style="">惩罚与 Top P/Top K 默认不启用（勾选后才随请求发送）。</div>
 
-        <div class="check-row">
+        <div class="check-row" style="">
           <input type="checkbox" id="cors-enabled">
           <label for="cors-enabled" style="margin:0">启用 CORS 代理（网页直连被拦时勾选）</label>
         </div>
-        <input type="text" id="cors-proxy" placeholder="代理地址（默认已内置 Worker）">
-        <div class="hint">本地 file:// 或 APK 环境默认关闭代理；网页部署时可能需要开启。</div>
+        <input type="text" id="cors-proxy" placeholder="代理地址（默认已内置 Worker）" style="">
+        <div class="hint" style="">本地 file:// 或 APK 环境默认关闭代理；网页部署时可能需要开启。</div>
 
-        <hr class="divider">
-        <h2>◈ Ⅱ. 显示设置</h2>
-        <label>◈ 正文模式（AI 集成后生效）</label>
-        <div class="radio-row">
+        <hr class="divider" style="">
+        <h2 style="">◈ Ⅱ. 显示设置</h2>
+        <label style="">◈ 正文模式（AI 集成后生效）</label>
+        <div class="radio-row" style="">
           <label><input type="radio" name="narrative-mode" value="raw"> 原始格式</label>
-          <label><input type="radio" name="narrative-mode" value="beautified" checked> 美化格式</label>
+          <label><input type="radio" name="narrative-mode" value="beautified" checked=""> 美化格式</label>
           <label><input type="radio" name="narrative-mode" value="hidden"> 隐藏标签</label>
         </div>
 
-        <label>◈ 正文字号 <span id="font-val" style="color:var(--gold)">15px</span></label>
-        <input type="range" id="font-size" min="12" max="22" step="1" value="15"
-               style="width:100%;accent-color:var(--gold)"
-               oninput="document.getElementById('font-val').textContent=this.value+'px'">
+        <label style="">◈ 正文字号 <span id="font-val" style="color:var(--gold)">15px</span></label>
+        <input type="range" id="font-size" min="12" max="22" step="1" value="15" style="width: 100%; accent-color: var(--gold); --fill: 30%;" oninput="document.getElementById('font-val').textContent=this.value+'px'">
 
-        <div class="check-row">
-          <input type="checkbox" id="fx-particles" checked>
+        <div class="check-row" style="">
+          <input type="checkbox" id="fx-particles" checked="">
           <label for="fx-particles" style="margin:0">金色魔法粉尘粒子</label>
         </div>
-        <div class="check-row">
-          <input type="checkbox" id="fx-candlelight" checked>
+        <div class="check-row" style="">
+          <input type="checkbox" id="fx-candlelight" checked="">
           <label for="fx-candlelight" style="margin:0">烛光摇曳</label>
         </div>
-        <div class="check-row">
+        <div class="check-row" style="">
           <input type="checkbox" id="fx-sound">
           <label for="fx-sound" style="margin:0">音效 <span style="color:var(--ink-faded);font-size:0.85em">（未实装）</span></label>
         </div>
 
-        <hr class="divider">
-        <h2>◈ Ⅲ. 游戏设置</h2>
-        <div class="check-row">
-          <input type="checkbox" id="autosave" checked>
+        <hr class="divider" style="">
+        <h2 style="">◈ Ⅲ. 游戏设置</h2>
+        <div class="check-row" style="">
+          <input type="checkbox" id="autosave" checked="">
           <label for="autosave" style="margin:0">自动存档</label>
         </div>
-        <label>◈ 自动存档间隔（分钟）</label>
-        <input type="number" id="autosave-interval" min="1" max="60" value="5">
+        <label style="">◈ 自动存档间隔（分钟）</label>
+        <input type="number" id="autosave-interval" min="1" max="60" value="5" style="">
 
-        <hr class="divider">
-        <h2>◈ Ⅳ. 向量化记忆（可选）</h2>
-        <div class="check-row">
+        <hr class="divider" style="">
+        <h2 style="">◈ Ⅳ. 向量化记忆（可选）</h2>
+        <div class="check-row" style="">
           <input type="checkbox" id="emb-enabled">
           <label for="emb-enabled" style="margin:0">启用向量召回 <span style="color:var(--ink-faded);font-size:0.85em">（召回语义相关的历史摘要）</span></label>
         </div>
-        <label>◈ Embedding 地址</label>
-        <input type="text" id="emb-endpoint" placeholder="https://api.siliconflow.cn/v1">
-        <div class="field-grid">
+        <label style="">◈ Embedding 地址</label>
+        <input type="text" id="emb-endpoint" placeholder="https://api.siliconflow.cn/v1" style="">
+        <div class="field-grid" style="">
           <div>
             <label>◈ Embedding 密钥</label>
             <input type="password" id="emb-key" placeholder="独立 Key，不复用主 API Key">
@@ -1012,19 +3370,34 @@
             <input type="text" id="emb-model" placeholder="BAAI/bge-m3">
           </div>
         </div>
-        <label>◈ 重排模型 Rerank</label>
-        <input type="text" id="emb-rerank" placeholder="BAAI/bge-reranker-v2-m3">
-        <button type="button" class="inline-btn" onclick="testEmbedding()">🔌 测试 Embedding 连接</button>
-        <div class="feedback" id="emb-feedback"></div>
+        <label style="">◈ 重排模型 Rerank</label>
+        <input type="text" id="emb-rerank" placeholder="BAAI/bge-reranker-v2-m3" style="">
+        <button type="button" class="inline-btn" onclick="testEmbedding()" style="">🔌 测试 Embedding 连接</button>
+        <div class="feedback" id="emb-feedback" style=""></div>
 
-        <div class="hint">⚠️ 所有密钥仅保存在浏览器本地，不会上传到任何服务器。</div>
+        <div class="hint" style="">⚠️ 所有密钥仅保存在浏览器本地，不会上传到任何服务器。</div>
 
+        <hr class="divider">
+        <h2>◈ Ⅴ. ST 酒馆预设（可选）</h2>
+        <div class="check-row">
+          <input type="checkbox" id="preset-enabled" onchange="saveSTPresetUI()">
+          <label for="preset-enabled" style="margin:0">启用 ST 导入预设 <span style="color:var(--ink-faded);font-size:0.85em">（使用玩家自己调好的提示词与生成参数）</span></label>
+        </div>
+        <div id="preset-status" class="hint">当前未导入 ST 预设</div>
         <div class="btn-row">
-          <button class="btn" onclick="saveAll()">◈ 铭刻设置 ◈</button>
-          <button class="btn" onclick="navigate('home')">◈ 返回封面 ◈</button>
+          <button class="btn" onclick="document.getElementById('preset-file').click()">📥 导入 ST 预设</button>
+          <button class="btn" onclick="viewSTPreset()">👁 查看预设</button>
+          <button class="btn" onclick="clearSTPreset()">🗑 清除预设</button>
+        </div>
+        <input type="file" id="preset-file" accept=".json" style="display:none" onchange="handleSTPresetFile(event)">
+        <div class="feedback" id="preset-feedback"></div>
+
+        <div class="btn-row" style="">
+          <button class="btn" onclick="saveAll()" data-ripple-bound="1">◈ 铭刻设置 ◈</button>
+          <button class="btn" onclick="navigate('home')" data-ripple-bound="1">◈ 返回封面 ◈</button>
         </div>
 
-        <div class="footer">圣火骑士团 · 机要室 · 愿遗火照亮你的路</div>
+        <div class="footer" style="">圣火骑士团 · 机要室 · 愿遗火照亮你的路</div>
       </div>
     </div>
   </section>
@@ -1055,7 +3428,7 @@
          3. 配置 API：进入「设置」填写你的 LLM 端点与密钥</p>
 
       <hr class="divider">
-      <a href="#" class="btn" data-route="home" style="max-width:300px;margin:0 auto;opacity:0.7">❮ 合上指南，返回封面</a>
+      <a href="#" class="btn" data-route="home" style="max-width:300px;margin:0 auto;opacity:0.7" data-ripple-bound="1">❮ 合上指南，返回封面</a>
     </div>
   </section>
 </div>
@@ -1186,258 +3559,6 @@ window.addEventListener('DOMContentLoaded', function() {
   var initialHash = window.location.hash.replace('#', '');
   navigate(VIEWS.includes(initialHash) ? initialHash : 'home');
 });
-</script>
-
-<!-- ══════════ 登记册向导脚本（迁自 start-screen） ══════════ -->
-<script>
-'use strict';
-
-var TOTAL_POINTS = 18, BASE = 8;
-var attrIds = ['str', 'dex', 'con', 'wis', 'int', 'cha'];
-var raceHints = {
-  人类: '适应力：跨种族社交/跨势力交涉不劣势',
-  矮人: '锻造之心：锻造/鉴定/负重相关检定优势',
-  精灵: '自然之眼：草本/魔法鉴定/暗视相关检定优势',
-  羊人: '山地步兵：攀爬/耐力/行军相关检定优势',
-  虎族: '猎手：视觉追踪/近战搏斗检定优势',
-  犬人: '嗅觉追踪/信使任务相关检定优势',
-  灵耳族: '耳语机巧：听觉定位/精密操作检定优势',
-  兔耳族: '超级跳跃：跳跃/闪避/斥候侦查相关检定优势',
-  猫人: '夜目+猫步：夜间行动/潜行/平衡检定优势'
-};
-
-function switchCreatePage(n) {
-  var from = document.getElementById('create-p1'), to = document.getElementById('create-p2');
-  from.classList.remove('active'); to.classList.add('active');
-  to.style.animation = 'none'; void to.offsetWidth;
-  to.style.animation = 'pageOpen .6s ease-out';
-  window.scrollTo(0, 0);
-}
-
-function mod(v) { return Math.floor((v - 10) / 2); }
-function modStr(v) { var m = mod(v); return (m > 0 ? '+' : '') + m; }
-
-function getTraits() {
-  var cbs = document.querySelectorAll('.trait-cb'), arr = [];
-  for (var i = 0; i < cbs.length; i++) { if (cbs[i].checked) arr.push(cbs[i].value); }
-  return arr.join(',');
-}
-
-function toggleTraitPanel() {
-  var p = document.getElementById('talentPanel');
-  p.style.display = (p.style.display === 'none') ? 'grid' : 'none';
-}
-
-function onTraitChange() {
-  var cbs = document.querySelectorAll('.trait-cb'), checked = [], over = null;
-  for (var i = 0; i < cbs.length; i++) {
-    if (cbs[i].checked) { checked.push(cbs[i]); if (checked.length > 2) over = cbs[i]; }
-  }
-  if (over) over.checked = false;
-  var t = getTraits();
-  document.getElementById('traitSummary').textContent = t ? '◈ 已铭刻：' + t : '◈ 未铭刻特质（相关检定无优势）';
-  generateOutput();
-}
-
-function usedPoints() {
-  var s = 0;
-  for (var i = 0; i < attrIds.length; i++) { s += parseInt(document.getElementById(attrIds[i]).value) - BASE; }
-  return s;
-}
-
-function updatePointsColor() {
-  var left = Math.max(0, TOTAL_POINTS - usedPoints()), el = document.getElementById('pointsLeft');
-  el.textContent = left;
-  el.className = left > 6 ? 'pts-ok' : left > 0 ? 'pts-low' : 'pts-zero';
-}
-
-function updateAttr(cur) {
-  if (cur) {
-    var el = document.getElementById(cur), v = parseInt(el.value);
-    var otherUsed = usedPoints() - (v - BASE), maxAllowed = BASE + (TOTAL_POINTS - otherUsed);
-    if (v > maxAllowed) v = maxAllowed; if (v < 3) v = 3; el.value = v;
-  }
-  for (var i = 0; i < attrIds.length; i++) {
-    var id = attrIds[i], el2 = document.getElementById(id), val = parseInt(el2.value);
-    document.getElementById(id + 'V').textContent = val;
-    var mEl = document.getElementById(id + 'M'), m = Math.floor((val - 10) / 2);
-    mEl.textContent = (m > 0 ? '+' : '') + m;
-    mEl.className = 'mod' + (m < 0 ? ' neg' : '');
-    // 金色填充进度
-    var pct = ((val - 3) / (18 - 3)) * 100;
-    el2.style.setProperty('--fill', pct + '%');
-  }
-  updatePointsColor();
-  var dex = parseInt(document.getElementById('dex').value), str = parseInt(document.getElementById('str').value);
-  document.getElementById('ac').textContent = 10 + Math.floor((dex - 10) / 2);
-  document.getElementById('load').textContent = 10 + str * 2;
-  document.getElementById('mp').textContent = parseInt(document.getElementById('int').value) * 5;
-  generateOutput();
-}
-
-function updateRaceHint() {
-  var el = document.getElementById('raceHint'), t = raceHints[document.getElementById('race').value] || '';
-  el.textContent = t ? '◈ ' + t : '';
-}
-
-function generateOutput() {
-  var name = document.getElementById('name').value || '无名者', gender = document.getElementById('gender').value,
-      age = document.getElementById('age').value || 25, race = document.getElementById('race').value,
-      identity = document.getElementById('identity').value, traits = getTraits(),
-      str = document.getElementById('str').value, dex = document.getElementById('dex').value,
-      con = document.getElementById('con').value, wis = document.getElementById('wis').value,
-      int_ = document.getElementById('int').value, cha = document.getElementById('cha').value,
-      ac = 10 + mod(dex), load = 10 + str * 2;
-  var out = '【登记档案】\n'
-    + '姓名: ' + name + ' ｜ 种族: ' + race + ' ｜ 身份: ' + identity + ' ｜ 性别: ' + gender + ' ｜ 年龄: ' + age + '\n'
-    + '[六维] 力量' + str + '(' + modStr(str) + ') 敏捷' + dex + '(' + modStr(dex) + ') 体质' + con + '(' + modStr(con) + ') 感知' + wis + '(' + modStr(wis) + ') 智力' + int_ + '(' + modStr(int_) + ') 魅力' + cha + '(' + modStr(cha) + ')\n'
-    + 'HP: 100/100 ｜ MP: ' + int_ * 5 + ' ｜ AC: ' + ac + ' ｜ 负重: ' + load + 'kg ｜ 金币: 15\n'
-    + (traits ? '[特质] ' + traits + '\n' : '')
-    + '[初始装备] 铁剑（主手）';
-  document.getElementById('out').value = out;
-}
-
-function createCharacter() {
-  generateOutput();
-
-  // 统一写 gameData 结构（calamity-game-state，唯一真源）
-  var name = document.getElementById('name').value || '无名者';
-  var gender = document.getElementById('gender').value;
-  var race = document.getElementById('race').value;
-  var age = parseInt(document.getElementById('age').value) || 25;
-  var attributes = {
-    力量: parseInt(document.getElementById('str').value),
-    敏捷: parseInt(document.getElementById('dex').value),
-    体质: parseInt(document.getElementById('con').value),
-    智力: parseInt(document.getElementById('int').value),
-    感知: parseInt(document.getElementById('wis').value),
-    魅力: parseInt(document.getElementById('cha').value)
-  };
-  var ac = parseInt(document.getElementById('ac').textContent);
-
-  var gameData = {
-    character: { name: name, race: race, gender: gender, age: age, level: 1, exp: 0, expToNextLevel: 100, proficiencyBonus: 2, ac: ac },
-    attributes: attributes,
-    backgrounds: getTraits() ? getTraits().split(',') : [],
-    fatePoints: { current: 1, max: 1, lastRefreshDate: null },
-    hp: { current: 30, max: 30 },
-    equipment: {
-      mainHand: { name: '铁剑', type: 'weapon' },
-      offHand: null, body: null, head: null, hands: null,
-      legs: null, feet: null, shoulders: null, accessory1: null, accessory2: null
-    },
-    inventory: [],
-    currency: { gold: 50 },
-    progress: {
-      currentLocation: '锈钉镇',
-      completedQuests: [],
-      unlockedLocations: ['锈钉镇'],
-      backstory: document.getElementById('out').value
-    },
-    relationships: {},
-    gameTime: { year: 303, month: 5, day: 12, hour: 8, minute: 0, season: '春' },
-    tone: '',
-    stats: { totalChecks: 0, successfulChecks: 0, criticalSuccesses: 0, criticalFailures: 0, combatsWon: 0, deaths: 0 },
-    meta: { version: '1.0.0', createdAt: Date.now(), lastSavedAt: Date.now(), playTime: 0 }
-  };
-  localStorage.setItem('calamity-game-state', JSON.stringify(gameData));
-
-  // deprecated：旧版兼容键（game.html 迁移逻辑用）
-  var legacyCharacter = {
-    name: name, gender: gender, age: age, race: race,
-    attributes: attributes,
-    hp: { current: 30, max: 30 },
-    ac: ac, gold: 50, exp: 0, level: 1, proficiencyBonus: 2,
-    equipment: { mainHand: { name: '铁剑', type: 'weapon' } },
-    inventory: [],
-    backstory: document.getElementById('out').value
-  };
-  localStorage.setItem('character', JSON.stringify(legacyCharacter));
-
-  // 按钮反馈
-  var btn = document.querySelector('.btn.copy'), orig = btn.textContent;
-  btn.textContent = '◈ 已铭刻于记忆 ◈';
-  btn.style.background = 'rgba(184,148,42,0.2)';
-
-  // 刷新首页按钮状态
-  if (typeof updateHomeButtons === 'function') updateHomeButtons();
-
-  // 铭刻完成，翻入冒险卷轴（SPA 内切换）
-  setTimeout(function() {
-    navigate('game');
-  }, 900);
-}
-
-// ══ 属性值闪烁 ══
-(function() {
-  var origUpdate = updateAttr;
-  updateAttr = function(cur) {
-    origUpdate(cur);
-    if (cur) {
-      var el = document.getElementById(cur + 'V');
-      el.classList.add('flash');
-      setTimeout(function() { el.classList.remove('flash'); }, 300);
-    }
-  };
-})();
-
-// ══ 滑条金色填充 ══
-(function() {
-  function updateFill() {
-    var sliders = document.querySelectorAll('input[type=range]');
-    for (var i = 0; i < sliders.length; i++) {
-      var s = sliders[i], min = parseInt(s.min) || 3, max = parseInt(s.max) || 18, val = parseInt(s.value);
-      var pct = ((val - min) / (max - min)) * 100;
-      s.style.setProperty('--fill', pct + '%');
-    }
-  }
-  document.addEventListener('input', function(e) {
-    if (e.target.type === 'range') updateFill();
-  });
-  window.addEventListener('DOMContentLoaded', updateFill);
-})();
-
-// ══ 初始化向导 ══
-window.addEventListener('DOMContentLoaded', function() {
-  updateAttr();
-  updateRaceHint();
-  generateOutput();
-});
-
-// ══ 金色魔法粉尘粒子 ══
-(function() {
-  var canvas = document.getElementById('ember-canvas'), ctx = canvas.getContext('2d'), particles = [], MAX = 28;
-  function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-  resize(); window.addEventListener('resize', resize);
-  function P() {
-    this.x = Math.random() * canvas.width;
-    this.y = -10;
-    this.size = Math.random() * 2 + 0.5;
-    this.speedY = Math.random() * 0.3 + 0.05;
-    this.driftX = (Math.random() - 0.5) * 0.3;
-    this.opacity = Math.random() * 0.4 + 0.15;
-    this.fadeRate = Math.random() * 0.001 + 0.0005;
-    this.wobble = Math.random() * Math.PI * 2;
-    this.wobbleSpeed = Math.random() * 0.01 + 0.003;
-    if (Math.random() < 0.7) { this.r = 200 + Math.floor(Math.random() * 40); this.g = 160 + Math.floor(Math.random() * 40); this.b = 40 + Math.floor(Math.random() * 30); }
-    else { this.r = 240; this.g = 220; this.b = 180; }
-  }
-  function loop() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    while (particles.length < MAX) particles.push(new P());
-    for (var i = particles.length - 1; i >= 0; i--) {
-      var p = particles[i]; p.y += p.speedY; p.wobble += p.wobbleSpeed;
-      p.x += p.driftX + Math.sin(p.wobble) * 0.15; p.opacity -= p.fadeRate;
-      if (p.opacity <= 0 || p.y > canvas.height + 10) { particles.splice(i, 1); continue; }
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(' + p.r + ',' + p.g + ',' + p.b + ',' + p.opacity + ')'; ctx.fill();
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.size * 2.5, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(' + p.r + ',' + p.g + ',' + p.b + ',' + (p.opacity * 0.08) + ')'; ctx.fill();
-    }
-    requestAnimationFrame(loop);
-  }
-  loop();
-})();
 </script>
 
 <!-- ══════════ 设置页模块加载 + 脚本（迁自 settings.html） ══════════ -->
@@ -1747,22 +3868,356 @@ function initSettings() {
   loadApiConfig();
   loadDisplaySettings();
   loadEmbeddingConfig();
+  loadSTPresetUI();
 }
+
+// ── ST 预设管理 ──
+function loadSTPresetUI() {
+  var preset = presetImporter.加载当前预设();
+  var status = document.getElementById('preset-status');
+  var enabledBox = document.getElementById('preset-enabled');
+  if (preset) {
+    var meta = preset.meta || {};
+    status.innerHTML = '◈ 已加载：<b>' + (meta.source_name || '未命名') + '</b>（' +
+      (meta.prompt_count || 0) + ' 条提示词，启用 ' + (meta.enabled_count || 0) + ' 条）';
+    status.style.color = 'var(--ink-gold, #c9a05c)';
+    enabledBox.checked = presetImporter.加载启用状态();
+  } else {
+    status.textContent = '当前未导入 ST 预设';
+    status.style.color = '';
+    enabledBox.checked = false;
+  }
+}
+
+function saveSTPresetUI() {
+  var enabled = document.getElementById('preset-enabled').checked;
+  localStorage.setItem('calamity-st-preset-enabled', enabled ? '1' : '0');
+  // 即时生效：勾选恢复注入，取消勾选立即停用（无需刷新页面）
+  if (window.promptBuilder && window.promptBuilder.setSTPreset && typeof presetImporter !== 'undefined') {
+    if (enabled) {
+      var preset = presetImporter.加载当前预设();
+      window.promptBuilder.setSTPreset(preset || null);
+    } else {
+      window.promptBuilder.setSTPreset(null);
+    }
+  }
+}
+
+async function handleSTPresetFile(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+  var fb = document.getElementById('preset-feedback');
+  fb.textContent = '◈ 正在解析 ' + file.name + '...';
+  fb.className = 'feedback';
+  try {
+    var text = await file.text();
+    var result = presetImporter.导入ST预设(text);
+    if (result.success) {
+      // 应用到 API 配置
+      if (apiService && apiService.applyGenerationParams) {
+        apiService.applyGenerationParams(result.preset.generation);
+      }
+      // 应用到 prompt-builder
+      if (window.promptBuilder && window.promptBuilder.setSTPreset) {
+        window.promptBuilder.setSTPreset(result.preset);
+      }
+      // 默认启用
+      document.getElementById('preset-enabled').checked = true;
+      saveSTPresetUI();
+      fb.textContent = '◈ 导入成功：' + (result.preset.meta.source_name || '未命名') +
+        '（温度 ' + result.preset.generation.temperature +
+        ' / ' + result.preset.meta.prompt_count + ' 条提示词）';
+      fb.className = 'feedback ok';
+      loadSTPresetUI();
+    } else {
+      fb.textContent = '◈ 导入失败：' + result.error;
+      fb.className = 'feedback err';
+    }
+  } catch (e) {
+    fb.textContent = '◈ 读取文件出错：' + e.message;
+    fb.className = 'feedback err';
+  }
+  // 清空 input 以便能再次选择同一文件
+  event.target.value = '';
+}
+
+function viewSTPreset() {
+  var preset = presetImporter.加载当前预设();
+  if (!preset) {
+    alert('当前未导入 ST 预设');
+    return;
+  }
+  var lines = [];
+  lines.push('═══ ST 预设概览 ═══');
+  lines.push('名称：' + (preset.meta.source_name || '未命名'));
+  lines.push('导入时间：' + new Date(preset.meta.imported_at).toLocaleString());
+  lines.push('');
+  lines.push('── 生成参数 ──');
+  var g = preset.generation;
+  lines.push('  temperature: ' + g.temperature);
+  lines.push('  top_p: ' + g.top_p + (g.top_p !== 1 ? '（启用）' : ''));
+  lines.push('  frequency_penalty: ' + g.frequency_penalty);
+  lines.push('  presence_penalty: ' + g.presence_penalty);
+  lines.push('  max_output_tokens: ' + g.max_output_tokens);
+  lines.push('');
+  lines.push('── 提示词条目（共 ' + preset.prompts.length + ' 条，启用 ' +
+    preset.prompts.filter(function(p){return p.enabled;}).length + ' 条）──');
+  for (var i = 0; i < preset.prompts.length; i++) {
+    var p = preset.prompts[i];
+    lines.push('  [' + (i + 1) + '] ' + p.name + (p.enabled ? '' : '（已禁用）') +
+      ' · ' + p.role + ' · ' + p.content.length + '字');
+  }
+  if (preset.prompt_order && preset.prompt_order.length) {
+    lines.push('');
+    lines.push('── 注入顺序（按 character_id）──');
+    for (var j = 0; j < preset.prompt_order.length; j++) {
+      var ord = preset.prompt_order[j];
+      lines.push('  character_id=' + ord.character_id + ' · ' + ord.order.length + ' 条');
+    }
+  }
+  if (preset.variables && Object.keys(preset.variables).length) {
+    lines.push('');
+    lines.push('── 变量宏（{{setvar::}}）──');
+    for (var k in preset.variables) {
+      lines.push('  ' + k + ' = ' + preset.variables[k].slice(0, 30) +
+        (preset.variables[k].length > 30 ? '...' : ''));
+    }
+  }
+  alert(lines.join('\n'));
+}
+
+function clearSTPreset() {
+  if (!confirm('确定要清除当前 ST 预设吗？')) return;
+  presetImporter.清除预设();
+  if (window.promptBuilder && window.promptBuilder.setSTPreset) {
+    window.promptBuilder.setSTPreset(null);
+  }
+  if (apiService && apiService.resetGenerationParams) {
+    apiService.resetGenerationParams();
+  }
+  document.getElementById('preset-enabled').checked = false;
+  saveSTPresetUI();
+  loadSTPresetUI();
+  var fb = document.getElementById('preset-feedback');
+  fb.textContent = '◈ 已清除 ST 预设';
+  fb.className = 'feedback ok';
+}
+
+// 页面初始化时恢复启用状态
+(function _initPresetOnLoad() {
+  if (typeof presetImporter === 'undefined') return;
+  var enabled = localStorage.getItem('calamity-st-preset-enabled') === '1';
+  if (enabled) {
+    var preset = presetImporter.加载当前预设();
+    if (preset && window.promptBuilder && window.promptBuilder.setSTPreset) {
+      window.promptBuilder.setSTPreset(preset);
+    }
+  }
+})();
 </script>
 
 <!-- ══════════ 游戏视图模块 + 主逻辑（迁自 game.html） ══════════ -->
+<!-- 注意：command-engine / command-processor / calamity-data / worldbook-engine / prompt-builder / response-parser
+     已在前面的脚本块加载，这里只补 json-repair-helper；重复加载会把 promptBuilder 替换成新实例、丢失已注入的 ST 预设状态 -->
 <script src="module/json-repair-helper.js"></script>
-<script src="module/command-engine.js"></script>
-<script src="module/command-processor.js"></script>
-<script src="module/worldbook-engine.js"></script>
-<script src="module/prompt-builder.js"></script>
-<script src="module/response-parser.js"></script>
 
 <script type="module">
   import * as gameState from './module/game-state.js';
   import * as narrativeSystem from './module/narrative-system.js';
   import * as combatSystem from './module/combat-system.js';
   import * as checkSystem from './module/check-system.js';
+  import { promptData } from './module/prompt-data-core-calamity.js';
+  import { calamityPrompts as npcPrompts } from './module/prompt-data-npc-calamity.js';
+  import { calamityPrompts as worldPrompts } from './module/prompt-data-world-calamity.js';
+  import equipmentData from './module/equipment-system.js';
+  import creatureData from './module/creature-system.js';
+  import statusData from './module/status-system.js';
+  import questData from './module/quest-system.js';
+  import skillData from './module/skill-system.js';
+
+  // 暴露 gameData 到 window，供 preset-importer.js 的 getvar 宏读取游戏状态
+  Object.defineProperty(window, 'gameData', {
+    get: function() { return gameState.getGameData(); }
+  });
+
+  // 把装备系统模板数据动态构建为世界书格式，注入数据访问层
+  function buildEquipmentWorldbook() {
+    var WEAPON_TEMPLATES = equipmentData.WEAPON_TEMPLATES;
+    var ARMOR_TEMPLATES = equipmentData.ARMOR_TEMPLATES;
+    var MATERIALS = equipmentData.MATERIALS;
+    var wb = { "装备": {}, "武器": {}, "护甲": {} };
+
+    var matLines = Object.entries(MATERIALS).map(function(e) {
+      return '- ' + e[0] + '级：' + e[1].name + '（价格×' + e[1].priceMultiplier + '）';
+    }).join('\n');
+    var wepSummary = Object.entries(WEAPON_TEMPLATES).map(function(e) {
+      var t = e[1];
+      return '- ' + e[0] + '：1d' + t.damageBase + ' ' + t.damageType + '，' + t.speed + '，' + t.slot + (t.twoHanded ? '（双手）' : '') + (t.ranged ? '（远程）' : '');
+    }).join('\n');
+    var armSummary = Object.entries(ARMOR_TEMPLATES).map(function(e) {
+      var t = e[1];
+      return '- ' + e[0] + '：AC ' + t.acBase + '，' + t.weight + (t.stealthPenalty ? '，潜行劣势' : '');
+    }).join('\n');
+
+    wb["装备"]["装备数据清单"] = '# 装备数据清单\n\n## 材料等级\n' + matLines + '\n\n## 武器列表\n' + wepSummary + '\n\n## 护甲列表\n' + armSummary;
+
+    Object.entries(WEAPON_TEMPLATES).forEach(function(e) {
+      var name = e[0], t = e[1];
+      wb["武器"][name] = '# ' + name + '\n\n## 基础数值\n- 伤害骰：1d' + t.damageBase + '（' + t.damageType + '）\n- 攻速：' + t.speed + '\n- 槽位：' + t.slot + (t.twoHanded ? '（双手）' : '') + (t.ranged ? '（远程）' : '') + '\n- 基础价格：' + t.basePrice + ' 金币\n- 耐久上限：' + t.durabilityMax + '\n\n## 描述\n' + t.description;
+    });
+
+    Object.entries(ARMOR_TEMPLATES).forEach(function(e) {
+      var name = e[0], t = e[1];
+      wb["护甲"][name] = '# ' + name + '\n\n## 基础数值\n- AC 基础：' + t.acBase + '\n- 重量：' + t.weight + '\n- 敏捷加值：' + (t.dexBonus === 'full' ? '全额' : t.dexBonus === 'limited' ? '上限 +2' : '无') + (t.stealthPenalty ? '\n- 潜行：劣势' : '') + (t.strengthReq ? '\n- 力量需求：' + t.strengthReq : '') + '\n- 基础价格：' + t.basePrice + ' 金币\n- 耐久上限：' + t.durabilityMax + '\n\n## 描述\n' + t.description;
+    });
+
+    return wb;
+  }
+
+  // 把生物系统模板数据动态构建为世界书格式，注入数据访问层
+  function buildCreatureWorldbook() {
+    var CREATURE_TEMPLATES = creatureData.CREATURE_TEMPLATES;
+    var THREAT_LEVELS = creatureData.THREAT_LEVELS;
+    var wb = { "生物": {}, "威胁等级": {} };
+
+    // 威胁等级总纲
+    var threatLines = Object.entries(THREAT_LEVELS).map(function(e) {
+      var lvl = e[0], stats = e[1];
+      return '- ' + lvl + '：AC ' + stats.ac + '，HP ' + stats.hp + '，伤害 ' + stats.damage + '，攻击加值 +' + stats.attackBonus + '，经验 ' + stats.exp[0] + '-' + stats.exp[1];
+    }).join('\n');
+    wb["威胁等级"]["威胁等级数据"] = '# 威胁等级数据\n\n' + threatLines;
+
+    // 每个生物详情
+    Object.entries(CREATURE_TEMPLATES).forEach(function(e) {
+      var name = e[0], c = e[1];
+      var lines = [];
+      lines.push('# ' + name);
+      lines.push('');
+      lines.push('## 基础信息');
+      lines.push('- 威胁等级：' + c.threatLevel);
+      lines.push('- 类型：' + c.type);
+      lines.push('- 区域：' + c.region);
+      lines.push('');
+      lines.push('## 描述');
+      lines.push(c.description);
+      lines.push('');
+      lines.push('## 外貌');
+      lines.push(c.appearance);
+      lines.push('');
+      lines.push('## 行为模式');
+      lines.push(c.behavior);
+      lines.push('');
+      if (c.abilities && c.abilities.length) {
+        lines.push('## 能力');
+        c.abilities.forEach(function(ab) {
+          lines.push('- **' + ab.name + '**：' + ab.description);
+        });
+        lines.push('');
+      }
+      if (c.weaknesses && c.weaknesses.length) {
+        lines.push('## 弱点');
+        c.weaknesses.forEach(function(wk) {
+          lines.push('- **' + wk.name + '**：' + wk.description);
+        });
+        lines.push('');
+      }
+      if (c.loot && c.loot.length) {
+        lines.push('## 战利品');
+        c.loot.forEach(function(lt) {
+          lines.push('- ' + lt.item + '（掉率 ' + Math.round(lt.chance * 100) + '%，价值 ' + lt.value + ' 金币）');
+        });
+      }
+      wb["生物"][name] = lines.join('\n');
+    });
+
+    return wb;
+  }
+
+  // 把状态系统数据动态构建为世界书格式，注入数据访问层
+  function buildStatusWorldbook() {
+    var NEGATIVE_STATUS = statusData.NEGATIVE_STATUS;
+    var POSITIVE_STATUS = statusData.POSITIVE_STATUS;
+    var wb = { "状态": {} };
+
+    // 负面状态列表
+    var negativeLines = Object.entries(NEGATIVE_STATUS).map(function(e) {
+      var name = e[0], s = e[1];
+      return '- **' + name + '**：' + s.effect + '（解除：' + s.removeCondition + '）';
+    }).join('\n');
+    wb["状态"]["负面状态列表"] = '# 负面状态列表\n\n' + negativeLines;
+
+    // 有利状态列表
+    var positiveLines = Object.entries(POSITIVE_STATUS).map(function(e) {
+      var name = e[0], s = e[1];
+      return '- **' + name + '**：' + s.effect + '（结束：' + s.removeCondition + '）';
+    }).join('\n');
+    wb["状态"]["有利状态列表"] = '# 有利状态列表\n\n' + positiveLines;
+
+    return wb;
+  }
+
+  // 把任务系统数据动态构建为世界书格式，注入数据访问层
+  function buildQuestWorldbook() {
+    var QUEST_TYPE = questData.QUEST_TYPE;
+    var QUEST_TIER = questData.QUEST_TIER;
+    var wb = { "任务": {} };
+
+    // 任务类型
+    var typeLines = Object.entries(QUEST_TYPE).map(function(e) {
+      return '- **' + e[1] + '**';
+    }).join('\n');
+    wb["任务"]["任务类型"] = '# 任务类型\n\n' + typeLines;
+
+    // 任务等级
+    var tierLines = Object.entries(QUEST_TIER).map(function(e) {
+      var t = e[1];
+      return '- **' + t.name + '**：奖励 ' + t.rewardMin + '~' + t.rewardMax + ' 金币，声望 +' + t.repMin + '~' + t.repMax;
+    }).join('\n');
+    wb["任务"]["任务等级"] = '# 任务等级\n\n' + tierLines;
+
+    return wb;
+  }
+
+  // 把技能系统数据动态构建为世界书格式，注入数据访问层
+  function buildSkillWorldbook() {
+    var SKILL_LEVEL = skillData.SKILL_LEVEL;
+    var LEARN_SOURCE = skillData.LEARN_SOURCE;
+    var SCENE_KEYWORDS = skillData.SCENE_KEYWORDS;
+    var wb = { "技能": {} };
+
+    // 技能等级
+    var levelLines = Object.entries(SKILL_LEVEL).map(function(e) {
+      var lvl = e[0], data = e[1];
+      return '- **Lv' + lvl + '**（' + data.name + '）：加值 +' + data.bonus;
+    }).join('\n');
+    wb["技能"]["技能等级"] = '# 技能等级\n\n' + levelLines;
+
+    // 习得来源
+    var sourceLines = Object.entries(LEARN_SOURCE).map(function(e) {
+      return '- **' + e[1] + '**';
+    }).join('\n');
+    wb["技能"]["习得来源"] = '# 习得来源\n\n' + sourceLines;
+
+    // 场景关键词
+    var keywordLines = Object.entries(SCENE_KEYWORDS).map(function(e) {
+      var category = e[0], keywords = e[1];
+      if (keywords.length === 0) return null;
+      return '- **' + category + '**：' + keywords.join('、');
+    }).filter(Boolean).join('\n');
+    wb["技能"]["场景关键词"] = '# 场景关键词\n\n' + keywordLines;
+
+    return wb;
+  }
+
+  var equipmentWorldbook = buildEquipmentWorldbook();
+  var creatureWorldbook = buildCreatureWorldbook();
+  var statusWorldbook = buildStatusWorldbook();
+  var questWorldbook = buildQuestWorldbook();
+  var skillWorldbook = buildSkillWorldbook();
+  var mergedWorld = Object.assign({}, worldPrompts, equipmentWorldbook, creatureWorldbook, statusWorldbook, questWorldbook, skillWorldbook);
+
+  // 注册灾厄世界书数据到数据访问层（供 worldbook-engine / prompt-builder 消费）
+  window.calamityData.register(promptData, npcPrompts, mergedWorld);
 
   // IIFE 模块已通过上方 <script> 挂载到 window
   const apiService = window.apiService;
@@ -1973,7 +4428,199 @@ function initSettings() {
     } catch (e) { console.warn('保存历史失败:', e); }
   }
 
-  window.openInventory = function() { alert('背包功能开发中...'); };
+  // ── 背包系统 ──
+  const SLOT_NAMES = { mainHand:'主手', offHand:'副手', body:'身体', head:'头部', hands:'手部', legs:'腿部', feet:'脚部', shoulders:'肩部', accessory1:'饰品1', accessory2:'饰品2' };
+  const TYPE_LABELS = { weapon:'武器', armor:'护甲', consumable:'消耗品', material:'材料', quest:'任务', misc:'杂项' };
+
+  function openInventory() {
+    const gd = gameState.getGameData();
+    const body = document.getElementById('inv-body');
+    const footer = document.getElementById('inv-footer');
+    if (!body) return;
+    body.innerHTML = '';
+
+    // 已装备栏
+    const eqTitle = document.createElement('div');
+    eqTitle.className = 'inv-section-title';
+    eqTitle.textContent = '已装备';
+    body.appendChild(eqTitle);
+
+    const eq = gd.equipment || {};
+    let eqCount = 0;
+    Object.entries(eq).forEach(([slot, item]) => {
+      if (!item) return;
+      eqCount++;
+      const row = document.createElement('div');
+      row.className = 'inv-slot';
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'inv-slot-name';
+      nameSpan.textContent = (SLOT_NAMES[slot] || slot) + ' · ' + item.name;
+      row.appendChild(nameSpan);
+      if (item.durability !== undefined) {
+        const dur = document.createElement('span');
+        dur.className = 'inv-slot-dur';
+        dur.textContent = '耐久 ' + item.durability;
+        row.appendChild(dur);
+      }
+      const btn = document.createElement('button');
+      btn.className = 'inv-slot-btn';
+      btn.textContent = '卸下';
+      btn.onclick = () => invUnequip(slot);
+      row.appendChild(btn);
+      body.appendChild(row);
+    });
+    if (eqCount === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'inv-empty';
+      empty.textContent = '无装备';
+      body.appendChild(empty);
+    }
+
+    // 背包栏
+    const invTitle = document.createElement('div');
+    invTitle.className = 'inv-section-title';
+    invTitle.textContent = '背包';
+    body.appendChild(invTitle);
+
+    const inv = gd.inventory || [];
+    if (!inv.length) {
+      const empty = document.createElement('div');
+      empty.className = 'inv-empty';
+      empty.textContent = '背包是空的';
+      body.appendChild(empty);
+    } else {
+      inv.forEach((item, idx) => {
+        const row = document.createElement('div');
+        row.className = 'inv-slot';
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'inv-slot-name';
+        const count = item.count || item.quantity || 1;
+        nameSpan.textContent = item.name + (count > 1 ? ' ×' + count : '');
+        row.appendChild(nameSpan);
+        const typeLabel = TYPE_LABELS[item.type] || item.type || '';
+        if (typeLabel) {
+          const typeSpan = document.createElement('span');
+          typeSpan.className = 'inv-slot-type';
+          typeSpan.textContent = typeLabel;
+          row.appendChild(typeSpan);
+        }
+        if (item.durability !== undefined) {
+          const dur = document.createElement('span');
+          dur.className = 'inv-slot-dur';
+          dur.textContent = '耐久 ' + item.durability;
+          row.appendChild(dur);
+        }
+        // 操作按钮
+        if (item.type === 'weapon' || item.type === 'armor') {
+          const eqBtn = document.createElement('button');
+          eqBtn.className = 'inv-slot-btn';
+          eqBtn.textContent = '装备';
+          eqBtn.onclick = () => invEquip(idx);
+          row.appendChild(eqBtn);
+        }
+        if (item.type === 'consumable') {
+          const useBtn = document.createElement('button');
+          useBtn.className = 'inv-slot-btn';
+          useBtn.textContent = '使用';
+          useBtn.onclick = () => invUse(idx);
+          row.appendChild(useBtn);
+        }
+        const dropBtn = document.createElement('button');
+        dropBtn.className = 'inv-slot-btn danger';
+        dropBtn.textContent = '丢弃';
+        dropBtn.onclick = () => invDrop(idx);
+        row.appendChild(dropBtn);
+        body.appendChild(row);
+      });
+    }
+
+    footer.textContent = '物品数：' + inv.length + '  金币：' + (gd.currency?.gold || 0);
+    document.getElementById('inv-overlay').classList.add('open');
+  }
+
+  function closeInventory() {
+    document.getElementById('inv-overlay').classList.remove('open');
+  }
+
+  function invUnequip(slot) {
+    const gd = gameState.getGameData();
+    const item = gd.equipment?.[slot];
+    if (!item) return;
+    gd.inventory = gd.inventory || [];
+    gd.inventory.push(item);
+    gd.equipment[slot] = null;
+    gameState.saveGameData();
+    refreshGameUI();
+    openInventory(); // 刷新弹窗
+    displayNarrative('你卸下了 ' + item.name + '。');
+  }
+
+  function invEquip(idx) {
+    const gd = gameState.getGameData();
+    const item = gd.inventory?.[idx];
+    if (!item) return;
+    const slot = item.type === 'armor' ? 'body' : 'mainHand';
+    const old = gd.equipment?.[slot];
+    gd.equipment = gd.equipment || {};
+    gd.equipment[slot] = item;
+    gd.inventory.splice(idx, 1);
+    if (old) gd.inventory.push(old);
+    gameState.saveGameData();
+    refreshGameUI();
+    openInventory();
+    displayNarrative('你装备了 ' + item.name + '。');
+  }
+
+  function invUse(idx) {
+    const gd = gameState.getGameData();
+    const item = gd.inventory?.[idx];
+    if (!item) return;
+    if (item.type === 'consumable' && item.effect === 'heal') {
+      const heal = item.value || 10;
+      gd.hp.current = Math.min(gd.hp.max, gd.hp.current + heal);
+      displayNarrative('你使用了 ' + item.name + '，恢复了 ' + heal + ' 点生命。');
+    } else {
+      displayNarrative('你使用了 ' + item.name + '。');
+    }
+    const count = item.count || item.quantity || 1;
+    if (count > 1) { item.count = count - 1; }
+    else { gd.inventory.splice(idx, 1); }
+    gameState.saveGameData();
+    refreshGameUI();
+    openInventory();
+  }
+
+  function invDrop(idx) {
+    const gd = gameState.getGameData();
+    const item = gd.inventory?.[idx];
+    if (!item) return;
+    gd.inventory.splice(idx, 1);
+    gameState.saveGameData();
+    refreshGameUI();
+    openInventory();
+    displayNarrative('你丢弃了 ' + item.name + '。');
+  }
+
+  window.openInventory = openInventory;
+  window.closeInventory = closeInventory;
+
+  function fillTestInventory() {
+    const gd = gameState.getGameData();
+    gd.inventory = gd.inventory || [];
+    gd.inventory.push(
+      { name: '铁剑', type: 'weapon', durability: 20, attack: '1d8', materialTier: 1 },
+      { name: '皮甲', type: 'armor', durability: 15, acBase: 11, dexBonus: 'full', materialTier: 1 },
+      { name: '治疗药水', type: 'consumable', effect: 'heal', value: 15, count: 3 },
+      { name: '火把', type: 'misc', count: 5 },
+      { name: '干粮', type: 'consumable', effect: 'food', count: 4 },
+      { name: '铁矿', type: 'material', count: 8 }
+    );
+    gameState.saveGameData();
+    refreshGameUI();
+    openInventory();
+    displayNarrative('你往背包里塞了一些测试物品。');
+  }
+  window.fillTestInventory = fillTestInventory;
   window.rollDice = function() {
     const r = Math.floor(Math.random() * 20) + 1;
     displayNarrative('\n🎲 你掷出了：' + r + '\n');
@@ -1997,5 +4644,350 @@ function initSettings() {
   };
 </script>
 
-</body>
-</html>
+/* ══════════════════════════════════════
+   登记册脚本（来自 register.html）
+   ══════════════════════════════════════ */
+<script>
+
+var TOTAL_POINTS=18,BASE=8;
+var attrIds=['str','dex','con','wis','int','cha'];
+var attrNames={str:'力量',dex:'敏捷',con:'体质',wis:'感知',int:'智力',cha:'魅力'};
+var raceHints={人类:'适应力：跨种族社交/跨势力交涉不劣势',矮人:'锻造之心：锻造/鉴定/负重相关检定优势',精灵:'自然之眼：草本/魔法鉴定/暗视相关检定优势',羊人:'山地步兵：攀爬/耐力/行军相关检定优势',虎族:'猎手：视觉追踪/近战搏斗检定优势',犬人:'嗅觉追踪/信使任务相关检定优势',灵耳族:'耳语机巧：听觉定位/精密操作检定优势',兔耳族:'超级跳跃：跳跃/闪避/斥候侦查相关检定优势',猫人:'夜目+猫步：夜间行动/潜行/平衡检定优势'};
+
+function switchPage(n){
+  var pages=['p1','p2','p3'];
+  var currentPage=document.querySelector('.page.active');
+  var nextPage=document.getElementById(pages[n-1]);
+  if(currentPage)currentPage.classList.remove('active');
+  nextPage.classList.add('active');
+  nextPage.style.animation='none';void nextPage.offsetWidth;
+  nextPage.style.animation='pageOpen .6s ease-out';
+
+  // 进入Page 3时更新开局叙事
+  if(n===3){
+    updateOpeningNarrative();
+  }
+}
+
+// 身份差异化开场数据
+var IDENTITY_OPENINGS={
+  '佣兵':{scene:'来公会报到登记，接待员递上登记表',greeting:'「新面孔。名字、种族、特质，自己填，填完盖手印。」'},
+  '拾荒者':{scene:'顺路兑战利品，顺手接单',greeting:'「又来兑货？正好，昨晚上新贴了个活。」'},
+  '学者':{scene:'雇向导查资料，接单作野外保障',greeting:'「要雇向导？灰烬森林那边正好有个委托，顺路。」'},
+  '猎人':{scene:'卖猎物顺带问行情，接单',greeting:'「今天的猎物不错。正好有个材料狩猎的活，接不接？」'},
+  '商贩':{scene:'谈供货押运，接单',greeting:'「要谈押运？正好有个灰烬森林的活，顺路。」'},
+  '工匠':{scene:'交订单修装备，接单',greeting:'「修装备？正好，修完有个活给你看看。」'},
+  '医师':{scene:'收药材卖药剂，接单',greeting:'「收药材？正好有个灰烬森林的活，需要医师。」'}
+};
+
+function updateOpeningNarrative(){
+  var identity=document.getElementById('identity').value;
+  var opening=IDENTITY_OPENINGS[identity]||IDENTITY_OPENINGS['佣兵'];
+
+  // 更新身份差异化内容
+  document.getElementById('identityScene').innerHTML=
+    '佣兵公会在主街尽头，门脸不大，一块铁牌歪歪斜斜钉在门框上，写着「自由佣兵联盟」几个褪色的字。推门进去，炭火盆的暖意扑面而来，大厅里已经坐了三两拨人。柜台后一个矮人女人抬起头，'+opening.scene+'。';
+  document.getElementById('identityGreeting').textContent=opening.greeting;
+
+  // 重新触发动画
+  var narrativeBox = document.getElementById('narrativeBox');
+  var lorePs = narrativeBox.querySelectorAll('.lore-p');
+  lorePs.forEach(function(p) {
+    p.style.animation = 'none';
+    void p.offsetWidth;
+    p.style.animation = '';
+  });
+}
+
+function enterGame(){
+  if(typeof saveCharacter==='function') saveCharacter();
+  navigate('game');
+}
+
+// ============ 角色保存（提交到 localStorage） ============
+function saveCharacter() {
+  if (typeof generateOutput !== 'function') return;
+  generateOutput();
+  var name = document.getElementById('name').value || '无名者';
+  var gender = document.getElementById('gender').value;
+  var race = document.getElementById('race').value;
+  var age = parseInt(document.getElementById('age').value) || 25;
+  var identity = document.getElementById('identity').value;
+  var attributes = {
+    力量: parseInt(document.getElementById('str').value),
+    敏捷: parseInt(document.getElementById('dex').value),
+    体质: parseInt(document.getElementById('con').value),
+    智力: parseInt(document.getElementById('int').value),
+    感知: parseInt(document.getElementById('wis').value),
+    魅力: parseInt(document.getElementById('cha').value)
+  };
+  var traits = getTraits() ? getTraits().split(',') : [];
+  var ac = 10 + Math.floor((attributes.敏捷 - 10) / 2);
+  var intVal = attributes.智力;
+  var gameData = {
+    character: { name: name, race: race, gender: gender, age: age, level: 1, exp: 0, expToNextLevel: 100, proficiencyBonus: 2, ac: ac, identity: identity },
+    attributes: attributes,
+    backgrounds: traits,
+    fatePoints: { current: 1, max: 1, lastRefreshDate: null },
+    hp: { current: 100, max: 100 },
+    equipment: { mainHand: { name: '铁剑', type: 'weapon' }, offHand: null, body: null, head: null, hands: null, legs: null, feet: null, shoulders: null, accessory1: null, accessory2: null },
+    inventory: [],
+    currency: { gold: 15 },
+    progress: { currentLocation: '锈钉镇', completedQuests: [], unlockedLocations: ['锈钉镇'], backstory: document.getElementById('out').value },
+    relationships: {},
+    gameTime: { year: 300, month: 11, day: 12, hour: 7, minute: 10, season: '秋' },
+    tone: '',
+    stats: { totalChecks: 0, successfulChecks: 0, criticalSuccesses: 0, criticalFailures: 0, combatsWon: 0, deaths: 0 },
+    meta: { version: '1.0.0', createdAt: Date.now(), lastSavedAt: Date.now(), playTime: 0 }
+  };
+  localStorage.setItem('calamity-game-state', JSON.stringify(gameData));
+
+  // 同步开局数据
+  if (typeof createOpeningData === 'function') {
+    var openingData = createOpeningData({
+      name: name, race: race, gender: gender, age: age, identity: identity, traits: traits.join(','), attributes: attributes
+    });
+    localStorage.setItem('calamityOpening', JSON.stringify(openingData));
+  }
+
+  // 按钮反馈
+  var btn = document.querySelector('.btn.copy');
+  if (btn) {
+    var orig = btn.textContent;
+    btn.textContent = '◈ 已铭刻于记忆 ◈';
+    btn.style.background = 'rgba(184,148,42,0.2)';
+    setTimeout(function() { btn.textContent = orig; btn.style.background = ''; }, 1800);
+  }
+
+  if (typeof updateHomeButtons === 'function') updateHomeButtons();
+}
+
+function createOpeningData(charData){
+  var int=charData.attributes.智力;
+  var dex=charData.attributes.敏捷;
+  var str=charData.attributes.力量;
+
+  return {
+    time:{year:300,month:11,day:12,hour:7,minute:10,display:'灾厄纪年300年11月12日 07:10'},
+    location:{region:'佣兵镇',town:'锈钉',place:'佣兵公会大厅',full:'佣兵镇·锈钉，佣兵公会大厅'},
+    character:{
+      name:charData.name,
+      race:charData.race,
+      identity:charData.identity,
+      gender:charData.gender,
+      age:charData.age,
+      attributes:charData.attributes,
+      talents:charData.traits?charData.traits.split(','):[]
+    },
+    stats:{
+      hp:100,hpMax:100,
+      mp:int*5,mpMax:int*5,
+      gold:15,fatePoint:1,level:1,
+      ac:10+Math.floor((dex-10)/2),
+      carryCapacity:10+str*2
+    },
+    initialQuest:{
+      name:'灰烬森林材料狩猎',
+      type:'佣兵委托',
+      issuer:'佣兵公会',
+      targetArea:'灰烬森林',
+      description:'灰烬森林外围材料狩猎，收集灰烬狼皮和焦木蜥鳞片',
+      objectives:[
+        {id:'obj_1',type:'collect',target:'灰烬狼皮',required:3,current:0,reward:3},
+        {id:'obj_2',type:'collect',target:'焦木蜥鳞片',required:2,current:0,reward:5}
+      ],
+      deadline:{days:3,display:'3天'},
+      rewards:{gold:19,reputation:{faction:'佣兵公会',amount:5}},
+      status:'进行中'
+    },
+    mainPlotHook:{
+      name:'老维特失踪',
+      location:'告示板角落',
+      description:'泛黄旧单，墨迹洇开，铁钉生锈',
+      triggerCondition:'玩家主动询问',
+      reward:'待定'
+    },
+    equipment:{
+      mainHand:{name:'铁剑',type:'剑',durability:80,durabilityMax:80,damage:{dice:1,sides:8},quality:'普通'}
+    },
+    inventory:[],
+    skills:[],
+    spells:[]
+  };
+}
+function mod(v){return Math.floor((v-10)/2)}
+function modStr(v){var m=mod(v);return(m>0?'+':'')+m}
+
+function getTraits(){
+  var cbs=document.querySelectorAll('.trait-cb'),arr=[];
+  for(var i=0;i<cbs.length;i++){if(cbs[i].checked)arr.push(cbs[i].value)}
+  return arr.join(',');
+}
+function toggleTraitPanel(){
+  var p=document.getElementById('talentPanel');
+  p.style.display=(p.style.display==='none')?'grid':'none';
+}
+function onTraitChange(){
+  var cbs=document.querySelectorAll('.trait-cb'),checked=[],over=null;
+  for(var i=0;i<cbs.length;i++){if(cbs[i].checked){checked.push(cbs[i]);if(checked.length>2)over=cbs[i]}}
+  if(over)over.checked=false;
+  var t=getTraits();
+  document.getElementById('traitSummary').textContent=t?'◈ 已铭刻：'+t:'◈ 未铭刻特质（相关检定无优势）';
+  generateOutput();
+}
+
+function used(){var s=0;for(var i=0;i<attrIds.length;i++){s+=parseInt(document.getElementById(attrIds[i]).value)-BASE}return s}
+
+function updatePointsColor(){
+  var left=Math.max(0,TOTAL_POINTS-used()),el=document.getElementById('pointsLeft');
+  el.textContent=left;
+  el.className=left>6?'pts-ok':left>0?'pts-low':'pts-zero';
+}
+
+function updateAttr(cur){
+  if(cur){
+    var el=document.getElementById(cur),v=parseInt(el.value);
+    var otherUsed=used()-(v-BASE),maxAllowed=BASE+(TOTAL_POINTS-otherUsed);
+    if(v>maxAllowed)v=maxAllowed;if(v<3)v=3;el.value=v;
+  }
+  for(var i=0;i<attrIds.length;i++){
+    var id=attrIds[i],el2=document.getElementById(id),val=parseInt(el2.value);
+    document.getElementById(id+'V').textContent=val;
+    var mEl=document.getElementById(id+'M'),m=Math.floor((val-10)/2);
+    mEl.textContent=(m>0?'+':'')+m;
+    mEl.className='mod'+(m<0?' neg':'');
+  }
+  updatePointsColor();
+  var dex=parseInt(document.getElementById('dex').value),str=parseInt(document.getElementById('str').value);
+  document.getElementById('ac').textContent=10+Math.floor((dex-10)/2);
+  document.getElementById('load').textContent=10+str*2;document.getElementById('mp').textContent=parseInt(document.getElementById('int').value)*5;
+  generateOutput();
+}
+
+function updateRaceHint(){
+  var el=document.getElementById('raceHint'),t=raceHints[document.getElementById('race').value]||'';
+  el.textContent=t?'◈ '+t:'';
+}
+
+function generateOutput(){
+  var name=document.getElementById('name').value||'无名者',gender=document.getElementById('gender').value,
+      age=document.getElementById('age').value||25,race=document.getElementById('race').value,
+      identity=document.getElementById('identity').value,traits=getTraits(),
+      str=document.getElementById('str').value,dex=document.getElementById('dex').value,
+      con=document.getElementById('con').value,wis=document.getElementById('wis').value,
+      int=document.getElementById('int').value,cha=document.getElementById('cha').value,
+      ac=10+mod(dex),load=10+str*2;
+  var out='【登记档案】\n'
+    +'姓名: '+name+' ｜ 种族: '+race+' ｜ 身份: '+identity+' ｜ 性别: '+gender+' ｜ 年龄: '+age+'\n'
+    +'[六维] 力量'+str+'('+modStr(str)+') 敏捷'+dex+'('+modStr(dex)+') 体质'+con+'('+modStr(con)+') 感知'+wis+'('+modStr(wis)+') 智力'+int+'('+modStr(int)+') 魅力'+cha+'('+modStr(cha)+')\n'
+    +'HP: 100/100 ｜ MP: '+int*5+' ｜ AC: '+ac+' ｜ 负重: '+load+'kg ｜ 金币: 15\n'
+    +(traits?'[特质] '+traits+'\n':'')
+    +'[初始装备] 铁剑（主手）';
+  document.getElementById('out').value=out;
+}
+
+function copyOutput(){
+  generateOutput();
+  var ta=document.getElementById('out');ta.select();
+  try{document.execCommand('copy')}catch(e){}
+  var btn=document.querySelector('.btn.copy'),orig=btn.textContent;
+  btn.textContent='◈ 已铭刻于记忆 ◈';
+  btn.style.background='rgba(184,148,42,0.2)';
+  setTimeout(function(){btn.textContent=orig;btn.style.background=''},1800);
+}
+
+// 初始化：等待 DOMContentLoaded
+window.addEventListener('DOMContentLoaded', function(){
+  if(typeof updateAttr==='function' && document.getElementById('str')){
+    updateAttr();
+    if(typeof updateRaceHint==='function') updateRaceHint();
+  }
+});
+
+/* ══ 属性值闪烁 ══ */
+(function(){
+  var origUpdate=updateAttr;
+  updateAttr=function(cur){
+    origUpdate(cur);
+    if(cur){var el=document.getElementById(cur+'V');el.classList.add('flash');setTimeout(function(){el.classList.remove('flash')},300)}
+  };
+})();
+
+/* ══ 金色魔法粉尘粒子 ══ */
+(function(){
+  var canvas=document.getElementById('ember-canvas'),ctx=canvas.getContext('2d'),particles=[],MAX=28;
+  function resize(){canvas.width=window.innerWidth;canvas.height=window.innerHeight}
+  resize();window.addEventListener('resize',resize);
+  function P(){
+    this.x=Math.random()*canvas.width;
+    this.y=-10;
+    this.size=Math.random()*2+0.5;
+    this.speedY=Math.random()*0.3+0.05;
+    this.driftX=(Math.random()-0.5)*0.3;
+    this.opacity=Math.random()*0.4+0.15;
+    this.fadeRate=Math.random()*0.001+0.0005;
+    this.wobble=Math.random()*Math.PI*2;
+    this.wobbleSpeed=Math.random()*0.01+0.003;
+    /* 金色为主，少量暖白 */
+    if(Math.random()<0.7){this.r=200+Math.floor(Math.random()*40);this.g=160+Math.floor(Math.random()*40);this.b=40+Math.floor(Math.random()*30)}
+    else{this.r=240;this.g=220;this.b=180}
+  }
+  function loop(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    while(particles.length<MAX)particles.push(new P());
+    for(var i=particles.length-1;i>=0;i--){
+      var p=particles[i];p.y+=p.speedY;p.wobble+=p.wobbleSpeed;
+      p.x+=p.driftX+Math.sin(p.wobble)*0.15;p.opacity-=p.fadeRate;
+      if(p.opacity<=0||p.y>canvas.height+10){particles.splice(i,1);continue}
+      ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
+      ctx.fillStyle='rgba('+p.r+','+p.g+','+p.b+','+p.opacity+')';ctx.fill();
+      /* 柔光 */
+      ctx.beginPath();ctx.arc(p.x,p.y,p.size*2.5,0,Math.PI*2);
+      ctx.fillStyle='rgba('+p.r+','+p.g+','+p.b+','+(p.opacity*0.08)+')';ctx.fill();
+    }
+    requestAnimationFrame(loop);
+  }
+  loop();
+})();
+
+/* ══ 按钮涟漪效果 ══ */
+(function(){
+  var btns=document.querySelectorAll('.btn');
+  for(var i=0;i<btns.length;i++){
+    btns[i].addEventListener('click',function(e){
+      var rect=this.getBoundingClientRect();
+      var x=e.clientX-rect.left,y=e.clientY-rect.top;
+      var size=Math.max(rect.width,rect.height);
+      var ripple=document.createElement('span');
+      ripple.className='ripple';
+      ripple.style.width=ripple.style.height=size+'px';
+      ripple.style.left=(x-size/2)+'px';
+      ripple.style.top=(y-size/2)+'px';
+      this.appendChild(ripple);
+      setTimeout(function(){ripple.remove()},600);
+    });
+  }
+})();
+
+/* ══ 滑块填充进度同步 ══ */
+(function(){
+  function updateFill(){
+    var sliders=document.querySelectorAll('input[type=range]');
+    for(var i=0;i<sliders.length;i++){
+      var s=sliders[i],min=parseInt(s.min)||3,max=parseInt(s.max)||18,val=parseInt(s.value);
+      var pct=((val-min)/(max-min))*100;
+      s.style.setProperty('--fill',pct+'%');
+    }
+  }
+  document.addEventListener('input',function(e){
+    if(e.target.type==='range')updateFill();
+  });
+  updateFill();
+})();
+
+</script>
+
+
+
+
+</body></html>

@@ -553,6 +553,63 @@ var apiService = (function() {
         fetchModels: fetchModels,
         sendTestMessage: sendTestMessage,
         healthCheck: healthCheck,
-        getRunEnv: _getRunEnv
+        getRunEnv: _getRunEnv,
+        // ST 预设接入：把 ST 预设的生成参数合到当前 config
+        applyGenerationParams: applyGenerationParams,
+        resetGenerationParams: resetGenerationParams
     };
 })();
+
+/**
+ * 把 ST 预设的 generation 字段合到当前 apiService.config
+ * 只覆盖非 null 的字段；保留灾厄之后自定义的 endpoint/apiKey/model 不动
+ * @param {Object} generation
+ */
+function applyGenerationParams(generation) {
+    if (!generation || typeof generation !== 'object') return false;
+    var current = apiService.getConfig();
+    var next = Object.assign({}, current);
+    if (typeof generation.temperature === 'number') {
+        next.temperature = generation.temperature;
+    }
+    if (typeof generation.top_p === 'number') {
+        next.topP = generation.top_p;
+        next.topPEnabled = true;
+    }
+    if (typeof generation.top_k === 'number' && generation.top_k > 0) {
+        next.topK = generation.top_k;
+        next.topKEnabled = true;
+    }
+    if (typeof generation.frequency_penalty === 'number') {
+        next.frequencyPenalty = generation.frequency_penalty;
+        next.frequencyPenaltyEnabled = true;
+    }
+    if (typeof generation.presence_penalty === 'number') {
+        next.presencePenalty = generation.presence_penalty;
+        next.presencePenaltyEnabled = true;
+    }
+    if (typeof generation.max_output_tokens === 'number' && generation.max_output_tokens > 0) {
+        next.maxOutputTokens = generation.max_output_tokens;
+    }
+    if (typeof generation.max_context_tokens === 'number' && generation.max_context_tokens > 0) {
+        next.maxContextTokens = generation.max_context_tokens;
+    }
+    if (typeof generation.stream === 'boolean') {
+        next.streamMode = generation.stream ? 'stream' : 'non-stream';
+    }
+    apiService.updateConfig(next);
+    return true;
+}
+
+function resetGenerationParams() {
+    apiService.updateConfig({
+        temperature: 0.9,
+        topP: 1, topPEnabled: false,
+        topK: 200, topKEnabled: false,
+        frequencyPenalty: 0.3, frequencyPenaltyEnabled: false,
+        presencePenalty: 0.2, presencePenaltyEnabled: false,
+        maxOutputTokens: 18000,
+        streamMode: 'stream'
+    });
+    return true;
+}

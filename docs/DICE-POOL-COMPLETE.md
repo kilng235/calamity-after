@@ -1,5 +1,7 @@
 # 骰子池系统完成报告
 
+> ⚠️ **历史记录**：本文档描述 v1 预掷 75 骰版本。当前已升级为 v2.0 实时掷骰（`module/dice-pool.js`），旧版备份于 `dice-pool-prerolled-backup.js`。当前项目状态见 [PROJECT-STATUS.md](../PROJECT-STATUS.md)（已更新至 2026-09-03）。
+>
 > 完成时间：2026-09-02 18:30  
 > 状态：✅ 代码实现完成 + 测试页面完成  
 > 代码量：~400 行
