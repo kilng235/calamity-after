@@ -1746,6 +1746,48 @@
     white-space:nowrap;
   }
 
+  /* ── 任务简报 · 紧凑列表 ── */
+  #quest-list{font-size:13px}
+  .qp-quest{
+    background:rgba(180,160,120,0.08);
+    border-left:2px solid var(--gold);
+    padding:7px 9px 6px;
+    margin-bottom:8px;
+    border-radius:0 2px 2px 0;
+  }
+  .qp-head{display:flex;justify-content:space-between;align-items:baseline;gap:6px}
+  .qp-name{font-size:0.82em;font-weight:700;color:var(--ink);letter-spacing:0.5px}
+  .qp-tag{font-size:0.62em;color:var(--gold);letter-spacing:1px;white-space:nowrap;font-family:"Cinzel","Noto Serif SC",serif}
+  .qp-obj{
+    font-size:0.72em;color:var(--ink-light);
+    margin-top:4px;padding-left:12px;position:relative;line-height:1.5;
+  }
+  .qp-obj::before{content:'◈';position:absolute;left:0;top:0.1em;font-size:0.75em;color:var(--gold)}
+  .qp-obj .qp-prog{
+    color:var(--gold-bright);font-weight:700;
+    font-family:"Cinzel","Noto Serif SC",serif;
+    font-size:0.9em;margin-left:4px;
+  }
+  .qp-obj.done{color:var(--ink-faded);text-decoration:line-through;opacity:0.65}
+  .qp-obj.done::before{content:'✓';color:#4e7038;text-decoration:none}
+  .qp-obj.done .qp-prog{color:var(--ink-faded)}
+  .qp-meta{
+    font-size:0.66em;color:var(--ink-faded);
+    margin-top:5px;padding-top:4px;
+    border-top:1px dashed rgba(106,88,56,0.3);
+    display:flex;flex-wrap:wrap;gap:2px 0;
+  }
+  .qp-meta .qp-sep{margin:0 5px;opacity:0.6}
+  .qp-empty{
+    font-size:0.78em;color:var(--ink-faded);font-style:italic;text-align:center;
+    padding:10px 6px;background:rgba(180,160,120,0.06);
+    border:1px dashed var(--parchment-dark);border-radius:2px;
+  }
+  .qp-count{
+    font-size:0.66em;color:var(--ink-faded);
+    margin-top:2px;text-align:right;opacity:0.85;
+  }
+
   /* 中间正文区 - 羊皮纸长卷 */
   .center-area{
     background:var(--parchment);
@@ -2322,6 +2364,11 @@
 
   <!-- 右侧面板 -->
   <div class="right-panel">
+    <div class="panel-section">
+      <div class="panel-title">◈ 任务简报<span class="panel-latin">Mandatum</span></div>
+      <div id="quest-list"></div>
+    </div>
+
     <div class="panel-section">
       <div class="panel-title">◆ ◇ 快捷操作</div>
       <button class="action-btn" onclick="openInventory()">◈ 打开背包</button>
@@ -3551,6 +3598,7 @@ function clearSTPreset() {
     updateAttributes(gd.attributes);
     updateEquipment(gd.equipment);
     updateInventory(gd.inventory);
+    updateQuests(gd.quests);
 
     // 首次进入：优先渲染「启程」开局叙事（与登记册第ⅲ页同源），无开局数据时退回欢迎语
     const nd = document.getElementById('narrative-display');
@@ -3600,6 +3648,68 @@ function clearSTPreset() {
         '<span class="attr-value">' + value + '</span>';
       list.appendChild(item);
     });
+  }
+
+  function qpEsc(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function qpObjLabel(o) {
+    if (o.target) return String(o.target);
+    const stripped = String(o.description || o.text || '目标')
+      .replace(/（[^）]*）/g, '').replace(/\([^)]*\)$/, '').trim();
+    return stripped || '目标';
+  }
+
+  function updateQuests(quests) {
+    const list = document.getElementById('quest-list');
+    if (!list) return;
+    quests = quests || {};
+    const active = Array.isArray(quests.active) ? quests.active : [];
+    const doneN = Array.isArray(quests.completed) ? quests.completed.length : 0;
+    const failN = Array.isArray(quests.failed) ? quests.failed.length : 0;
+    list.innerHTML = '';
+    if (active.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'qp-empty';
+      empty.textContent = '◈ 暂无进行中的委托';
+      list.appendChild(empty);
+      if (doneN + failN > 0) {
+        const cnt = document.createElement('div');
+        cnt.className = 'qp-count';
+        cnt.textContent = '已完成 ' + doneN + (failN ? ' · 失败 ' + failN : '');
+        list.appendChild(cnt);
+      }
+      return;
+    }
+    active.forEach(q => {
+      const card = document.createElement('div');
+      card.className = 'qp-quest';
+      const tag = [q.type, q.tier].filter(Boolean).join(' · ');
+      let html = '<div class="qp-head"><span class="qp-name">' + qpEsc(q.name) + '</span>' +
+        (tag ? '<span class="qp-tag">' + qpEsc(tag) + '</span>' : '') + '</div>';
+      (Array.isArray(q.objectives) ? q.objectives : []).forEach(o => {
+        if (!o) return;
+        let prog = '';
+        if (o.required != null) prog = (o.current || 0) + '/' + o.required;
+        html += '<div class="qp-obj' + (o.completed ? ' done' : '') + '">' +
+          qpEsc(qpObjLabel(o)) +
+          (prog ? '<span class="qp-prog">' + prog + '</span>' : '') + '</div>';
+      });
+      const metas = [];
+      if (q.giver) metas.push('发布 ' + qpEsc(q.giver));
+      if (q.deadline) metas.push('⏳ ' + qpEsc(typeof q.deadline === 'string' ? q.deadline : (q.deadline.display || '')));
+      if (q.rewards && q.rewards.gold != null) metas.push('赏金 ' + qpEsc(q.rewards.gold));
+      if (metas.length) html += '<div class="qp-meta">' + metas.join('<span class="qp-sep">｜</span>') + '</div>';
+      card.innerHTML = html;
+      list.appendChild(card);
+    });
+    if (doneN + failN > 0) {
+      const cnt = document.createElement('div');
+      cnt.className = 'qp-count';
+      cnt.textContent = '已完成 ' + doneN + (failN ? ' · 失败 ' + failN : '');
+      list.appendChild(cnt);
+    }
   }
 
   function updateEquipment(equipment) {
@@ -3946,6 +4056,7 @@ function clearSTPreset() {
     updateAttributes(gd.attributes);
     updateEquipment(gd.equipment);
     updateInventory(gd.inventory);
+    updateQuests(gd.quests);
   }
   window.refreshGameUI = refreshGameUI;
   window.displayNarrative = displayNarrative;  // 调试/测试钩子
