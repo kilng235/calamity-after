@@ -2335,6 +2335,160 @@
   </div>
 </div>
 
+<style id="narrative-render-style">
+  /* ── 叙事区书页渲染（对齐启程页视觉语言） ── */
+  /* 防遮挡冻结：基态可见 + from 帧淡入（动画不推进也不影响阅读） */
+  #narrative-display .lore-p{
+    opacity:1 !important;
+    animation:loreInFade .7s ease-out both;
+  }
+  @keyframes loreInFade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  #narrative-display .turn-page{
+    position:relative;
+    background:radial-gradient(ellipse 300px 120px at 15% 0%,rgba(140,100,50,0.05) 0%,transparent 70%),rgba(255,250,240,0.22);
+    border:1px solid var(--parchment-dark);
+    border-radius:3px;
+    padding:16px 20px 12px;
+    margin:0 0 22px;
+    box-shadow:inset 0 0 20px rgba(120,100,60,0.06);
+  }
+  #narrative-display .turn-page::before{
+    content:'';position:absolute;top:5px;left:5px;right:5px;bottom:5px;
+    border:1px solid rgba(184,148,42,0.12);border-radius:2px;pointer-events:none;
+  }
+  #narrative-display .turn-head{
+    display:flex;justify-content:space-between;align-items:center;
+    font-size:0.72em;letter-spacing:2px;color:var(--ink-faded);
+    border-bottom:1px solid rgba(184,148,42,0.15);
+    padding-bottom:6px;margin-bottom:10px;
+  }
+  #narrative-display .turn-head .en{
+    font-family:"Cinzel",serif;letter-spacing:3px;text-transform:uppercase;
+    color:var(--gold);opacity:0.7;
+  }
+  #narrative-display .turn-deco{
+    text-align:center;color:var(--gold);font-size:0.88em;letter-spacing:2px;
+    margin:8px 0 12px;opacity:0.9;
+  }
+  #narrative-display .turn-chapter{
+    text-align:center;font-family:"Cinzel","Noto Serif SC",serif;
+    color:var(--gold-bright);font-size:1.12em;letter-spacing:3px;
+    margin:10px 0 12px;text-shadow:0 0 8px var(--gold-glow);
+  }
+  #narrative-display .turn-info{
+    position:relative;border:1px solid rgba(184,148,42,0.25);
+    background:rgba(184,148,42,0.05);padding:10px 14px;margin:10px 0 14px;border-radius:2px;
+  }
+  #narrative-display .turn-info::before{
+    content:'⏣';position:absolute;top:-9px;left:14px;color:var(--gold);
+    background:var(--parchment);padding:0 6px;opacity:0.7;font-size:14px;
+  }
+  #narrative-display .para{
+    margin:8px 0;line-height:1.9;text-indent:2em;color:var(--ink);
+  }
+  #narrative-display .quote-line{
+    color:var(--gold);font-style:italic;border-left:2px solid var(--gold);
+    padding-left:12px;margin:10px 0 10px 4px;line-height:1.9;
+  }
+  #narrative-display .sys-line{
+    color:var(--gold);font-size:0.92em;letter-spacing:0.5px;margin:10px 0;
+  }
+  #narrative-display .player-strip{
+    color:var(--ink-faded);font-style:italic;font-size:0.92em;
+    border-left:2px solid rgba(184,148,42,0.4);padding-left:10px;
+    margin:0 0 16px;
+  }
+  #narrative-display .sys-strip{
+    color:var(--ink-faded);font-size:0.9em;margin:0 0 14px;
+  }
+  #narrative-display .error-strip{
+    color:var(--danger);font-size:0.9em;border-left:2px solid var(--danger);
+    padding-left:10px;margin:0 0 14px;
+  }
+  #narrative-display .plain-pre{
+    font-family:ui-monospace,Consolas,monospace;font-size:0.85em;
+    white-space:pre-wrap;background:rgba(255,250,240,0.35);
+    border-left:2px solid rgba(184,148,42,0.35);padding:8px 12px;margin:8px 0;
+  }
+  /* ── 检定卡 ── */
+  #narrative-display .check-card{
+    position:relative;background:linear-gradient(135deg,rgba(184,148,42,0.08) 0%,rgba(180,160,120,0.10) 100%);
+    border:1px solid var(--gold);border-radius:3px;padding:14px 16px;
+    margin:14px 8px;max-width:440px;box-shadow:0 2px 8px rgba(184,148,42,0.10);
+  }
+  #narrative-display .check-card::before{
+    content:'🎲';position:absolute;top:-10px;right:12px;font-size:18px;opacity:0.75;
+    background:var(--parchment);padding:0 6px;
+  }
+  #narrative-display .ck-title{
+    color:var(--gold-bright);font-weight:bold;letter-spacing:1px;
+    font-family:"Cinzel","Noto Serif SC",serif;margin-bottom:8px;padding-bottom:6px;
+    border-bottom:1px solid rgba(184,148,42,0.25);
+  }
+  #narrative-display .ck-row{
+    display:flex;justify-content:space-between;font-size:0.9em;margin:4px 0;
+  }
+  #narrative-display .ck-row .k{color:var(--ink-faded)}
+  #narrative-display .ck-row .v{color:var(--ink)}
+  #narrative-display .ck-row.total .v{font-size:1.15em;font-weight:bold;color:var(--gold-bright)}
+  #narrative-display .ck-result{
+    margin-top:8px;padding-top:8px;text-align:center;font-weight:bold;
+    letter-spacing:2px;border-top:1px dashed rgba(184,148,42,0.3);
+  }
+  #narrative-display .ck-result.ok{color:var(--gold-bright)}
+  #narrative-display .ck-result.great{color:#fff;background:linear-gradient(90deg,var(--gold),var(--gold-light));border-radius:2px;padding:4px}
+  #narrative-display .ck-result.fail{color:var(--danger)}
+  #narrative-display .ck-result.awful{color:#fff;background:var(--danger);border-radius:2px;padding:4px}
+  /* ── 战斗卡 ── */
+  #narrative-display .battle-card{
+    position:relative;background:linear-gradient(135deg,rgba(138,42,26,0.06) 0%,rgba(120,80,40,0.08) 100%);
+    border:1px solid var(--danger);border-radius:3px;padding:14px 16px;margin:14px 4px;
+  }
+  #narrative-display .battle-card::before{
+    content:'⚔';position:absolute;top:-10px;right:12px;font-size:18px;opacity:0.75;
+    background:var(--parchment);padding:0 6px;color:var(--danger);
+  }
+  #narrative-display .bt-banner{
+    text-align:center;color:var(--danger);font-weight:bold;letter-spacing:3px;
+    font-family:"Cinzel","Noto Serif SC",serif;margin:8px 0;
+  }
+  #narrative-display .battle-card.end .bt-banner{color:var(--gold-bright)}
+  #narrative-display .bt-init{font-size:0.9em;color:var(--ink);margin:6px 0}
+  #narrative-display .bt-dist{font-size:0.85em;color:var(--ink-faded);font-style:italic;margin:2px 0}
+  #narrative-display .bt-turn{
+    display:flex;align-items:center;gap:10px;text-align:center;
+    color:var(--gold);letter-spacing:2px;font-size:0.9em;margin:12px 0 6px;
+  }
+  #narrative-display .bt-turn::before,#narrative-display .bt-turn::after{
+    content:'';flex:1;border-top:1px solid rgba(184,148,42,0.35);
+  }
+  #narrative-display .bt-actor{
+    color:var(--gold-bright);font-weight:bold;letter-spacing:1px;margin:10px 0 4px;
+  }
+  #narrative-display .bt-action{font-size:0.92em;color:var(--ink);margin:2px 0}
+  #narrative-display .bt-roll{
+    font-family:"Cinzel","Noto Serif SC",serif;font-size:0.88em;color:var(--ink-faded);
+    background:rgba(255,250,240,0.4);border-left:2px solid rgba(184,148,42,0.4);
+    padding:3px 8px;margin:4px 0;
+  }
+  #narrative-display .bt-hit{color:var(--gold-bright);font-weight:bold;margin:2px 0}
+  #narrative-display .bt-miss{color:var(--ink-faded);margin:2px 0}
+  #narrative-display .bt-crit{
+    color:var(--gold-bright);font-weight:bold;
+    background:linear-gradient(90deg,rgba(184,148,42,0.18),transparent);
+    padding:3px 8px;margin:4px 0;
+  }
+  #narrative-display .bt-dmg{
+    font-size:0.95em;font-weight:bold;color:var(--danger);margin:2px 0 8px;
+    display:flex;align-items:baseline;gap:8px;
+  }
+  #narrative-display .bt-dmg .num{font-size:1.6em;font-family:"Cinzel",serif}
+  #narrative-display .bt-result{
+    text-align:center;color:var(--gold-bright);font-weight:bold;
+    margin-top:8px;padding-top:8px;border-top:1px dashed rgba(138,42,26,0.3);
+  }
+</style>
+
 <!-- 用 <script> 同步加载 IIFE 模块（不依赖 ES module 上下文） -->
 
 
@@ -3458,13 +3612,203 @@ function clearSTPreset() {
     });
   }
 
+  // ── 叙事区书页渲染层（对齐启程页视觉语言） ──
+  // 铁律：逐块解析、识别失败回退原文本，绝不丢内容
+  const NARRATIVE_LATIN = { battle: 'Bellum', check: 'Examen', quest: 'Mandatum', def: 'Profectio' };
+
+  function eln(tag, cls, text) {
+    const node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  function isJunkLine(line) {
+    return /^\s*[╔═╗╚╝║╠╣━─—=\s]*$/.test(line);
+  }
+
+  function renderTimeHeader(line) {
+    const m = line.match(/^\s*[-—–]{2,}\s*✦\s*(.*?)\s*✦\s*[-—–]{2,}\s*$/);
+    return m ? eln('div', 'turn-deco', '─── ✦ ' + m[1] + ' ✦ ───') : null;
+  }
+
+  // 普通文本逐行分类渲染（段落缓冲合并连续行）
+  function renderPlainLines(container, raw) {
+    const lines = String(raw).split('\n');
+    let paraBuf = [];
+    const flushPara = () => {
+      if (!paraBuf.length) return;
+      const para = paraBuf.join('').trim();
+      paraBuf = [];
+      if (!para) return;
+      const useLore = !container.querySelector('.lore-p, .para');
+      container.appendChild(eln('p', useLore ? 'lore-p' : 'para', para));
+    };
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line) { flushPara(); continue; }
+      const time = renderTimeHeader(line);
+      if (time) { flushPara(); container.appendChild(time); continue; }
+      if (isJunkLine(line)) { flushPara(); continue; }
+      if (/^[【\[]/.test(line)) {
+        flushPara(); container.appendChild(eln('div', 'turn-chapter', line.replace(/[【】]/g, ''))); continue;
+      }
+      if (/^[「『]/.test(line)) { flushPara(); container.appendChild(eln('div', 'quote-line', line)); continue; }
+      if (/^[◈🎲]/.test(line)) { flushPara(); container.appendChild(eln('div', 'sys-line', line)); continue; }
+      if (/^(⚠️|❌)/.test(line)) { flushPara(); container.appendChild(eln('div', 'error-strip', line)); continue; }
+      if (/^>/.test(line)) { flushPara(); container.appendChild(eln('div', 'player-strip', line.replace(/^>\s?/, '❯ '))); continue; }
+      paraBuf.push(line);
+    }
+    flushPara();
+  }
+
+  // 检定块：框线字段解析（宽松），对抗检定兼容 JSON 变体；解析失败回退原文本
+  function renderCheckBlock(inner) {
+    const card = eln('div', 'check-card');
+    const trimmed = String(inner).replace(/^\n+|\s+$/g, '');
+
+    let j = null;
+    try { j = JSON.parse(trimmed); } catch (e) { /* 非 JSON */ }
+    if (j && typeof j === 'object' && !Array.isArray(j) && (j.yourTotal !== undefined || j.type === 'opposed')) {
+      card.appendChild(eln('div', 'ck-title', (j.skill || '对抗检定') + ' · 对抗'));
+      card.appendChild(buildCkRow('我方总值', j.yourTotal));
+      card.appendChild(buildCkRow('对方总值', j.opponentTotal));
+      const ok = j.success === true;
+      const res = eln('div', 'ck-result ' + (ok ? 'ok' : 'fail'), ok ? '✧ 对抗成功 ✧' : '✗ 对抗失败 ✗');
+      card.appendChild(res);
+      return card;
+    }
+
+    const lines = trimmed.split('\n')
+      .map(l => l.replace(/[║╔╗╚╝╠╣═]/g, '').trim())
+      .filter(l => l && !isJunkLine(l));
+    if (!lines.length) { card.appendChild(eln('div', 'plain-pre', trimmed)); return card; }
+
+    const rows = {};
+    let title = '检定';
+    let unknown = 0;
+    for (let i = 0; i < lines.length; i++) {
+      const m = lines[i].match(/^([^：:]{1,6})[:：]\s*(.+)$/);
+      if (m && i > 0) { rows[m[1].trim()] = m[2].trim(); }
+      else if (i === 0) { title = lines[0].replace(/^[\s⚡🏃🔍🥷💬😠🎯💪✨📚🎲]+/, '').trim() || '检定'; }
+      else { unknown++; }
+    }
+
+    const resultText = rows['结果'] || '';
+    const hasCore = rows['骰值'] || rows['总计'] || resultText;
+    if (!hasCore) { card.appendChild(eln('div', 'plain-pre', trimmed)); return card; }
+
+    card.appendChild(eln('div', 'ck-title', title));
+    if (rows['骰值']) card.appendChild(buildCkRow('骰值', rows['骰值']));
+    if (rows['调整']) card.appendChild(buildCkRow('调整', rows['调整']));
+    if (rows['总计']) { const r = buildCkRow('总计', rows['总计']); r.classList.add('total'); card.appendChild(r); }
+    if (rows['难度']) card.appendChild(buildCkRow('难度', rows['难度']));
+    for (const k of Object.keys(rows)) {
+      if (['骰值', '调整', '总计', '难度', '结果'].includes(k)) continue;
+      card.appendChild(buildCkRow(k, rows[k]));
+    }
+    if (resultText) {
+      let cls = 'ok';
+      if (/大成功/.test(resultText)) cls = 'great';
+      else if (/大失败/.test(resultText)) cls = 'awful';
+      else if (/失败/.test(resultText)) cls = 'fail';
+      card.appendChild(eln('div', 'ck-result ' + cls, resultText));
+    }
+    return card;
+  }
+
+  function buildCkRow(k, v) {
+    const row = eln('div', 'ck-row');
+    row.appendChild(eln('span', 'k', k));
+    row.appendChild(eln('span', 'v', String(v)));
+    return row;
+  }
+
+  // 战斗块：行级结构识别（横幅/先攻/距离/回合/行动者/检定/命中/重击/伤害/结果）
+  function renderBattleBlock(inner) {
+    const card = eln('div', 'battle-card');
+    for (const rawLine of String(inner).split('\n')) {
+      const line = rawLine.trim();
+      if (!line) continue;
+      if (/战斗开始/.test(line)) { card.appendChild(eln('div', 'bt-banner', '⚔️ 战斗开始')); continue; }
+      if (/战斗结束/.test(line)) { card.classList.add('end'); card.appendChild(eln('div', 'bt-banner', '⚔️ 战斗结束')); continue; }
+      if (isJunkLine(line)) continue;
+      let m;
+      if ((m = line.match(/^先攻顺序[:：]\s*(.+)$/))) { card.appendChild(eln('div', 'bt-init', '✦ 先攻：' + m[1])); continue; }
+      if ((m = line.match(/^交战距离[:：]\s*(.+)$/))) { card.appendChild(eln('div', 'bt-dist', '↔ ' + m[1])); continue; }
+      if ((m = line.match(/^[-━─]{2,}\s*第\s*(.+?)\s*回合\s*[-━─]{2,}$/)) || (m = line.match(/^第\s*(.+?)\s*回合$/))) {
+        card.appendChild(eln('div', 'bt-turn', '第 ' + m[1] + ' 回合')); continue;
+      }
+      if ((m = line.match(/^【(.+?)】\s*(.*)$/))) { card.appendChild(eln('div', 'bt-actor', '◆ ' + m[1] + (m[2] ? '　' + m[2] : ''))); continue; }
+      if (/^行动[:：]/.test(line)) { card.appendChild(eln('div', 'bt-action', line)); continue; }
+      if (/^\[.*\]$/.test(line)) {
+        if (/伤害/.test(line)) {
+          const num = (line.match(/(\d+)/) || [])[1];
+          if (num) {
+            const d = eln('div', 'bt-dmg');
+            d.appendChild(eln('span', null, '伤'));
+            d.appendChild(eln('span', 'num', num));
+            card.appendChild(d);
+          } else { card.appendChild(eln('div', 'bt-dmg', line)); }
+        } else { card.appendChild(eln('div', 'bt-roll', line)); }
+        continue;
+      }
+      if (/^✓/.test(line)) { card.appendChild(eln('div', 'bt-hit', line)); continue; }
+      if (/^✗/.test(line)) { card.appendChild(eln('div', 'bt-miss', line)); continue; }
+      if (/💥|重击/.test(line)) { card.appendChild(eln('div', 'bt-crit', line)); continue; }
+      if (/胜利|战败|逃脱|击败|已死亡/.test(line)) { card.appendChild(eln('div', 'bt-result', line)); continue; }
+      card.appendChild(eln('p', 'para', line));
+    }
+    return card;
+  }
+
+  // 单行短消息 → 紧凑条（玩家输入/错误/掷骰/系统提示，不整页）
+  function renderCompactLine(line) {
+    const t = line.trim();
+    if (/^>/.test(t)) return eln('div', 'player-strip', t.replace(/^>\s?/, '❯ '));
+    if (/^(⚠️|❌)/.test(t)) return eln('div', 'error-strip', t);
+    if (/^[🎲◈]/.test(t)) return eln('div', 'sys-line', t);
+    return eln('div', 'sys-strip', t);
+  }
+
+  function renderNarrativePage(rawText) {
+    const text = String(rawText || '');
+    const trimmed = text.trim();
+    const contentLines = trimmed.split('\n').filter(l => l.trim() && !isJunkLine(l));
+    const hasCardTag = /<(check|battle)>/i.test(text);
+    if (!hasCardTag && contentLines.length <= 1) {
+      return renderCompactLine(trimmed);
+    }
+
+    const page = eln('div', 'turn-page');
+    let latin = NARRATIVE_LATIN.def;
+    if (/<battle>/i.test(text)) latin = NARRATIVE_LATIN.battle;
+    else if (/<check>/i.test(text)) latin = NARRATIVE_LATIN.check;
+    else if (/任务|委托/.test(text)) latin = NARRATIVE_LATIN.quest;
+    const head = eln('div', 'turn-head');
+    head.appendChild(eln('span', null, '✦ 冒险记录'));
+    head.appendChild(eln('span', 'en', latin));
+    page.appendChild(head);
+
+    // 拆 <check>/<battle> 块（未闭合时兜底取到文本末尾）
+    const parts = text.split(/(<check>[\s\S]*?<\/check>|<battle>[\s\S]*?<\/battle>)/i);
+    for (const part of parts) {
+      if (!part) continue;
+      let m;
+      if ((m = part.match(/^<check>([\s\S]*?)<\/check>$/i))) { page.appendChild(renderCheckBlock(m[1])); continue; }
+      if ((m = part.match(/^<battle>([\s\S]*?)<\/battle>$/i))) { page.appendChild(renderBattleBlock(m[1])); continue; }
+      if (/<check>/i.test(part)) { page.appendChild(renderCheckBlock(part.replace(/^<check>/i, ''))); continue; }
+      if (/<battle>/i.test(part)) { page.appendChild(renderBattleBlock(part.replace(/^<battle>/i, ''))); continue; }
+      const plain = part.replace(/<\/?(content|check|battle|命令|SUMMARY|MAIN_TEXT)>/gi, '');
+      if (plain.trim()) renderPlainLines(page, plain);
+    }
+    return page;
+  }
+
   function displayNarrative(text) {
     const display = document.getElementById('narrative-display');
-    const div = document.createElement('div');
-    div.style.marginBottom = '20px';
-    div.style.whiteSpace = 'pre-wrap';
-    div.textContent = text;
-    display.appendChild(div);
+    if (!display) return;
+    display.appendChild(renderNarrativePage(text));
     display.scrollTop = display.scrollHeight;
   }
 
@@ -3581,6 +3925,7 @@ function clearSTPreset() {
     updateInventory(gd.inventory);
   }
   window.refreshGameUI = refreshGameUI;
+  window.displayNarrative = displayNarrative;  // 调试/测试钩子
 
   function saveToHistory(userInput, aiResponse) {
     try {
