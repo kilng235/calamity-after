@@ -1752,22 +1752,9 @@
     font-weight:700;
     color:var(--ink);
     line-height:1.15;
-    margin:5px 0;
+    margin:6px 0 2px;
     text-shadow:0 1px 0 rgba(255,255,255,0.4);
   }
-  .attr-mod{
-    display:inline-block;
-    font-family:"Cinzel",serif;
-    font-size:0.72em;
-    font-weight:700;
-    letter-spacing:1px;
-    padding:1px 9px;
-    border-radius:8px;
-    line-height:1.5;
-  }
-  .attr-mod.pos{color:#4e7038;background:rgba(78,112,56,0.10);border:1px solid rgba(78,112,56,0.35)}
-  .attr-mod.neg{color:var(--danger);background:rgba(138,42,26,0.07);border:1px solid rgba(138,42,26,0.30)}
-  .attr-mod.zero{color:var(--ink-faded);background:rgba(106,88,56,0.08);border:1px solid rgba(106,88,56,0.25)}
 
   /* 中间正文区 - 羊皮纸长卷 */
   .center-area{
@@ -3615,17 +3602,12 @@ function clearSTPreset() {
     if (!list) return;
     list.innerHTML = '';
     Object.entries(attributes || {}).forEach(([name, value]) => {
-      const modifier = (typeof checkSystem !== 'undefined' && checkSystem.calculateModifier)
-        ? checkSystem.calculateModifier(value) : Math.floor((value - 10) / 2);
-      const modStr = modifier > 0 ? '+' + modifier : String(modifier);
-      const modCls = modifier > 0 ? 'pos' : (modifier < 0 ? 'neg' : 'zero');
       const item = document.createElement('div');
       item.className = 'attr-item';
       item.innerHTML =
         '<span class="attr-name">' + name + '</span>' +
         '<span class="attr-en">' + (ATTR_EN[name] || '') + '</span>' +
-        '<span class="attr-value">' + value + '</span>' +
-        '<span class="attr-mod ' + modCls + '">' + modStr + '</span>';
+        '<span class="attr-value">' + value + '</span>';
       list.appendChild(item);
     });
   }
