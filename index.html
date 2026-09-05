@@ -2292,6 +2292,17 @@
   #narrative-display .it-row:last-child{border-bottom:none}
   #narrative-display .it-name{font-weight:bold;color:var(--gold);font-size:0.98em}
   #narrative-display .it-desc{color:var(--ink);font-size:0.9em;line-height:1.55;margin-top:1px}
+  /* ST 预设管理面板 */
+  #preset-list{max-height:52vh;overflow-y:auto}
+  .ps-row{display:flex;gap:8px;align-items:flex-start;padding:6px 8px;background:rgba(180,160,120,0.10);border:1px solid var(--parchment-dark);border-left:2px solid var(--gold);border-radius:2px;margin-bottom:5px}
+  .ps-row.ps-off{opacity:0.55;border-left-color:var(--parchment-dark)}
+  .ps-row input[type=checkbox]{margin-top:3px;accent-color:var(--gold)}
+  .ps-main{flex:1;min-width:0}
+  .ps-name{font-size:13px;color:var(--ink);font-weight:bold;cursor:pointer;word-break:break-all}
+  .ps-name:hover{color:var(--gold)}
+  .ps-meta{font-size:11px;color:var(--ink-faded);margin-top:2px}
+  .ps-pre{display:none;margin-top:6px;padding:8px;background:rgba(255,250,240,0.55);border:1px solid var(--parchment-dark);border-radius:2px;font-size:12px;line-height:1.5;color:var(--ink);max-height:200px;overflow-y:auto;white-space:pre-wrap;word-break:break-all}
+  .ps-pre.open{display:block}
   #narrative-display .ck-result{
     margin-top:8px;padding-top:8px;text-align:center;font-weight:bold;
     letter-spacing:2px;border-top:1px dashed rgba(184,148,42,0.3);
@@ -2369,6 +2380,27 @@
 </section>
 
   <!-- ═══ 页面：设置（迁自 settings.html） ═══ -->
+<!-- ST 预设管理面板 -->
+<div class="inv-overlay" id="preset-overlay" onclick="if(event.target===this)closePresetOverlay()">
+  <div class="inv-panel" style="max-width:760px">
+    <div class="inv-header">
+      <span>◈ ST 预设管理 ◈</span>
+      <button class="inv-close" onclick="closePresetOverlay()"></button>
+    </div>
+    <div class="inv-body">
+      <div id="preset-info"></div>
+      <div class="vec-tabs">
+        <button class="btn" onclick="presetToggleAll(true)" style="flex:1;padding:6px 4px">◈ 全部启用</button>
+        <button class="btn" onclick="presetToggleAll(false)" style="flex:1;padding:6px 4px">◈ 全部禁用</button>
+        <button class="btn" onclick="renderPresetPanel()" style="flex:1;padding:6px 4px">↺ 刷新</button>
+      </div>
+      <input type="text" id="preset-filter" placeholder="◈ 筛选提示词名称..." oninput="renderPresetPanel()">
+      <div id="preset-list"></div>
+    </div>
+  </div>
+</div>
+
+
   <section id="view-settings" class="view active">
     <div class="page active">
       <div class="candle-glow"></div>
@@ -2527,7 +2559,7 @@
         <div id="preset-status" class="hint">当前未导入 ST 预设</div>
         <div class="btn-row">
           <button class="btn" onclick="document.getElementById('preset-file').click()">📥 导入 ST 预设</button>
-          <button class="btn" onclick="viewSTPreset()">👁 查看预设</button>
+          <button class="btn" onclick="openPresetOverlay()">👁 查看预设</button>
           <button class="btn" onclick="clearSTPreset()">🗑 清除预设</button>
         </div>
         <input type="file" id="preset-file" accept=".json" style="display:none" onchange="handleSTPresetFile(event)">
@@ -3122,50 +3154,169 @@ async function handleSTPresetFile(event) {
   event.target.value = '';
 }
 
-function viewSTPreset() {
-  var preset = presetImporter.加载当前预设();
+// ── ST 预设管理面板：按有效执行顺序列出条目，逐条启用/禁用（即时保存生效），点击名称展开内容 ──
+function _presetEffectiveList(preset) {
+  const items = [];
+  const order = presetImporter.获取酒馆预设顺序(preset, null);
+  const map = new Map(preset.prompts.map(p => [p.identifier, p]));
+  const mk = (identifier, name, opts) => Object.assign(
+    { identifier, name, role: 'system', isMarker: true, enabled: true, words: 0, content: '' }, opts || {});
+  if (order && Array.isArray(order.order)) {
+    order.order.forEach(item => {
+      if (!item) return;
+      if (item.identifier === 'worldInfoBefore' || item.identifier === 'worldInfoAfter') {
+        items.push(mk(item.identifier, item.identifier === 'worldInfoBefore' ? '◈ 世界书注入点（前）' : '◈ 世界书注入点（后）', { enabled: item.enabled !== false }));
+        return;
+      }
+      if (item.identifier === 'chatHistory') {
+        items.push(mk('chatHistory', '◈ 对话历史分割点（chatHistory）', { enabled: item.enabled !== false }));
+        return;
+      }
+      const p = map.get(item.identifier);
+      if (p) {
+        items.push(mk(p.identifier, p.name, {
+          role: p.role, isMarker: p.marker,
+          enabled: item.enabled !== false && p.enabled !== false,
+          words: (p.content || '').length, content: p.content || ''
+        }));
+      } else {
+        items.push(mk(item.identifier, item.identifier + '（预设库中缺失）', { enabled: item.enabled !== false }));
+      }
+    });
+    const inOrder = new Set(order.order.map(o => o && o.identifier));
+    preset.prompts.forEach(p => {
+      if (inOrder.has(p.identifier)) return;
+      items.push(mk(p.identifier, p.name + ' ⚠未编入执行顺序（不会被发送）', {
+        isMarker: p.marker, enabled: false,
+        words: (p.content || '').length, content: p.content || ''
+      }));
+    });
+  } else {
+    preset.prompts.forEach(p => items.push(mk(p.identifier, p.name, {
+      role: p.role, isMarker: p.marker, enabled: p.enabled !== false,
+      words: (p.content || '').length, content: p.content || ''
+    })));
+  }
+  return items;
+}
+
+function _persistPreset(preset) {
+  preset.meta.enabled_count = preset.prompts.filter(p => p.enabled).length;
+  presetImporter.保存预设(preset);
+  if (presetImporter.加载启用状态() && window.promptBuilder && promptBuilder.setSTPreset) {
+    promptBuilder.setSTPreset(preset);   // 启用中：即时生效（下一次对话即用新启用集）
+  }
+  loadSTPresetUI();
+}
+
+function presetSetEnabled(identifier, checked) {
+  const preset = presetImporter.加载当前预设();
+  if (!preset) return;
+  preset.prompts.forEach(p => { if (p.identifier === identifier) p.enabled = checked; });
+  (preset.prompt_order || []).forEach(ord => (ord.order || []).forEach(item => {
+    if (item.identifier === identifier) item.enabled = checked;
+  }));
+  _persistPreset(preset);
+  renderPresetPanel();
+}
+
+function presetToggleAll(checked) {
+  const preset = presetImporter.加载当前预设();
+  if (!preset) return;
+  // 只动普通条目；chatHistory / worldInfo 等结构标记保持原状，避免破坏消息链
+  preset.prompts.forEach(p => {
+    if (p.marker || /^(chatHistory|worldInfoBefore|worldInfoAfter)$/.test(p.identifier)) return;
+    p.enabled = checked;
+  });
+  (preset.prompt_order || []).forEach(ord => (ord.order || []).forEach(item => {
+    if (!item || /^(chatHistory|worldInfoBefore|worldInfoAfter)$/.test(item.identifier)) return;
+    item.enabled = checked;
+  }));
+  _persistPreset(preset);
+  renderPresetPanel();
+}
+
+function renderPresetPanel() {
+  const preset = presetImporter.加载当前预设();
+  const infoEl = document.getElementById('preset-info');
+  const listEl = document.getElementById('preset-list');
+  if (!preset || !listEl) return;
+  const items = _presetEffectiveList(preset);
+  const kw = ((document.getElementById('preset-filter') || {}).value || '').trim().toLowerCase();
+  const g = preset.generation;
+  if (infoEl) {
+    infoEl.innerHTML = '';
+    const line = document.createElement('div');
+    line.style.cssText = 'font-size:12px;color:var(--ink-light);margin-bottom:8px;font-style:italic';
+    line.textContent = preset.meta.source_name + ' ｜ 条目 ' + items.length + ' · 启用 '
+      + items.filter(i => i.enabled && !i.isMarker).length
+      + ' ｜ 温度 ' + g.temperature + ' · 输出上限 ' + g.max_output_tokens
+      + ' ｜ ' + (presetImporter.加载启用状态() ? '已启用（即时生效）' : '预设未启用（勾选「启用 ST 导入预设」后生效）');
+    infoEl.appendChild(line);
+  }
+  listEl.innerHTML = '';
+  let shown = 0;
+  items.forEach((it, idx) => {
+    if (kw && (it.name || '').toLowerCase().indexOf(kw) < 0) return;
+    shown++;
+    const row = document.createElement('div');
+    row.className = 'ps-row' + (it.enabled ? '' : ' ps-off');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = it.enabled;
+    cb.onchange = function() { presetSetEnabled(it.identifier, cb.checked); };
+    row.appendChild(cb);
+    const main = document.createElement('div');
+    main.className = 'ps-main';
+    const name = document.createElement('div');
+    name.className = 'ps-name';
+    name.textContent = (idx + 1) + '. ' + it.name;
+    name.title = '点击展开/收起内容预览';
+    name.onclick = function() {
+      const pre = main.querySelector('.ps-pre');
+      if (pre) pre.classList.toggle('open');
+    };
+    main.appendChild(name);
+    const meta = document.createElement('div');
+    meta.className = 'ps-meta';
+    meta.textContent = (it.isMarker ? '结构标记' : it.role) + ' · ' + it.words + ' 字';
+    main.appendChild(meta);
+    if (it.content) {
+      const pre = document.createElement('pre');
+      pre.className = 'ps-pre';
+      pre.textContent = it.content;
+      main.appendChild(pre);
+    }
+    row.appendChild(main);
+    listEl.appendChild(row);
+  });
+  if (!shown) {
+    const el = document.createElement('div');
+    el.className = 'vec-empty';
+    el.textContent = kw ? '◈ 无匹配条目' : '◈ 预设为空';
+    listEl.appendChild(el);
+  }
+}
+
+function openPresetOverlay() {
+  const preset = presetImporter.加载当前预设();
   if (!preset) {
     alert('当前未导入 ST 预设');
     return;
   }
-  var lines = [];
-  lines.push('═══ ST 预设概览 ═══');
-  lines.push('名称：' + (preset.meta.source_name || '未命名'));
-  lines.push('导入时间：' + new Date(preset.meta.imported_at).toLocaleString());
-  lines.push('');
-  lines.push('── 生成参数 ──');
-  var g = preset.generation;
-  lines.push('  temperature: ' + g.temperature);
-  lines.push('  top_p: ' + g.top_p + (g.top_p !== 1 ? '（启用）' : ''));
-  lines.push('  frequency_penalty: ' + g.frequency_penalty);
-  lines.push('  presence_penalty: ' + g.presence_penalty);
-  lines.push('  max_output_tokens: ' + g.max_output_tokens);
-  lines.push('');
-  lines.push('── 提示词条目（共 ' + preset.prompts.length + ' 条，启用 ' +
-    preset.prompts.filter(function(p){return p.enabled;}).length + ' 条）──');
-  for (var i = 0; i < preset.prompts.length; i++) {
-    var p = preset.prompts[i];
-    lines.push('  [' + (i + 1) + '] ' + p.name + (p.enabled ? '' : '（已禁用）') +
-      ' · ' + p.role + ' · ' + p.content.length + '字');
-  }
-  if (preset.prompt_order && preset.prompt_order.length) {
-    lines.push('');
-    lines.push('── 注入顺序（按 character_id）──');
-    for (var j = 0; j < preset.prompt_order.length; j++) {
-      var ord = preset.prompt_order[j];
-      lines.push('  character_id=' + ord.character_id + ' · ' + ord.order.length + ' 条');
-    }
-  }
-  if (preset.variables && Object.keys(preset.variables).length) {
-    lines.push('');
-    lines.push('── 变量宏（{{setvar::}}）──');
-    for (var k in preset.variables) {
-      lines.push('  ' + k + ' = ' + preset.variables[k].slice(0, 30) +
-        (preset.variables[k].length > 30 ? '...' : ''));
-    }
-  }
-  alert(lines.join('\n'));
+  renderPresetPanel();
+  document.getElementById('preset-overlay').classList.add('open');
 }
+
+function closePresetOverlay() {
+  const ov = document.getElementById('preset-overlay');
+  if (ov) ov.classList.remove('open');
+}
+window.openPresetOverlay = openPresetOverlay;
+window.closePresetOverlay = closePresetOverlay;
+window.renderPresetPanel = renderPresetPanel;
+window.presetSetEnabled = presetSetEnabled;
+window.presetToggleAll = presetToggleAll;
 
 function clearSTPreset() {
   if (!confirm('确定要清除当前 ST 预设吗？')) return;
