@@ -39,10 +39,10 @@ const defaultGameData = {
   // 背景特长
   backgrounds: [],
   
-  // 命运点
+  // 命运点（上限 3；「身份时刻」按身份体系结算增加）
   fatePoints: {
     current: 1,
-    max: 1,
+    max: 3,
     lastRefreshDate: null
   },
   
@@ -171,6 +171,8 @@ export function loadGameData() {
           prog.currentPlace = '';
         }
       }
+      // 命运点上限迁移：旧规则固定 1，新规则固定 3（身份时刻奖励循环）
+      if (loaded.fatePoints && Number(loaded.fatePoints.max) === 1) loaded.fatePoints.max = 3;
       gameData = mergeWithDefaults(loaded, defaultGameData);
       console.log('✓ 游戏数据已加载');
       return true;
@@ -294,10 +296,10 @@ export function useFatePoint() {
 }
 
 /**
- * 刷新命运点（每游戏日）
+ * 刷新命运点（每游戏日）：为 0 时补至 1，不回满——身份时刻（见「身份体系」）才是主要获取途径
  */
 export function refreshFatePoints() {
-  gameData.fatePoints.current = gameData.fatePoints.max;
+  if (gameData.fatePoints.current <= 0) gameData.fatePoints.current = 1;
   gameData.fatePoints.lastRefreshDate = Date.now();
   saveGameData();
   console.log('✓ 命运点已刷新');
