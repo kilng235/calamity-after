@@ -2293,19 +2293,6 @@
   #narrative-display .it-row:last-child{border-bottom:none}
   #narrative-display .it-name{font-weight:bold;color:var(--gold);font-size:0.98em}
   #narrative-display .it-desc{color:var(--ink);font-size:0.9em;line-height:1.55;margin-top:1px}
-  /* 战斗信息面板（battle-tracker） */
-  #combat-info{font-size:13px}
-  .bi-head{font-size:12px;color:var(--ink-light);font-style:italic;margin-bottom:6px}
-  .bi-row{display:flex;align-items:center;gap:6px;margin-bottom:5px}
-  .bi-name{flex:0 0 auto;max-width:76px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink);font-size:12px}
-  .bi-hp{flex:1;height:8px;background:rgba(120,100,60,0.25);border-radius:4px;overflow:hidden}
-  .bi-hp-fill{height:100%;background:linear-gradient(90deg,#a33c3c,#c95f3c);transition:width 0.3s}
-  .bi-hp-text{flex:0 0 auto;font-size:11px;color:var(--ink-faded);font-variant-numeric:tabular-nums}
-  .bi-dead .bi-name,.bi-dead .bi-hp-text{text-decoration:line-through;opacity:0.5}
-  .bi-dead .bi-hp-fill{background:#666}
-  .bi-result{margin-top:4px;padding:3px 8px;border-radius:2px;font-weight:bold;text-align:center}
-  .bi-result.win{color:#7ba05b;background:rgba(123,160,91,0.12)}
-  .bi-result.lose{color:var(--danger);background:rgba(163,60,60,0.10)}
   /* ST 预设管理面板 */
   #preset-list{max-height:52vh;overflow-y:auto}
   .ps-row{display:flex;gap:8px;align-items:flex-start;padding:6px 8px;background:rgba(180,160,120,0.10);border:1px solid var(--parchment-dark);border-left:2px solid var(--gold);border-radius:2px;margin-bottom:5px}
@@ -2767,7 +2754,6 @@ window.addEventListener('DOMContentLoaded', function() {
 <script src="module/memory-api.js"></script>
 <script src="module/story-engine.js"></script>
 <script src="module/identity-system.js"></script>
-<script src="module/battle-tracker.js"></script>
 <script>
 'use strict';
 
@@ -4049,8 +4035,6 @@ function clearSTPreset() {
           console.warn('[MemorySystem] 撤销回滚失败:', e && e.message || e);
         });
       }
-      // 战斗面板与叙事流对齐：从剩余的最后一张战斗卡重建
-      if (window.battleTracker) battleTracker.rebuildFromNarrative();
       mountUndoBar(nd);
     } catch (e) {
       console.error('撤销失败:', e);
@@ -4304,15 +4288,6 @@ function clearSTPreset() {
       // 解析并显示正文
       const parsed = responseParser.run(responseContent);
       displayNarrative('\n' + parsed.mainText);
-
-      // 战斗追踪：本回复含 battle 卡则摄取最新一张，刷新战斗信息面板
-      if (window.battleTracker) {
-        const battleCards = parsed.mainText.match(/<battle>([\s\S]*?)<\/battle>/gi) || [];
-        if (battleCards.length) {
-          battleTracker.ingest(battleCards[battleCards.length - 1].replace(/<\/?battle>/gi, ''), gd);
-          battleTracker.renderPanel();
-        }
-      }
 
       // 应用命令 + 任务块（两条都走深拷贝工作流，最后一次性落盘）
       let finalGd = gd;
