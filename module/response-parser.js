@@ -62,6 +62,14 @@ var responseParser = (function () {
 
     // ==================== 正文提取 ====================
 
+    /** 剥离 HTML 注释（预设隐藏指令被 AI 回显进正文时不展示） */
+    function stripHtmlComments(text) {
+        return String(text || '')
+            .replace(/<!--[\s\S]*?-->/g, '')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+    }
+
     function extractMainText(text) {
         if (!text) return '';
 
@@ -677,7 +685,7 @@ var responseParser = (function () {
         return {
             raw: rawText,
             cleanedText: cleaned,
-            mainText: extractMainText(cleaned),
+            mainText: stripHtmlComments(extractMainText(cleaned)),
             summaries: extractSummaries(cleaned),
             commandBlockFound: commandBlock.found,
             commandBlockClosed: commandBlock.closed,

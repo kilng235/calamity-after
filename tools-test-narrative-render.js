@@ -27,7 +27,11 @@ function makeNode(tag) {
   };
   return node;
 }
-const doc = { createElement: makeNode };
+const doc = {
+  createElement: makeNode,
+  createTextNode: (t) => ({ tagName: '#text', children: [], _text: String(t) })
+};
+// makeNode 的 appendChild 记录子节点；#text 节点同样走 children 数组，dump 以 _text 呈现
 const sb = { console, document: doc };
 vm.createContext(sb);
 vm.runInContext(rendererSrc + `\nfunction displayNarrative(text){ return renderNarrativePage(text); }`, sb);
@@ -155,8 +159,20 @@ const intro = `----- ✦ 灾厄300年11月12日 07:10 ✦ -----
 ◈ 当前委托：灰烬森林材料狩猎：灰烬狼皮（0/3）、焦木蜥鳞片（0/2），时限 3天。`;
 const p6 = vm.runInContext('displayNarrative(' + JSON.stringify(intro) + ')', sb);
 check('章节头', find(p6, 'turn-chapter'));
-check('委托行', find(p6, 'sys-line') && JSON.stringify(p6).includes('当前委托'));
+// 委托行自任务卡片功能起渲染为 turn-quest 卡（不再是 sys-line）
+check('委托行（任务卡片）', find(p6, 'turn-quest') && JSON.stringify(p6).includes('当前委托'));
 check('拉丁词 Mandatum(含委托)', p6.children[0].children[1]._text === 'Mandatum');
+
+// 7. 物品清单卡片（段内连写与逐行列表）
+const shopText = `货架上还摆着:
+- **治疗药水**: 2金币（浅红色液体）
+- **暗视药剂**: 3金币（夜视4小时）
+
+吧台旁的麻袋里: **粗制面罩**: 1金币（过滤灰烬雾霭）**干粮袋**: 1金币（黑面包与咸肉）`;
+const p7 = vm.runInContext('displayNarrative(' + JSON.stringify(shopText) + ')', sb);
+check('物品卡片×2（逐行+段内连写）', (JSON.stringify(p7).match(/item-card/g) || []).length >= 2);
+check('物品名金色高亮行存在', find(p7, 'it-name') && find(p7, 'it-desc'));
+check('无裸露星号', !JSON.stringify(p7).includes('**'));
 
 console.log('\n结果: ' + pass + ' 通过 / ' + fail + ' 失败');
 process.exit(fail ? 1 : 0);
