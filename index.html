@@ -2398,7 +2398,7 @@
         
         <button type="button" class="inline-btn" onclick="sendTestMsg()" style="">📨 发送测试消息</button><div class="feedback" id="test-result" style="min-height: 2.6em;"></div>
 
-        <label style="">◈ 温度 Temperature <span id="temp-val" style="color:var(--gold)">0.9</span></label>
+        <label style="">◈ 温度 Temperature <span id="temp-val" style="color:var(--gold)">0.9</span> <span style="color:var(--ink-faded);font-size:0.85em">（主剧情生成温度；记忆压缩固定 0.3 不受影响）</span></label>
         <input type="range" id="temperature" min="0" max="2" step="0.05" value="0.9" style="width: 100%; accent-color: var(--gold); --fill: 300%;" oninput="document.getElementById('temp-val').textContent=this.value">
 
         <div class="field-grid" style="margin-top: 8px;">
@@ -2411,6 +2411,7 @@
             <input type="number" id="max-context-tokens" min="1000" max="2000000" step="1000" value="500000">
           </div>
         </div>
+        <div class="hint" style="">上下文窗口填你所用模型的实际上下文长度（如 128000）：历史消息超出预算时自动从最旧的开始裁剪，系统提示词与最新消息始终保留。</div>
 
         <div class="field-grid" style="">
           <div>
@@ -2430,7 +2431,7 @@
             <input type="number" id="pres-penalty" min="-2" max="2" step="0.05" value="0.2">
           </div>
         </div>
-        <div class="hint" style="">惩罚与 Top P/Top K 默认不启用（勾选后才随请求发送）。</div>
+        <div class="hint" style="">惩罚与 Top P/Top K 默认不启用（勾选后才随请求发送）；Top K 仅 Gemini 生效，OpenAI 兼容接口不发送该字段。</div>
 
         <div class="check-row" style="">
           <input type="checkbox" id="cors-enabled">
@@ -4072,7 +4073,11 @@ function clearSTPreset() {
       // 构建提示词（附滚动对话上下文，保证多轮叙事连续性）
       let prompt;
       try {
-        prompt = promptBuilder.buildMessages({ gameData: gd, userMessage: message, history: loadChatContext() });
+        prompt = promptBuilder.buildMessages({
+          gameData: gd,
+          userMessage: message,
+          history: fitHistoryBudget(loadChatContext(), gd, message)
+        });
       } catch (e) {
         console.warn('buildMessages 异常，用最小提示词:', e);
         prompt = { messages: [
@@ -4089,8 +4094,8 @@ function clearSTPreset() {
       if (!apiConfig || !apiConfig.apiKey) throw new Error('未配置 API Key，请先到「设置」填写');
       const aiResult = await apiService.sendMessages(prompt.messages, {
         model: apiConfig.model,
-        temperature: 0.8,
         stream: false
+        // 温度不在此覆盖，回退到设置页的 Temperature 滑杆（cfg.temperature）
       });
       const responseContent = (aiResult && aiResult.content)
         ? aiResult.content
@@ -4139,8 +4144,37 @@ function clearSTPreset() {
     }
   };
 
-  function refreshGameUI() {
-    const gd = gameState.getGameData();
+  // 上下文窗口预算：按「上下文窗口 Token」设置裁剪历史消息（超出时从最旧的开始丢，越新越优先保留）
+  function fitHistoryBudget(history, gd, userMessage) {
+    const cfg = apiService.getConfig();
+    const budget = (cfg && cfg.maxContextTokens) || 500000;
+    const est = s => Math.ceil(String(s || '').length * 0.65) + 8;   // 中文≈0.65 token/字 + 每条消息开销
+    // 估算头部体积（系统提示词+世界书+注入块+本次输入）：用空历史探针构建一次
+    let headTokens = 0;
+    try {
+      let scanText = '';
+      for (let i = history.length - 1; i >= 0; i--) {
+        if (history[i] && history[i].role === 'assistant' && history[i].content) { scanText = history[i].content; break; }
+      }
+      const probe = promptBuilder.buildMessages({ gameData: gd, userMessage: userMessage, history: [], lastAssistantReply: scanText });
+      headTokens = probe.messages.reduce((s, m) => s + est(m && m.content), 0);
+    } catch (e) { headTokens = 0; }
+    let used = headTokens;
+    const kept = [];
+    for (let i = history.length - 1; i >= 0; i--) {
+      const t = est(history[i] && history[i].content);
+      // 最新 2 条无条件保留：即使头部已超预算，也不至于把最近的对话上下文裁光
+      if (used + t > budget && (history.length - 1 - i) >= 2) break;
+      used += t;
+      kept.unshift(history[i]);
+    }
+    if (kept.length < history.length) {
+      console.log('[Context] 预算裁剪：历史 ' + history.length + ' 条 → 保留 ' + kept.length + ' 条（预算 ' + budget + ' token）');
+    }
+    return kept;
+  }
+
+  function refreshGameUI() {    const gd = gameState.getGameData();
     document.getElementById('char-level').textContent = gd.character.level;
     document.getElementById('char-exp').textContent = gd.character.exp + '/' + gd.character.expToNextLevel;
     document.getElementById('gold-text').textContent = gd.currency.gold;
@@ -4158,6 +4192,7 @@ function clearSTPreset() {
     updateQuests(gd.quests);
   }
   window.refreshGameUI = refreshGameUI;
+  window.fitHistoryBudget = fitHistoryBudget;  // 调试/测试钩子
   window.displayNarrative = displayNarrative;  // 调试/测试钩子
 
   function saveToHistory(userInput, aiResponse) {

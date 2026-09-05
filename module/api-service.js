@@ -115,7 +115,8 @@ var apiService = (function() {
     // isGemini=true 时用 Gemini 的 camelCase 字段名，否则用 OpenAI 兼容的 snake_case。
     function _applyExtraSamplerParams(target, isGemini) {
         if (config.topPEnabled) target[isGemini ? 'topP' : 'top_p'] = config.topP;
-        if (config.topKEnabled) target[isGemini ? 'topK' : 'top_k'] = config.topK;
+        // top_k 仅 Gemini 原生支持；OpenAI 兼容接口会忽略该字段，严格实现还可能报 4xx，故不发送
+        if (config.topKEnabled && isGemini) target.topK = config.topK;
         if (config.frequencyPenaltyEnabled) target[isGemini ? 'frequencyPenalty' : 'frequency_penalty'] = config.frequencyPenalty;
         if (config.presencePenaltyEnabled) target[isGemini ? 'presencePenalty' : 'presence_penalty'] = config.presencePenalty;
     }
