@@ -93,6 +93,7 @@ var commandProcessor = (function () {
 
         var progress = gd.progress = gd.progress || {};
         progress.currentLocation = 规范化文本(progress.currentLocation, '锈钉镇');
+        progress.currentPlace = 规范化文本(progress.currentPlace || '', '');
         if (!Array.isArray(progress.completedQuests)) progress.completedQuests = [];
         if (!Array.isArray(progress.unlockedLocations)) progress.unlockedLocations = ['锈钉镇'];
 

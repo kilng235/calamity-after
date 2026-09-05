@@ -4262,12 +4262,14 @@ function clearSTPreset() {
     document.getElementById('char-exp').textContent = gd.character.exp + '/' + gd.character.expToNextLevel;
     document.getElementById('gold-text').textContent = gd.currency.gold;
     document.getElementById('fate-points').textContent = gd.fatePoints.current + '/' + gd.fatePoints.max;
-    // 顶栏时间（随命令引擎的 gameTime 同步）；位置在角色信息面板
+    // 顶栏时间（随命令引擎的 gameTime 同步）；位置在角色信息面板（据点 + 具体场所）
     const t = gd.gameTime || {};
     const pad = n => (n < 10 ? '0' + n : '' + n);
     document.getElementById('time-text').textContent =
       (t.year || 300) + '年' + (t.month || 1) + '月' + (t.day || 1) + '日 ' + pad(t.hour || 0) + ':' + pad(t.minute || 0);
-    document.getElementById('char-location').textContent = (gd.progress && gd.progress.currentLocation) || '未知';
+    const loc = (gd.progress && gd.progress.currentLocation) || '未知';
+    const place = gd.progress && gd.progress.currentPlace;
+    document.getElementById('char-location').textContent = place ? loc + ' · ' + place : loc;
     updateHPBar(gd.hp.current, gd.hp.max);
     updateAttributes(gd.attributes);
     updateEquipment(gd.equipment);
@@ -4588,7 +4590,7 @@ function saveCharacter() {
     equipment: { mainHand: { name: '铁剑', type: 'weapon' }, offHand: null, body: null, head: null, hands: null, legs: null, feet: null, shoulders: null, accessory1: null, accessory2: null },
     inventory: [],
     currency: { gold: 15 },
-    progress: { currentLocation: '佣兵镇·锈钉', completedQuests: [], unlockedLocations: ['佣兵镇·锈钉'], backstory: document.getElementById('out').value },
+    progress: { currentLocation: '佣兵镇·锈钉', currentPlace: '佣兵公会大厅', completedQuests: [], unlockedLocations: ['佣兵镇·锈钉'], backstory: document.getElementById('out').value },
     relationships: {},
     quests: { active: [], completed: [], failed: [] },
     skills: [],

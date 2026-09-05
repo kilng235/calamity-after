@@ -83,6 +83,7 @@ const defaultGameData = {
   // 游戏进度
   progress: {
     currentLocation: '佣兵镇',
+    currentPlace: '',
     completedQuests: [],
     unlockedLocations: ['佣兵镇']
   },
