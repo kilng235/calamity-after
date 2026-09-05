@@ -2270,6 +2270,28 @@
   #narrative-display .ck-row .k{color:var(--ink-faded)}
   #narrative-display .ck-row .v{color:var(--ink)}
   #narrative-display .ck-row.total .v{font-size:1.15em;font-weight:bold;color:var(--gold-bright)}
+  /* 物品清单卡片（商店/物资/战利品） */
+  #narrative-display .item-card{
+    position:relative;background:linear-gradient(135deg,rgba(184,148,42,0.08) 0%,rgba(180,160,120,0.10) 100%);
+    border:1px solid var(--gold);border-radius:3px;padding:12px 14px;
+    margin:14px 8px;max-width:440px;box-shadow:0 2px 8px rgba(184,148,42,0.10);
+  }
+  #narrative-display .item-card::before{
+    content:'🎒';position:absolute;top:-10px;right:12px;font-size:18px;opacity:0.75;
+    background:var(--parchment);padding:0 6px;
+  }
+  #narrative-display .it-title{
+    color:var(--gold-bright);font-weight:bold;letter-spacing:1px;
+    font-family:"Cinzel","Noto Serif SC",serif;margin-bottom:8px;padding-bottom:6px;
+    border-bottom:1px solid rgba(184,148,42,0.25);
+  }
+  #narrative-display .it-row{
+    display:flex;flex-direction:column;padding:5px 2px;
+    border-bottom:1px dotted rgba(140,110,60,0.18);
+  }
+  #narrative-display .it-row:last-child{border-bottom:none}
+  #narrative-display .it-name{font-weight:bold;color:var(--gold);font-size:0.98em}
+  #narrative-display .it-desc{color:var(--ink);font-size:0.9em;line-height:1.55;margin-top:1px}
   #narrative-display .ck-result{
     margin-top:8px;padding-top:8px;text-align:center;font-weight:bold;
     letter-spacing:2px;border-top:1px dashed rgba(184,148,42,0.3);
@@ -3577,20 +3599,81 @@ function clearSTPreset() {
   }
 
   // 普通文本逐行分类渲染（段落缓冲合并连续行）
+  // 物品清单卡片：识别 "**名称**: 描述" 的连续列表行或段内连写（商店/物资/战利品），无需 AI 协议配合
+  function buildItemCard(intro, items) {
+    const card = eln('div', 'item-card');
+    const title = (intro || '').replace(/[：:]\s*$/, '').trim();
+    card.appendChild(eln('div', 'it-title', title && title.length <= 30 ? title : '物资清单'));
+    for (const it of items) {
+      const row = eln('div', 'it-row');
+      row.appendChild(eln('span', 'it-name', it.name));
+      const desc = eln('span', 'it-desc', it.desc);
+      row.appendChild(desc);
+      card.appendChild(row);
+    }
+    return card;
+  }
+
+  // 段内连写检测：一段文字里出现 ≥2 个 "**名称**: 描述" 组 → 整段转为物品卡片
+  function tryBuildItemCardFromPara(para) {
+    const re = /\*\*([^*]+)\*\*\s*[:：]\s*/g;
+    const matches = [];
+    let m;
+    while ((m = re.exec(para)) !== null) matches.push(m);
+    if (matches.length < 2) return null;
+    const intro = para.slice(0, matches[0].index).trim();
+    const items = [];
+    for (let i = 0; i < matches.length; i++) {
+      const start = matches[i].index + matches[i][0].length;
+      const end = i + 1 < matches.length ? matches[i + 1].index : para.length;
+      items.push({ name: matches[i][1].trim(), desc: para.slice(start, end).trim() });
+    }
+    return buildItemCard(intro, items);
+  }
+
+  // 普通段落里的 **加粗** 渲染为 <b>（避免裸露星号）
+  function appendBoldAware(el, text) {
+    const parts = String(text).split(/\*\*([^*]+)\*\*/g);
+    for (let i = 0; i < parts.length; i++) {
+      if (!parts[i]) continue;
+      if (i % 2) { const b = document.createElement('b'); b.textContent = parts[i]; el.appendChild(b); }
+      else { el.appendChild(document.createTextNode(parts[i])); }
+    }
+  }
+
   function renderPlainLines(container, raw) {
     const lines = String(raw).split('\n');
     let paraBuf = [];
+    let itemBuf = [];
     const flushPara = () => {
       if (!paraBuf.length) return;
       const para = paraBuf.join('').trim();
       paraBuf = [];
       if (!para) return;
+      // 段内 ≥2 组 "**名称**: 描述" → 物品卡片
+      const card = tryBuildItemCardFromPara(para);
+      if (card) { container.appendChild(card); return; }
       const useLore = !container.querySelector('.lore-p, .para');
-      container.appendChild(eln('p', useLore ? 'lore-p' : 'para', para));
+      const p = eln('p', useLore ? 'lore-p' : 'para');
+      appendBoldAware(p, para);
+      container.appendChild(p);
     };
+    const flushItems = () => {
+      if (!itemBuf.length) return;
+      if (itemBuf.length >= 2) {
+        container.appendChild(buildItemCard('', itemBuf));
+      } else {
+        paraBuf.push('**' + itemBuf[0].name + '**：' + itemBuf[0].desc);
+      }
+      itemBuf = [];
+    };
+    const flushAll = () => { flushPara(); flushItems(); };
     for (const rawLine of lines) {
       const line = rawLine.trim();
-      if (!line) { flushPara(); continue; }
+      if (!line) { flushAll(); continue; }
+      const itemLine = line.match(/^[-·*]?\s*\*\*([^*]+)\*\*\s*[:：]\s*(.+)$/);
+      if (itemLine) { flushPara(); itemBuf.push({ name: itemLine[1].trim(), desc: itemLine[2].trim() }); continue; }
+      flushItems();
       const time = renderTimeHeader(line);
       if (time) { flushPara(); container.appendChild(time); continue; }
       if (isJunkLine(line)) { flushPara(); continue; }
@@ -3604,7 +3687,7 @@ function clearSTPreset() {
       if (/^>/.test(line)) { flushPara(); container.appendChild(eln('div', 'player-strip', line.replace(/^>\s?/, '❯ '))); continue; }
       paraBuf.push(line);
     }
-    flushPara();
+    flushAll();
   }
 
   // 检定块：框线字段解析（宽松），对抗检定兼容 JSON 变体；解析失败回退原文本
