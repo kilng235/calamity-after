@@ -4484,7 +4484,8 @@ function clearSTPreset() {
       if (item.durability !== undefined) {
         const dur = document.createElement('span');
         dur.className = 'inv-slot-dur';
-        dur.textContent = '耐久 ' + item.durability;
+        const d = item.durability;
+        dur.textContent = (d && typeof d === 'object') ? '耐久 ' + d.current + '/' + d.max : '耐久 ' + d;
         row.appendChild(dur);
       }
       const btn = document.createElement('button');
@@ -4532,7 +4533,8 @@ function clearSTPreset() {
         if (item.durability !== undefined) {
           const dur = document.createElement('span');
           dur.className = 'inv-slot-dur';
-          dur.textContent = '耐久 ' + item.durability;
+          const d = item.durability;
+          dur.textContent = (d && typeof d === 'object') ? '耐久 ' + d.current + '/' + d.max : '耐久 ' + d;
           row.appendChild(dur);
         }
         // 操作按钮
