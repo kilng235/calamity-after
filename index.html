@@ -3396,18 +3396,9 @@ function clearSTPreset() {
       return;
     }
 
-    // 填 UI
+    // 填 UI（refreshGameUI 覆盖含顶栏时间与角色信息面板位置的完整状态）
     document.querySelector('#player-name span').textContent = gd.character.name;
-    document.getElementById('char-race').textContent = gd.character.race || '人类';
-    document.getElementById('char-level').textContent = gd.character.level;
-    document.getElementById('char-exp').textContent = gd.character.exp + '/' + gd.character.expToNextLevel;
-    document.getElementById('gold-text').textContent = gd.currency.gold;
-    document.getElementById('fate-points').textContent = gd.fatePoints.current + '/' + gd.fatePoints.max;
-    updateHPBar(gd.hp.current, gd.hp.max);
-    updateAttributes(gd.attributes);
-    updateEquipment(gd.equipment);
-    updateInventory(gd.inventory);
-    updateQuests(gd.quests);
+    refreshGameUI();
 
     // 首次进入：优先渲染「启程」开局叙事（与登记册第ⅲ页同源），无开局数据时退回欢迎语
     const nd = document.getElementById('narrative-display');
@@ -4479,7 +4470,7 @@ function saveCharacter() {
     equipment: { mainHand: { name: '铁剑', type: 'weapon' }, offHand: null, body: null, head: null, hands: null, legs: null, feet: null, shoulders: null, accessory1: null, accessory2: null },
     inventory: [],
     currency: { gold: 15 },
-    progress: { currentLocation: '锈钉镇', completedQuests: [], unlockedLocations: ['锈钉镇'], backstory: document.getElementById('out').value },
+    progress: { currentLocation: '佣兵镇·锈钉', completedQuests: [], unlockedLocations: ['佣兵镇·锈钉'], backstory: document.getElementById('out').value },
     relationships: {},
     quests: { active: [], completed: [], failed: [] },
     skills: [],
