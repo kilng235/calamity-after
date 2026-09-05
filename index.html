@@ -2496,8 +2496,8 @@
           <input type="checkbox" id="cors-enabled">
           <label for="cors-enabled" style="margin:0">启用 CORS 代理（网页直连被拦时勾选）</label>
         </div>
-        <input type="text" id="cors-proxy" placeholder="代理地址（默认已内置 Worker）" style="">
-        <div class="hint" style="">本地 file:// 或 APK 环境默认关闭代理；网页部署时可能需要开启。</div>
+        <input type="text" id="cors-proxy" placeholder="自建代理地址（如 Cloudflare Worker，可选）" style="">
+        <div class="hint" style="">默认关闭、不再内置公共代理。仅当直连被跨域拦截时，自建一个转发 Worker 并填入地址启用——公共代理会经手你的 API Key 与全部对话内容，慎用。</div>
 
         <hr class="divider" style="">
         <h2 style="">◈ Ⅱ. 显示设置</h2>

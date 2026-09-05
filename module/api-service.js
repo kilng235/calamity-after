@@ -21,17 +21,10 @@ var apiService = (function() {
         maxOutputTokens: 18000,
         maxContextTokens: 500000,
         streamMode: 'stream',  // 'stream' 流式 | 'non-stream' 非流式（正文与总结统一遵循）
-        corsProxyUrl: 'https://jxz-cors-proxy.nicholaswuai.workers.dev/',  // 部署后替换为你的 Worker 地址
-        // 是否启用 CORS 代理。默认按环境：web 默认开启，本地 file:// / APK(webview) / Electron 默认关闭。
-        // 用户在配置页勾选后可覆盖（APK 勾选后也能走代理）。
-        corsProxyEnabled: (function() {
-            try {
-                if (typeof process !== 'undefined' && process.versions && process.versions.electron) return false;
-                if (typeof window !== 'undefined' && window.Android) return false;
-                if (typeof window !== 'undefined' && window.location && window.location.protocol === 'file:') return false;
-                return true; // web
-            } catch (e) { return true; }
-        })()
+        corsProxyUrl: '',      // 不内置第三方代理；需要跨域中转时在设置页填入自建代理地址（如 Cloudflare Worker）
+        // 是否启用 CORS 代理。默认关闭（已移除内置第三方 Worker——经公共代理转发的 Key 与对话内容存在泄露风险）。
+        // 用户在配置页填入自建代理地址并勾选后才启用。
+        corsProxyEnabled: false
     };
 
     function loadConfig() {
@@ -39,10 +32,15 @@ var apiService = (function() {
             var saved = localStorage.getItem('jxz_apiConfig');
             if (saved) {
                 var parsed = JSON.parse(saved);
-                // corsProxyUrl 若用户从未手动改过（为空），保留代码默认值
-                var defaultProxy = config.corsProxyUrl;
                 Object.assign(config, parsed);
-                if (!config.corsProxyUrl) config.corsProxyUrl = defaultProxy;
+                // 迁移：清除历史版本内置的第三方公共代理（jxz-cors-proxy Worker）——
+                // 旧存档 localStorage 里可能仍保存着该地址，一并清除并停用
+                if (config.corsProxyUrl && config.corsProxyUrl.indexOf('jxz-cors-proxy') >= 0) {
+                    config.corsProxyUrl = '';
+                    config.corsProxyEnabled = false;
+                    try { saveConfig(); } catch (e) { /* ignore */ }   // 一次性洗掉 localStorage 里的旧地址
+                    console.warn('[API] 已清除内置第三方 CORS 代理（隐私风险），如需中转请在设置页配置自建代理');
+                }
             }
         } catch (e) {
             console.warn('加载 API 配置失败', e);
