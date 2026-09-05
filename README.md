@@ -3,6 +3,8 @@
 > 废土西幻 RPG · D20 检定 · 原生 JS 零依赖
 > 独立 Web 应用：浏览器直接运行，无需构建、无需后端、不依赖 SillyTavern
 
+**🎮 在线游玩**：<https://kilng235.github.io/calamity-after/>
+
 ---
 
 ## 项目概述
