@@ -79,9 +79,10 @@
 
 ## 🔄 更新日志
 
-### 2026-09-05（晚·战斗引擎加固 P0）
-- 死引擎冻结：combat-system/creature-system 移入 `module/legacy/`，双状态源暗雷消除
+### 2026-09-05（晚·战斗引擎加固 P0/P1）
+- P0 死引擎冻结：combat-system/creature-system 移入 `module/legacy/`，双状态源暗雷消除
 - 生物数据整合：JS 独有 10 只迁移为世界书 yaml（世界书生物 22→32 只）；修复 `buildCreatureWorldbook` 在 Object.assign 时遮蔽静态 yaml 生物条目的活体 bug；生物单一事实源确立
+- P1 战斗追踪器+侧栏面板：实现后经评估**移除**（玩家决定不需要战斗面板）——战斗过程仅保留在叙事区战斗卡内；敌人 HP 行协议随面板一并回退；蓝图 P2/P3（数学校验警示/长回合收敛）待定
 - 附带清理：narrative-system 的死 import；index.html 两个冻结模块 import
 
 ### 2026-09-05
