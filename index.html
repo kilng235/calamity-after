@@ -2058,7 +2058,7 @@
     <div class="panel-section">
       <div class="panel-title">◆ ◇ 快捷操作</div>
       <button class="action-btn" onclick="openInventory()">◈ 打开背包</button>
-      <button class="action-btn" onclick="openVecOverlay()">◈ 向量记忆库</button>
+      <button class="action-btn" onclick="openVecOverlay()">◈ 记忆系统</button>
       <button class="action-btn" onclick="openSettings()">◈ 设置</button>
       <button class="action-btn" onclick="navigate('home')">◈ 返回首页</button>
     </div>
@@ -2097,26 +2097,35 @@
   </div>
 </div>
 
-<!-- 向量记忆库弹窗 -->
+<!-- 记忆系统查看器弹窗 -->
 <div class="inv-overlay" id="vec-overlay" onclick="if(event.target===this)closeVecOverlay()">
   <div class="inv-panel">
     <div class="inv-header">
-      <span>◈ 向量记忆库 ◈</span>
+      <span>◈ 记忆系统 ◈</span>
       <button class="inv-close" onclick="closeVecOverlay()"></button>
     </div>
     <div class="inv-body">
       <div id="vec-stats"></div>
-      <input type="text" id="vec-filter" placeholder="◈ 筛选纪要关键词..." oninput="renderVecList()">
+      <div class="vec-tabs">
+        <button class="vec-tab vec-tab-active" data-tab="story" onclick="switchVecTab('story')">常驻线</button>
+        <button class="vec-tab" data-tab="chronicle" onclick="switchVecTab('chronicle')">编年史</button>
+        <button class="vec-tab" data-tab="summary" onclick="switchVecTab('summary')">纪要</button>
+      </div>
+      <input type="text" id="vec-filter" placeholder="◈ 筛选关键词..." oninput="renderVecList()">
       <div id="vec-list"></div>
-      <button class="btn" onclick="vecBackfill()" style="width:100%;margin-top:12px">◈ 补算未向量化纪要 ◈</button>
-      <button class="btn" onclick="clearVectorMemory()" style="width:100%;margin-top:8px;border-color:var(--danger);color:var(--danger)">◈ 清空全部记忆向量 ◈</button>
+      <button class="btn" onclick="vecRecompute()" style="width:100%;margin-top:12px">◈ 重算常驻线（修复） ◈</button>
+      <button class="btn" onclick="clearVectorMemory()" style="width:100%;margin-top:8px;border-color:var(--danger);color:var(--danger)">◈ 清空全部记忆 ◈</button>
     </div>
   </div>
 </div>
 
 <style id="narrative-render-style">
-  /* ── 向量记忆库查看器 ── */
+  /* ── 记忆系统查看器 ── */
   #vec-stats{font-size:12px;color:var(--ink-light);margin-bottom:8px;font-style:italic}
+  .vec-tabs{display:flex;gap:6px;margin-bottom:8px}
+  .vec-tab{flex:1;padding:6px 4px;background:rgba(255,250,240,0.4);border:1px solid var(--parchment-dark);border-radius:2px;font-family:"Noto Serif SC",serif;font-size:12px;color:var(--ink-light);cursor:pointer}
+  .vec-tab:hover{border-color:var(--gold)}
+  .vec-tab-active{background:rgba(184,148,42,0.18);border-color:var(--gold);color:var(--ink);font-weight:bold}
   #vec-filter{width:100%;padding:8px 10px;background:rgba(255,250,240,0.5);border:1px solid var(--parchment-dark);border-radius:2px;font-family:"Noto Serif SC",serif;font-size:13px;color:var(--ink);margin-bottom:10px}
   #vec-filter:focus{outline:none;border-color:var(--gold)}
   .vec-entry{margin-bottom:6px;padding:8px 10px;background:rgba(180,160,120,0.12);border:1px solid var(--parchment-dark);border-left:2px solid var(--gold);border-radius:2px}
@@ -2438,10 +2447,27 @@
         <input type="number" id="autosave-interval" min="1" max="60" value="5" style="">
 
         <hr class="divider" style="">
-        <h2 style="">◈ Ⅳ. 向量化记忆（可选）</h2>
+        <h2 style="">◈ Ⅳ. 记忆系统</h2>
+        <div class="check-row" style="">
+          <input type="checkbox" id="mem-enabled" checked="">
+          <label for="mem-enabled" style="margin:0">启用记忆系统 <span style="color:var(--ink-faded);font-size:0.85em">（编年史 + 滚动合并常驻线，每层自动归档）</span></label>
+        </div>
+        <div class="hint" style="">每层剧情自动归档纪要与编年史行；每 20 层压缩一篇纪事，攒满自动合并为卷宗/典章常驻注入，远期主线不失忆。</div>
+        <label style="">◈ 副API 地址 <span style="color:var(--ink-faded);font-size:0.85em">（记忆压缩专用，留空跟随主对话 API）</span></label>
+        <input type="text" id="mem-api-endpoint" placeholder="https://api.example.com/v1" style="">
+        <div class="field-grid" style="">
+          <div>
+            <label>◈ 副API 密钥</label>
+            <input type="password" id="mem-api-key" placeholder="独立 Key，可指派廉价模型">
+          </div>
+          <div>
+            <label>◈ 模型名称</label>
+            <input type="text" id="mem-api-model" placeholder="如 deepseek-chat">
+          </div>
+        </div>
         <div class="check-row" style="">
           <input type="checkbox" id="emb-enabled">
-          <label for="emb-enabled" style="margin:0">启用向量召回 <span style="color:var(--ink-faded);font-size:0.85em">（召回语义相关的历史摘要）</span></label>
+          <label for="emb-enabled" style="margin:0">向量记忆 <span style="color:var(--ink-faded);font-size:0.85em">（可选增强：语义召回历史楼层）</span></label>
         </div>
         <label style="">◈ Embedding 地址</label>
         <input type="text" id="emb-endpoint" placeholder="https://api.siliconflow.cn/v1" style="">
@@ -2661,6 +2687,9 @@ window.addEventListener('DOMContentLoaded', function() {
 <script src="module/embedding-service.js"></script>
 <script src="module/vector-store.js"></script>
 <script src="module/legacy/memory-recall.js"></script>
+<script src="module/memory-store.js"></script>
+<script src="module/memory-api.js"></script>
+<script src="module/story-engine.js"></script>
 <script>
 'use strict';
 
@@ -2896,6 +2925,30 @@ async function testEmbedding(){
   }
 }
 
+/* ── 记忆系统配置（总开关 + 副API；向量开关联动 embeddingService） ── */
+function loadMemoryConfig(){
+  try{
+    document.getElementById('mem-enabled').checked = localStorage.getItem('calamity-memory-enabled') !== '0';
+    var c = null;
+    try { c = JSON.parse(localStorage.getItem('calamity-memory-api') || 'null'); } catch(e){ c = null; }
+    document.getElementById('mem-api-endpoint').value = (c && c.endpoint) || '';
+    document.getElementById('mem-api-key').value = (c && c.apiKey) || '';
+    document.getElementById('mem-api-model').value = (c && c.model) || '';
+  }catch(e){ console.warn('读取记忆系统配置失败', e); }
+}
+
+function saveMemoryConfig(){
+  try {
+    localStorage.setItem('calamity-memory-enabled',
+      document.getElementById('mem-enabled').checked ? '1' : '0');
+    memoryApi.saveConfig({
+      endpoint: document.getElementById('mem-api-endpoint').value.trim(),
+      apiKey: document.getElementById('mem-api-key').value.trim(),
+      model: document.getElementById('mem-api-model').value.trim()
+    });
+  } catch(e){ console.warn('保存记忆系统配置失败', e); }
+}
+
 var DEFAULT_SETTINGS = {
   display: { fontSize:15 },
   game: { autoSave:true, autoSaveInterval:5 }
@@ -2942,7 +2995,11 @@ function saveAll(){
   }
   apiService.updateConfig(apiCfg);
   saveConfigHistory(apiCfg);
-  embeddingService.updateConfig(collectEmbeddingConfig());
+  // 向量记忆开关联动：emb-enabled 同时控制 embeddingService 与 calamity-memory-vec 门控
+  var embCfg = collectEmbeddingConfig();
+  localStorage.setItem('calamity-memory-vec', embCfg.enabled ? '1' : '0');
+  embeddingService.updateConfig(embCfg);
+  saveMemoryConfig();
   localStorage.setItem('settings', JSON.stringify(collectDisplaySettings()));
   if (window.applyDisplaySettings) window.applyDisplaySettings();
   var btn = document.querySelector('.btn-row .btn');
@@ -2960,6 +3017,7 @@ function initSettings() {
   }
   loadApiConfig();
   loadDisplaySettings();
+  loadMemoryConfig();
   loadEmbeddingConfig();
   loadSTPresetUI();
 }
@@ -3757,8 +3815,7 @@ function clearSTPreset() {
         gameData: JSON.parse(JSON.stringify(gameState.getGameData())),
         chatContext: loadChatContext(),
         narrativeCount: nd ? nd.childElementCount - barIn : 0,
-        vecIds: (window.vectorStore ? vectorStore.loadAllEmbeddings().map(r => r.id) : []),
-        l2Ids: (window.vectorStore ? vectorStore.loadAllL2Embeddings().map(r => r.id) : [])
+        memoryIds: (window.storyEngine ? storyEngine.snapshotIds() : null)
       });
       while (stack.length > UNDO_STACK_MAX) stack.shift();
       localStorage.setItem(UNDO_STACK_KEY, JSON.stringify(stack));
@@ -3791,21 +3848,10 @@ function clearSTPreset() {
         }
       }
       refreshGameUI();
-      // 同步撤销向量记忆：删除快照之后入库的摘要向量与事件向量
-      if (window.vectorStore && window.memoryRecall) {
-        const beforeIds = new Set(snap.vecIds || []);
-        vectorStore.loadAllEmbeddings().forEach(rec => {
-          if (!beforeIds.has(rec.id)) {
-            vectorStore.deleteEmbedding(rec.id);
-            window.memoryRecall.removeFromCache(rec.id);
-          }
-        });
-        const beforeL2 = new Set(snap.l2Ids || []);
-        vectorStore.loadAllL2Embeddings().forEach(rec => {
-          if (!beforeL2.has(rec.id)) {
-            vectorStore.deleteL2Embedding(rec.id);
-            window.memoryRecall.removeFromCacheL2(rec.id);
-          }
+      // 同步撤销记忆系统：常驻线/编年史/纪要/向量按快照差量回滚
+      if (window.storyEngine && snap.memoryIds) {
+        storyEngine.rollback(snap.memoryIds).catch(function(e) {
+          console.warn('[MemorySystem] 撤销回滚失败:', e && e.message || e);
         });
       }
       mountUndoBar(nd);
@@ -3837,255 +3883,123 @@ function clearSTPreset() {
     if (bar.parentNode !== nd || nd.lastElementChild !== bar) nd.appendChild(bar);
   }
 
-  // ── 向量化记忆：召回注入 + 摘要入库（embedding 未启用或失败时静默跳过） ──
-  (function initVectorMemory() {
-    if (!window.vectorStore || !window.memoryRecall) return;
-    window.vectorStore.init().then(function() {
-      return window.memoryRecall.init();
+  // ── 记忆系统 v2.0：核心链路在 storyEngine（module/story-engine.js） ──
+  // 初始化顺序：memoryStore（建库/schema owner）→ vectorStore（join 同库）→ memoryRecall（同步契约预热）
+  (function initMemorySystem() {
+    if (!window.memoryStore) return;
+    window.memoryStore.init().then(function() {
+      if (window.vectorStore) return window.vectorStore.init();
     }).then(function() {
-      return window.memoryRecall.initL2();
+      if (window.memoryRecall) return window.memoryRecall.init();
     }).then(function() {
-      console.log('[VectorMemory] 记忆缓存预热完成', window.memoryRecall.getStats());
-    }).catch(function(e) { console.warn('[VectorMemory] 初始化失败:', e && e.message || e); });
+      return window.storyEngine.init();
+    }).then(function() {
+      console.log('[MemorySystem] 记忆系统初始化完成', storyEngine.stats());
+    }).catch(function(e) { console.warn('[MemorySystem] 初始化失败:', e && e.message || e); });
   })();
 
-  const VEC_EXCLUDE_RECENT = 4;   // 最近 N 轮的摘要/事件不参与召回（与逐字上下文去重）
-  function vecArcEvery() {
-    return parseInt(localStorage.getItem('calamity-vec-arc-every')) || 50;   // 每 N 轮摘要压缩一篇章总结
-  }
-  function vecPushRecentIds(ids) {
-    if (!ids || !ids.length) return;
-    try {
-      const q = JSON.parse(localStorage.getItem('calamity-vec-recent-ids') || '[]');
-      q.push(ids);                       // 按轮分批存储，一轮的所有 id 同进同出
-      while (q.length > VEC_EXCLUDE_RECENT) q.shift();
-      localStorage.setItem('calamity-vec-recent-ids', JSON.stringify(q));
-    } catch (e) { /* ignore */ }
-  }
-  function vecRecentIds() {
-    try {
-      const q = JSON.parse(localStorage.getItem('calamity-vec-recent-ids') || '[]');
-      return q.flat ? q.flat() : [].concat.apply([], q);
-    } catch (e) { return []; }
-  }
-  function vecExtractNpcs(text) {
-    try {
-      const gd = gameState.getGameData();
-      return Object.keys((gd && gd.relationships) || {}).filter(n => n && String(text).indexOf(n) >= 0);
-    } catch (e) { return []; }
-  }
-
-  async function recallMemoriesForPrompt(userMessage) {
-    if (!window.memoryRecall || !window.embeddingService || !window.embeddingService.isEnabled()) return '';
-    try {
-      const qv = await window.embeddingService.embed([userMessage]);
-      const qVec = qv && qv[0] ? new Float32Array(qv[0]) : null;
-      if (!qVec) return '';
-      const excludeIds = vecRecentIds();
-      const recalled = await window.memoryRecall.recallRelevantMemories(qVec, 6, excludeIds, 600);
-      const lines = (recalled || []).map(m => '- ' + String(m.text || '').trim()).filter(l => l.length > 2);
-      let block = lines.length
-        ? '【相关记忆召回】以下是向量检索出的历史剧情摘要，仅供保持剧情连贯参考（非当前对话内容）：\n' + lines.join('\n')
-        : '';
-      // L2 剧情事件召回（语义 + NPC/地点词法双路）
-      try {
-        const events = await window.memoryRecall.recallL2Events(qVec, null, { excludeIds: excludeIds, intentText: userMessage, minSim: 0.55 });
-        const hits = (events || []).filter(e => e && e.text).slice(0, 4);
-        if (hits.length) {
-          const l2All = window.vectorStore ? vectorStore.loadAllL2Embeddings() : [];
-          const evLines = hits.map(e => {
-            const rec = l2All.find(r => r.id === e.id) || {};
-            const tag = [rec.npc && rec.npc.length ? 'NPC:' + rec.npc.join('/') : '', rec.location ? '地点:' + rec.location : ''].filter(Boolean).join('｜');
-            return '- ' + (tag ? '[' + tag + '] ' : '') + String(e.text).trim();
-          });
-          if (block) block += '\n';
-          block += '【相关剧情事件】\n' + evLines.join('\n');
-        }
-      } catch (e2) { console.warn('[VectorMemory] 事件召回失败:', e2 && e2.message || e2); }
-      return block;
-    } catch (e) {
-      console.warn('[VectorMemory] 召回失败（降级跳过）:', e && e.message || e);
-      return '';
-    }
-  }
-
   function vecNextFloor() {
-    try {
-      const n = (parseInt(localStorage.getItem('calamity-vec-floor-max')) || 0) + 1;
-      localStorage.setItem('calamity-vec-floor-max', String(n));
-      return n;
-    } catch (e) { return 0; }
+    return storyEngine.nextFloor();
   }
 
-  // 纪要永远归档；向量化是可选附加（未启用/失败时仅存文本，可稍后补算）
+  // 纪要归档：文本进 storyEngine（summary/chronicle/压缩），向量模块由其内部按开关处理
   async function storeSummariesToMemory(summaries) {
-    if (!window.vectorStore) return 0;
+    if (!window.storyEngine) return 0;
     const texts = (summaries || []).map(s => String(s).trim()).filter(s => s.length > 1);
     if (!texts.length) return 0;
-    const canVec = !!(window.embeddingService && window.embeddingService.isEnabled() && window.memoryRecall);
-    const floor = vecNextFloor();
-    const fp = canVec ? window.embeddingService.getFingerprint() : '';
-    let vecs = null;
-    if (canVec) {
-      try {
-        vecs = await window.embeddingService.embed(texts);
-      } catch (e) {
-        console.warn('[VectorMemory] 向量化失败，本层纪要仅归档:', e && e.message || e);
-        vecs = null;
-      }
-    }
-    let location = '';
+    let time = '', location = '';
     try {
       const gd = gameState.getGameData();
       location = (gd && gd.progress && gd.progress.currentLocation) || '';
+      time = storyEngine.fmtGameTime ? storyEngine.fmtGameTime(gd.gameTime) : '';
     } catch (e) { /* ignore */ }
-    const newIds = [];
-    const newEventIds = [];
-    let n = 0;
-    texts.forEach((txt, i) => {
-      const id = 'emb_' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2, 8);
-      let f32 = null;
-      if (vecs && vecs[i]) f32 = new Float32Array(vecs[i]);
-      if (f32) {
-        window.vectorStore.saveEmbedding(id, f32, { text: txt, week: 0, fingerprint: fp, createdAt: Date.now(), kind: 'turn', floor: floor });
-        window.memoryRecall.addToCache({ id: id, vector: f32, text: txt, week: 0, fingerprint: fp, createdAt: Date.now() });
-        newIds.push(id);
-      } else {
-        window.vectorStore.saveEmbedding(id, null, { text: txt, week: 0, fingerprint: '', createdAt: Date.now(), kind: 'turn', floor: floor });
-      }
-      // L2 事件层：附带 NPC/地点结构化信息（需要向量；无向量化时跳过，可稍后补算）
-      if (f32) {
-        const npc = vecExtractNpcs(txt);
-        if (npc.length || location) {
-          const eid = 'wevt_' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2, 8);
-          window.vectorStore.saveL2Embedding(eid, f32, { text: txt, week: 0, fingerprint: fp, createdAt: Date.now(), npc: npc, location: location, keywords: [] });
-          window.memoryRecall.addToCacheL2({ id: eid, vector: f32, text: txt, week: 0, fingerprint: fp, createdAt: Date.now(), npc: npc, location: location, keywords: [] });
-          newEventIds.push(eid);
-        }
-      }
-      n++;
-    });
-    vecPushRecentIds(newIds.concat(newEventIds));
-    if (n) console.log('[VectorMemory] 第' + floor + '层纪要已归档' + (vecs ? '并向量入库' : '（未向量化，可在记忆库补算）') + ' ' + n + ' 条');
-    vecCompressArc();  // 异步篇章压缩（未达阈值时内部静默返回）
-    return n;
+    const floor = storyEngine.nextFloor();
+    await storyEngine.onTurnArchived({ floor: floor, texts: texts, time: time, location: location });
+    console.log('[MemorySystem] 第' + floor + '层纪要已归档 ' + texts.length + ' 条');
+    return texts.length;
   }
 
-  // 补算：为未向量化的历史纪要生成向量并入召回缓存
-  async function vecBackfillVectors() {
-    if (!window.vectorStore || !window.embeddingService || !window.embeddingService.isEnabled()) return 0;
-    const fp = window.embeddingService.getFingerprint();
-    const pending = vectorStore.loadAllEmbeddings().filter(r => (r.kind || 'turn') === 'turn' && (!r.vector || !r.vector.length));
-    if (!pending.length) return 0;
-    const vecs = await window.embeddingService.embed(pending.map(r => r.text));
-    let n = 0;
-    pending.forEach((r, i) => {
-      if (!vecs || !vecs[i]) return;
-      const f32 = new Float32Array(vecs[i]);
-      window.vectorStore.saveEmbedding(r.id, f32, { text: r.text, week: r.week, fingerprint: fp, createdAt: r.createdAt, kind: 'turn', floor: r.floor });
-      window.memoryRecall.addToCache({ id: r.id, vector: f32, text: r.text, week: r.week, fingerprint: fp, createdAt: r.createdAt });
-      n++;
-    });
-    console.log('[VectorMemory] 补算向量 ' + n + ' 条');
-    return n;
-  }
-  window.vecBackfillVectors = vecBackfillVectors;
-
-  // 篇章压缩：每 N 轮单轮摘要由 LLM 压成一篇总结入库（N 可用 localStorage calamity-vec-arc-every 覆盖）
-  async function vecCompressArc() {
-    if (!window.apiService || !window.embeddingService || !window.embeddingService.isEnabled()) return;
-    try {
-      const every = vecArcEvery();
-      const all = vectorStore.loadAllEmbeddings();
-      const turns = all.filter(r => (r.kind || 'turn') === 'turn');
-      const arcs = all.filter(r => r.kind === 'arc');
-      if (turns.length - arcs.length * every < every) return;
-      const cfg = window.apiService.getConfig();
-      if (!cfg || !cfg.apiKey) return;
-      const batch = turns.slice().sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)).slice(0, every);
-      const listText = batch.map((r, i) => (i + 1) + '. ' + (r.text || '')).join('\n');
-      const res = await window.apiService.sendMessages([
-        { role: 'system', content: '你是剧情记录员。将以下按时间排列的剧情摘要压缩成一段 150 字以内的篇章总结，保留关键事件、人物、因果与未决事项，直接输出总结正文，不要评论。' },
-        { role: 'user', content: listText }
-      ], { model: cfg.model, temperature: 0.3, stream: false });
-      const arcText = res && res.content ? String(res.content).trim() : '';
-      if (!arcText) return;
-      const fp = window.embeddingService.getFingerprint();
-      const vecs = await window.embeddingService.embed([arcText]);
-      if (!vecs || !vecs[0]) return;
-      const f32 = new Float32Array(vecs[0]);
-      const id = 'arc_' + Date.now();
-      const label = '【第' + (arcs.length + 1) + '篇·每' + every + '轮压缩】';
-      vectorStore.saveEmbedding(id, f32, { text: label + arcText, week: 0, fingerprint: fp, createdAt: Date.now(), kind: 'arc' });
-      memoryRecall.addToCache({ id: id, vector: f32, text: label + arcText, week: 0, fingerprint: fp, createdAt: Date.now() });
-      console.log('[VectorMemory] 篇章压缩完成:', id);
-    } catch (e) {
-      console.warn('[VectorMemory] 篇章压缩失败（下轮满足条件时重试）:', e && e.message || e);
-    }
-  }
-  window.recallMemoriesForPrompt = recallMemoriesForPrompt;
+  window.recallMemoriesForPrompt = async function(userMessage) {
+    if (!window.storyEngine) return '';
+    const blocks = await storyEngine.buildInjectBlocks(userMessage, gameState.getGameData());
+    return blocks.join('\n\n');
+  };
   window.storeSummariesToMemory = storeSummariesToMemory;
 
-  // ── 向量记忆库查看器 ──
+  // ── 记忆系统查看器（常驻线 / 编年史 / 纪要 三页签） ──
+  let _vecTab = 'story';
+  function switchVecTab(tab) {
+    _vecTab = tab;
+    document.querySelectorAll('.vec-tab').forEach(b => b.classList.toggle('vec-tab-active', b.dataset.tab === tab));
+    renderVecList();
+  }
+
   function renderVecList() {
     const statsEl = document.getElementById('vec-stats');
     const listEl = document.getElementById('vec-list');
-    if (!listEl) return;
-    const all = window.vectorStore ? vectorStore.loadAllEmbeddings() : [];
-    const l2 = window.vectorStore ? vectorStore.loadAllL2Embeddings() : [];
-    const arcs = all.filter(r => r.kind === 'arc').length;
-    const pending = all.filter(r => (r.kind || 'turn') === 'turn' && (!r.vector || !r.vector.length)).length;
+    if (!listEl || !window.storyEngine) return;
+    const st = storyEngine.stats();
     const kw = ((document.getElementById('vec-filter') || {}).value || '').trim();
-    const match = r => !kw || (r.text || '').indexOf(kw) >= 0;
-    const recs = all.filter(match);
-    recs.sort((a, b) => (b.floor || 0) - (a.floor || 0) || (b.createdAt || 0) - (a.createdAt || 0));
-    if (statsEl) statsEl.textContent = '纪要 ' + all.length + ' 条（篇章总结 ' + arcs + ' 条）· 剧情事件 ' + l2.length + ' 条' + (pending ? ' · 待补算 ' + pending + ' 条' : '') + (kw ? '，筛选出 ' + recs.length + ' 条' : '');
-    listEl.innerHTML = '';
-    if (!recs.length && !l2.length) {
-      const empty = document.createElement('div');
-      empty.className = 'vec-empty';
-      empty.textContent = kw ? '◈ 无匹配记录' : '◈ 暂无纪要（对话后每一楼的剧情纪要会自动出现在这里）';
-      listEl.appendChild(empty);
-      return;
+    const match = t => !kw || String(t || '').indexOf(kw) >= 0;
+    if (statsEl) {
+      statsEl.textContent = '第' + st.floor + '层 ｜ 纪要 ' + st.summary + ' · 编年史 ' + st.chronicle
+        + ' ｜ 纪事 ' + st.l1 + ' · 卷宗 ' + st.l2 + ' · 典章 ' + st.l3
+        + ' ｜ 下一纪事：第' + st.nextChronicleAt + '层'
+        + ' ｜ 副API：' + (st.apiIndependent ? '独立' : '跟随主API')
+        + ' ｜ 向量：' + (st.vec ? '开' : '关')
+        + (kw ? '，筛选出见列表' : '');
     }
-    recs.forEach(r => {
-      const d = r.createdAt ? new Date(r.createdAt) : null;
-      const time = d ? (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') : '';
+    listEl.innerHTML = '';
+    const addEntry = (text, meta, danger) => {
       const entry = document.createElement('div');
       entry.className = 'vec-entry';
+      if (danger) entry.style.borderLeftColor = 'var(--danger)';
       const txt = document.createElement('div');
       txt.className = 'vec-entry-text';
-      txt.textContent = r.text || '（空摘要）';
-      const meta = document.createElement('div');
-      meta.className = 'vec-entry-meta';
-      const state = r.kind === 'arc' ? '篇章总结' : ((r.vector && r.vector.length) ? '已向量化' : '未向量化');
-      meta.textContent = '第' + (r.floor || '?') + '层 ｜ ' + state + ' ｜ ' + (time ? time : '');
-      entry.appendChild(txt);
-      entry.appendChild(meta);
+      txt.textContent = text || '（空）';
+      const metaEl = document.createElement('div');
+      metaEl.className = 'vec-entry-meta';
+      metaEl.textContent = meta || '';
+      entry.appendChild(txt); entry.appendChild(metaEl);
       listEl.appendChild(entry);
-    });
-    const evs = l2.filter(match).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-    if (evs.length) {
-      const title = document.createElement('div');
-      title.className = 'inv-section-title';
-      title.textContent = '剧情事件（NPC/地点结构化）';
-      listEl.appendChild(title);
-      evs.forEach(r => {
-        const d = r.createdAt ? new Date(r.createdAt) : null;
-        const time = d ? (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') : '';
-        const entry = document.createElement('div');
-        entry.className = 'vec-entry';
-        entry.style.borderLeftColor = 'var(--danger)';
-        const txt = document.createElement('div');
-        txt.className = 'vec-entry-text';
-        txt.textContent = r.text || '（空事件）';
-        const meta = document.createElement('div');
-        meta.className = 'vec-entry-meta';
-        const tag = [(r.npc && r.npc.length ? 'NPC:' + r.npc.join('/') : ''), (r.location ? '地点:' + r.location : '')].filter(Boolean).join('｜');
-        meta.textContent = (tag ? tag + ' ｜ ' : '') + time;
-        entry.appendChild(txt);
-        entry.appendChild(meta);
-        listEl.appendChild(entry);
+    };
+    const empty = msg => {
+      const el = document.createElement('div');
+      el.className = 'vec-empty';
+      el.textContent = msg;
+      listEl.appendChild(el);
+    };
+
+    if (_vecTab === 'story') {
+      const levels = [[3, '典章'], [2, '卷宗'], [1, '纪事']];
+      let shown = 0;
+      levels.forEach(([lv, label]) => {
+        const recs = memoryStore.allStory()
+          .filter(r => r.level === lv && match(r.text))
+          .sort((a, b) => b.from - a.from);
+        recs.forEach(r => {
+          addEntry(r.text,
+            label + ' ｜ 第' + r.from + '~' + r.to + '层' + (r.absorbedBy ? ' ｜ 已并入更高层（不再注入）' : ' ｜ 注入中'),
+            !!r.absorbedBy);
+          shown++;
+        });
+      });
+      if (!shown) empty(kw ? '◈ 无匹配记录' : '◈ 常驻线还没有内容（每 ' + (parseInt(localStorage.getItem('calamity-memory-every')) || 20) + ' 层自动压缩出一篇纪事）');
+    } else if (_vecTab === 'chronicle') {
+      const lines = memoryStore.allChronicle().filter(r => match(r.text)).sort((a, b) => b.floor - a.floor);
+      if (!lines.length) {
+        empty(kw ? '◈ 无匹配记录' : '◈ 编年史为空（升级前楼层无编年史记录，属正常现象）');
+      }
+      lines.forEach(r => {
+        addEntry(r.text, '第' + r.floor + '层 ｜ ' + (r.time || '') + (r.location ? '·' + r.location : ''));
+      });
+    } else {
+      const recs = memoryStore.allSummaries().filter(r => match(r.text)).sort((a, b) => b.floor - a.floor);
+      if (!recs.length) empty(kw ? '◈ 无匹配记录' : '◈ 暂无纪要（对话后每一楼的剧情纪要会自动出现在这里）');
+      recs.forEach(r => {
+        const vecCount = memoryStore.allEmbeddings().filter(v => v.floor === r.floor).length;
+        addEntry(r.text, '第' + r.floor + '层 ｜ ' + (r.time || '') + (r.location ? '·' + r.location : '')
+          + (vecCount ? ' ｜ 已向量化' : ''));
       });
     }
   }
@@ -4103,10 +4017,16 @@ function clearSTPreset() {
   }
 
   function clearVectorMemory() {
-    if (!window.vectorStore) return;
-    if (!confirm('确定清空全部记忆向量？此操作不可恢复，AI 将失去远期剧情记忆（游戏存档不受影响）。')) return;
-    window.vectorStore.clearAll().then(function() {
+    if (!window.memoryStore || !window.storyEngine) return;
+    if (!confirm('确定清空全部记忆（纪要/编年史/常驻线/向量）？此操作不可恢复，AI 将失去全部远期记忆（游戏存档不受影响）。')) return;
+    Promise.all([
+      memoryStore.clearStore('summary'),
+      memoryStore.clearStore('chronicle'),
+      memoryStore.clearStore('story'),
+      memoryStore.clearStore('embeddings')
+    ]).then(function() {
       if (window.memoryRecall) window.memoryRecall.clearCache();
+      try { localStorage.removeItem('calamity-memory-floor'); localStorage.removeItem('calamity-memory-pending'); } catch (e) { /* ignore */ }
       renderVecList();
     });
   }
@@ -4114,18 +4034,18 @@ function clearSTPreset() {
   window.closeVecOverlay = closeVecOverlay;
   window.clearVectorMemory = clearVectorMemory;
   window.renderVecList = renderVecList;
+  window.switchVecTab = switchVecTab;
 
-  function vecBackfill() {
-    if (!window.embeddingService || !window.embeddingService.isEnabled()) {
-      alert('请先在设置中启用并配置 Embedding 接口，再补算纪要向量。');
-      return;
-    }
-    window.vecBackfillVectors().then(function(n) {
-      alert(n > 0 ? '已为 ' + n + ' 条纪要补算向量，现在可以参与召回了。' : '没有需要补算的纪要。');
+  function vecRecompute() {
+    if (!window.storyEngine) return;
+    storyEngine.recompute().then(function() {
+      alert('常驻线重算完成（失败任务已进入下轮重试队列）。');
       renderVecList();
+    }).catch(function(e) {
+      alert('重算未完成：' + (e && e.message || e));
     });
   }
-  window.vecBackfill = vecBackfill;
+  window.vecRecompute = vecRecompute;
 
   // ── AI 主链路 ──
   window.sendMessage = async function() {

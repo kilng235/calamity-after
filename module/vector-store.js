@@ -9,32 +9,31 @@
  * vectorStore.init() 先把 IDB 数据读进镜像，之后同步读全部走镜像（legacy 契约是同步的），
  * 写操作同时更新镜像与 IDB。
  * 向量以 ArrayBuffer 存 IDB（JSON 无法序列化 TypedArray，IDB 可以）。
- * 数据库 calamity-vecmem v2：store embeddings（L0 摘要/篇章）+ events（L2 事件）。
+ * 数据库 calamity-memory（schema 归 memory-store.js 所有，本模块不带版本号打开，
+ * 必须在 memoryStore.init() 之后初始化）：只用 store embeddings（L0 摘要向量）。
+ * L2 事件层已由记忆系统 2.0 的台账套件替代，新库无 events store，相关接口守卫为空。
  */
 var vectorStore = (function() {
-    const DB_NAME = 'calamity-vecmem';
-    const DB_VERSION = 2;
+    const DB_NAME = 'calamity-memory';
     const STORE_L0 = 'embeddings';
     const STORE_L2 = 'events';
     let _db = null;
-    let _mirror = [];    // L0: [{ id, vector, text, week, fingerprint, createdAt, kind }]
-    let _mirrorL2 = [];  // L2: [{ id, vector, text, week, fingerprint, createdAt, npc, location, keywords }]
+    let _mirror = [];    // L0: [{ id, vector, text, week, fingerprint, createdAt, kind, floor }]
+    let _mirrorL2 = [];  // L2: []（新库无 events，守卫为空）
     let _loaded = false;
 
     function openDb() {
         return new Promise(function(resolve, reject) {
             if (_db) { resolve(_db); return; }
-            const req = indexedDB.open(DB_NAME, DB_VERSION);
-            req.onupgradeneeded = function(e) {
-                const db = e.target.result;
-                if (!db.objectStoreNames.contains(STORE_L0)) {
-                    db.createObjectStore(STORE_L0, { keyPath: 'id' });
+            const req = indexedDB.open(DB_NAME);
+            req.onsuccess = function(e) {
+                _db = e.target.result;
+                if (!_db.objectStoreNames.contains(STORE_L0)) {
+                    reject(new Error('calamity-memory 库缺少 embeddings store（请先初始化 memoryStore）'));
+                    return;
                 }
-                if (!db.objectStoreNames.contains(STORE_L2)) {
-                    db.createObjectStore(STORE_L2, { keyPath: 'id' });
-                }
+                resolve(_db);
             };
-            req.onsuccess = function(e) { _db = e.target.result; resolve(_db); };
             req.onerror = function(e) { reject(e.target.error || new Error('IDB 打开失败')); };
         });
     }
@@ -63,10 +62,9 @@ var vectorStore = (function() {
             const db = await openDb();
             _mirror = ((await getAllFrom(db.transaction(STORE_L0, 'readonly').objectStore(STORE_L0))) || [])
                 .map(r => Object.assign({}, r, { vector: _normVec(r.vector) }));
-            _mirrorL2 = ((await getAllFrom(db.transaction(STORE_L2, 'readonly').objectStore(STORE_L2))) || [])
-                .map(r => Object.assign({}, r, { vector: _normVec(r.vector) }));
+            _mirrorL2 = [];
             _loaded = true;
-            console.log('[VectorStore] 已从 IDB 载入 L0 摘要 ' + _mirror.length + ' 条 / L2 事件 ' + _mirrorL2.length + ' 条');
+            console.log('[VectorStore] 已从 IDB 载入 L0 摘要 ' + _mirror.length + ' 条（L2 事件层已由台账套件替代）');
         } catch (e) {
             _mirror = [];
             _mirrorL2 = [];
@@ -119,39 +117,10 @@ var vectorStore = (function() {
         return true;
     }
 
-    async function saveL2Embedding(id, f32, meta) {
-        const rec = {
-            id: id,
-            vector: _normVec(f32),
-            text: (meta && meta.text) || '',
-            week: (meta && meta.week) || 0,
-            fingerprint: (meta && meta.fingerprint) || '',
-            createdAt: (meta && meta.createdAt) || Date.now(),
-            npc: (meta && meta.npc) || [],
-            location: (meta && meta.location) || '',
-            keywords: (meta && meta.keywords) || []
-        };
-        const idx = _mirrorL2.findIndex(r => r.id === id);
-        if (idx >= 0) _mirrorL2[idx] = rec; else _mirrorL2.push(rec);
-        try {
-            const db = await openDb();
-            const store = db.transaction(STORE_L2, 'readwrite').objectStore(STORE_L2);
-            await reqAsPromise(store.put(Object.assign({}, rec, { vector: rec.vector ? rec.vector.buffer.slice(0) : null })));
-        } catch (e) {
-            console.warn('[VectorStore] L2 落盘失败（仅内存保留）:', e && e.message || e);
-        }
-        return true;
-    }
+    // L2 事件层已退役（记忆系统 2.0 台账套件替代），接口保留但为空实现，维持 legacy 契约不崩
+    async function saveL2Embedding(id, f32, meta) { return true; }
 
-    async function deleteL2Embedding(id) {
-        _mirrorL2 = _mirrorL2.filter(r => r.id !== id);
-        try {
-            const db = await openDb();
-            const store = db.transaction(STORE_L2, 'readwrite').objectStore(STORE_L2);
-            await reqAsPromise(store.delete(id));
-        } catch (e) { /* ignore */ }
-        return true;
-    }
+    async function deleteL2Embedding(id) { return true; }
 
     async function clearAll() {
         _mirror = [];
@@ -159,7 +128,6 @@ var vectorStore = (function() {
         try {
             const db = await openDb();
             await reqAsPromise(db.transaction(STORE_L0, 'readwrite').objectStore(STORE_L0).clear());
-            await reqAsPromise(db.transaction(STORE_L2, 'readwrite').objectStore(STORE_L2).clear());
         } catch (e) { /* ignore */ }
         return true;
     }

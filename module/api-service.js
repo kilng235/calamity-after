@@ -124,7 +124,17 @@ var apiService = (function() {
     var DEFAULT_REQUEST_TIMEOUT = 180000;
 
     async function sendMessages(messages, options) {
-        if (!config.endpoint || !config.apiKey || !config.model) {
+        // 调用级覆盖（记忆系统副API用）：options 传入 endpoint/apiKey/model/type 时使用覆盖配置
+        var cfg = config;
+        if (options && (options.endpoint || options.apiKey || options.model)) {
+            cfg = Object.assign({}, config, {
+                endpoint: options.endpoint || config.endpoint,
+                apiKey: options.apiKey || config.apiKey,
+                model: options.model || config.model,
+                type: options.type || config.type
+            });
+        }
+        if (!cfg.endpoint || !cfg.apiKey || !cfg.model) {
             throw new Error('请先配置 API 信息（endpoint, key, model）');
         }
         var signal = options && options.signal;
@@ -135,11 +145,12 @@ var apiService = (function() {
             setTimeout(function() { controller.abort(); }, timeoutMs);
         }
         var maxTokens = _resolveMaxOutputTokens(options);
+        var temperature = (options && typeof options.temperature === 'number') ? options.temperature : null;
         try {
-            if (config.type === 'gemini') {
-                return await _callGemini(messages, signal, maxTokens);
+            if (cfg.type === 'gemini') {
+                return await _callGemini(messages, signal, maxTokens, cfg, temperature);
             }
-            return await _callOpenAI(messages, signal, maxTokens);
+            return await _callOpenAI(messages, signal, maxTokens, cfg, temperature);
         } catch (e) {
             if (e && (e.name === 'AbortError' || e.name === 'TimeoutError')) {
                 throw new Error('请求超时（' + Math.round(timeoutMs / 1000) + ' 秒），已中断');
@@ -148,26 +159,27 @@ var apiService = (function() {
         }
     }
 
-    async function _callOpenAI(messages, signal, maxTokens) {
-        var url = _resolveUrl(config.endpoint.replace(/\/+$/, '') + '/chat/completions');
+    async function _callOpenAI(messages, signal, maxTokens, cfg, temperature) {
+        cfg = cfg || config;
+        var url = _resolveUrl(cfg.endpoint.replace(/\/+$/, '') + '/chat/completions');
         console.log('[API] 发送请求到 OpenAI:', url);
         var _reqBody = {
-            model: config.model,
+            model: cfg.model,
             messages: messages,
-            temperature: config.temperature
+            temperature: (typeof temperature === 'number') ? temperature : cfg.temperature
         };
         // maxTokens 为 null 表示不限制（省略 max_tokens）；数字按值；undefined 回退全局配置
         if (typeof maxTokens === 'number') {
             _reqBody.max_tokens = maxTokens;
         } else if (typeof maxTokens === 'undefined') {
-            _reqBody.max_tokens = config.maxOutputTokens;
+            _reqBody.max_tokens = cfg.maxOutputTokens;
         }
         _applyExtraSamplerParams(_reqBody, false);
         var fetchOptions = {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + config.apiKey
+                'Authorization': 'Bearer ' + cfg.apiKey
             },
             body: JSON.stringify(_reqBody)
         };
@@ -186,7 +198,8 @@ var apiService = (function() {
         };
     }
 
-    async function _callGemini(messages, signal, maxTokens) {
+    async function _callGemini(messages, signal, maxTokens, cfg, temperature) {
+        cfg = cfg || config;
         var systemMsgs = messages.filter(function(m) { return m.role === 'system'; });
         var chatMsgs = messages.filter(function(m) { return m.role !== 'system'; });
         var systemPrompt = systemMsgs.map(function(m) { return m.content; }).join('\n\n');
@@ -198,19 +211,19 @@ var apiService = (function() {
             };
         });
 
-        var url = _resolveUrl(config.endpoint.replace(/\/+$/, '') + '/models/' + config.model + ':generateContent');
+        var url = _resolveUrl(cfg.endpoint.replace(/\/+$/, '') + '/models/' + cfg.model + ':generateContent');
         console.log('[API] 发送请求到 Gemini:', url);
 
-        var _genConfig = { temperature: config.temperature };
+        var _genConfig = { temperature: (typeof temperature === 'number') ? temperature : cfg.temperature };
         if (typeof maxTokens === 'number') {
             _genConfig.maxOutputTokens = maxTokens;
         } else if (typeof maxTokens === 'undefined') {
-            _genConfig.maxOutputTokens = config.maxOutputTokens;
+            _genConfig.maxOutputTokens = cfg.maxOutputTokens;
         }
         _applyExtraSamplerParams(_genConfig, true);
         var response = await fetch(url, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': config.apiKey },
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cfg.apiKey },
             body: JSON.stringify({
                 contents: contents,
                 systemInstruction: { parts: [{ text: systemPrompt }] },
