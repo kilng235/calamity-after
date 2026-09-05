@@ -1942,6 +1942,7 @@
       <option value="工匠">工匠</option>
       <option value="医师">医师</option>
     </select>
+    <div class="race-hint" id="kit-preview"></div>
     <label>◈ 特质 (最多 2 项，相关检定获优势)</label>
     <div class="tag-select">
       <button type="button" class="btn tag-btn" onclick="toggleTraitPanel()" id="traitBtn" data-ripple-bound="1">[ 展开特质铭刻 ]</button>
@@ -3371,6 +3372,12 @@ function clearSTPreset() {
     get: function() { return gameState.getGameData(); }
   });
 
+  // 暴露装备模板工厂到 window，供登记册身份开局包（saveCharacter）构建真实属性装备
+  window.equipmentFactory = {
+    createWeapon: equipmentData.createWeapon,
+    createArmor: equipmentData.createArmor
+  };
+
   // 把装备系统模板数据动态构建为世界书格式，注入数据访问层
   function buildEquipmentWorldbook() {
     var WEAPON_TEMPLATES = equipmentData.WEAPON_TEMPLATES;
@@ -4675,6 +4682,47 @@ var IDENTITY_OPENINGS={
   '医师':{scene:'收药材卖药剂，接单',greeting:'「收药材？正好有个灰烬森林的活，需要医师。」'}
 };
 
+// ── 身份开局包：金币/主手/护甲/背包按身份差异化（武器护甲为 equipment-system 真实模板名）──
+// 价值平衡：各身份总资产（金币+装备折价+背包）≈ 40~55 金币区间，差异在形态不在强弱
+var IDENTITY_KITS = {
+  '佣兵': { gold: 10, mainHand: '废土短刃', body: '废布拼装甲', inventory: [ { name: '磨刀石', type: 'tool' } ] },
+  '拾荒者': { gold: 5, mainHand: '钢管', body: null, inventory: [
+    { name: '麻绳（10米）', type: 'tool' }, { name: '火把', type: 'tool', count: 2 },
+    { name: '灰烬面罩', type: 'tool' }, { name: '旧铁罐', type: 'junk', count: 3 } ] },
+  '学者': { gold: 22, mainHand: '废土匕首', body: null, inventory: [
+    { name: '空白笔记册', type: 'tool' }, { name: '炭笔', type: 'tool', count: 2 },
+    { name: '灰烬森林残页', type: 'book', desc: '研读可触发习得检定（痕迹辨识线索）' } ] },
+  '猎人': { gold: 12, mainHand: '废土猎弓', body: '变异兽皮甲', inventory: [
+    { name: '熏肉', type: 'consumable', effect: 'heal', value: 10, count: 2 },
+    { name: '兽皮水袋', type: 'tool' } ] },
+  '商贩': { gold: 28, mainHand: '废土匕首', body: null, inventory: [
+    { name: '待售小商品', type: 'trade', count: 3 }, { name: '商用账本', type: 'tool' } ] },
+  '工匠': { gold: 15, mainHand: '钢管', body: null, inventory: [
+    { name: '工匠工具包', type: 'tool' }, { name: '铁料', type: 'material', count: 2 },
+    { name: '磨刀石', type: 'tool' } ] },
+  '医师': { gold: 20, mainHand: '废土匕首', body: null, inventory: [
+    { name: '治疗药水', type: 'consumable', effect: 'heal', value: 25, count: 2 },
+    { name: '绷带卷', type: 'tool' }, { name: '药材包', type: 'material' } ] }
+};
+
+// 按身份构建开局包：装备经 equipment-system 工厂生成真实属性（伤害/AC/耐久），工厂不可用时回退简表
+function buildIdentityKit(identity) {
+  var kit = IDENTITY_KITS[identity] || IDENTITY_KITS['佣兵'];
+  var equip = { mainHand: null, offHand: null, body: null, head: null, hands: null, legs: null, feet: null, shoulders: null, accessory1: null, accessory2: null };
+  var factory = window.equipmentFactory;
+  if (factory) {
+    try {
+      if (kit.mainHand) equip.mainHand = factory.createWeapon(kit.mainHand);
+      if (kit.body) equip.body = factory.createArmor(kit.body);
+    } catch (e) { console.warn('[开局包] 模板装备构建失败，回退简表:', e); }
+  }
+  if (!equip.mainHand && kit.mainHand) equip.mainHand = { name: kit.mainHand, type: 'weapon' };
+  if (!equip.body && kit.body) equip.body = { name: kit.body, type: 'armor' };
+  return { gold: kit.gold, equipment: equip, inventory: kit.inventory.map(function(i) { return Object.assign({}, i); }) };
+}
+window.buildIdentityKit = buildIdentityKit;
+window.IDENTITY_KITS = IDENTITY_KITS;
+
 // 生成进入游戏时的开局叙事文本（「启程」页内容搬入游戏叙事区，供 module 块 initGame 调用）
 window.buildOpeningIntro = function(od) {
   if (!od) return '';
@@ -4732,15 +4780,17 @@ function saveCharacter() {
   var traits = getTraits() ? getTraits().split(',') : [];
   var ac = 10 + Math.floor((attributes.敏捷 - 10) / 2);
   var intVal = attributes.智力;
+  var kit = buildIdentityKit(identity);   // 身份开局包：金币/装备/背包按身份查表
+  if (kit.equipment.body && kit.equipment.body.armor) ac += kit.equipment.body.armor.acBase - 10;
   var gameData = {
     character: { name: name, race: race, gender: gender, age: age, level: 1, exp: 0, expToNextLevel: 100, proficiencyBonus: 2, ac: ac, identity: identity },
     attributes: attributes,
     backgrounds: traits,
     fatePoints: { current: 1, max: 1, lastRefreshDate: null },
     hp: { current: 100, max: 100 },
-    equipment: { mainHand: { name: '铁剑', type: 'weapon' }, offHand: null, body: null, head: null, hands: null, legs: null, feet: null, shoulders: null, accessory1: null, accessory2: null },
-    inventory: [],
-    currency: { gold: 15 },
+    equipment: kit.equipment,
+    inventory: kit.inventory,
+    currency: { gold: kit.gold },
     progress: { currentLocation: '佣兵镇·锈钉', currentPlace: '佣兵公会大厅', completedQuests: [], unlockedLocations: ['佣兵镇·锈钉'], backstory: document.getElementById('out').value },
     relationships: {},
     quests: { active: [], completed: [], failed: [] },
@@ -4910,13 +4960,20 @@ function generateOutput(){
       con=document.getElementById('con').value,wis=document.getElementById('wis').value,
       int=document.getElementById('int').value,cha=document.getElementById('cha').value,
       ac=10+mod(dex),load=10+str*2;
+  var kit=buildIdentityKit(identity);
+  if(kit.equipment.body&&kit.equipment.body.armor)ac+=kit.equipment.body.armor.acBase-10;
+  var invText=kit.inventory.map(function(i){return i.name+(i.count?'×'+i.count:'');}).join('、');
   var out='【登记档案】\n'
     +'姓名: '+name+' ｜ 种族: '+race+' ｜ 身份: '+identity+' ｜ 性别: '+gender+' ｜ 年龄: '+age+'\n'
     +'[六维] 力量'+str+'('+modStr(str)+') 敏捷'+dex+'('+modStr(dex)+') 体质'+con+'('+modStr(con)+') 感知'+wis+'('+modStr(wis)+') 智力'+int+'('+modStr(int)+') 魅力'+cha+'('+modStr(cha)+')\n'
-    +'HP: 100/100 ｜ MP: '+int*5+' ｜ AC: '+ac+' ｜ 负重: '+load+'kg ｜ 金币: 15\n'
+    +'HP: 100/100 ｜ MP: '+int*5+' ｜ AC: '+ac+' ｜ 负重: '+load+'kg ｜ 金币: '+kit.gold+'\n'
     +(traits?'[特质] '+traits+'\n':'')
-    +'[初始装备] 铁剑（主手）';
+    +'[初始装备] '+(kit.equipment.mainHand?kit.equipment.mainHand.name+'（主手）':'（无）')+(kit.equipment.body?'，'+kit.equipment.body.name+'（身体）':'')+'\n'
+    +'[随身物品] '+(invText||'（无）');
   document.getElementById('out').value=out;
+  var preview=document.getElementById('kit-preview');
+  if(!preview){var sel=document.getElementById('identity');if(sel&&sel.parentNode){preview=document.createElement('div');preview.id='kit-preview';preview.className='race-hint';sel.parentNode.insertBefore(preview,sel.nextSibling);}}
+  if(preview)preview.textContent='◈ 开局包：'+kit.gold+' 金币 ｜ '+(kit.equipment.mainHand?kit.equipment.mainHand.name:'空手')+(kit.equipment.body?' + '+kit.equipment.body.name:'')+' ｜ '+invText;
 }
 
 function copyOutput(){
