@@ -1,15 +1,55 @@
 # 灾厄之后·重制版 - 独立前端项目
 
-> 基于姬侠传/瀚海架构的独立 Web 应用
 > 废土西幻 RPG · D20 检定 · 原生 JS 零依赖
+> 独立 Web 应用：浏览器直接运行，无需构建、无需后端、不依赖 SillyTavern
 
 ---
 
 ## 项目概述
 
-**灾厄之后·重制版**是一款基于 D20 检定系统的废土西幻 RPG，以**独立前端**方式运行（浏览器直接打开，无需构建、无需后端）。
+**灾厄之后·重制版**是一款基于 D20 检定系统的废土西幻 AI 叙事 RPG。你扮演一名灾厄纪年 300 年踏入废土的冒险者——创角（种族/身份/特质/六维）、接委托、探索十大区域，由 LLM 担任叙事者，本地命令引擎权威管理所有数值。
 
-> 当前版本：单文件书式 SPA（`index.html`，首页/登记册/游戏/设置/指南五视图）。游戏逻辑层与 AI 叙事层（世界书 → Prompt 编排 → 响应解析 → 命令落盘）均已接线，含多轮对话上下文、任务块结算、骰子池反作弊注入。待真实 LLM 端到端验证。
+> 当前版本 **v2.0.0-alpha**：书式 SPA 五视图 + 记忆系统 2.0（五层架构）+ 身份体系（三档）+ 战斗协议（血量流/数学校验/节奏收敛）+ 状态持久化。AI 叙事层全链路已接线。
+
+---
+
+## 核心特性
+
+### 🧠 记忆系统 2.0
+
+长对话不失忆的确定性方案——不依赖向量库也能跑：
+
+- **五层记忆架构**：逐字上下文（8 轮）→ 每层纪要（永久归档）→ 编年史索引（每层一行，带游戏内时间锚点）→ 滚动合并常驻线（纪事 20 层 → 卷宗 100 层 → 典章 300 层）→ 检索展开（词法为主、向量可选）
+- 常驻成本对数增长（1000 层 ≈ 6400 token），理论支持千层长跑
+- **副 API 通道**：记忆压缩可走独立模型渠道，不占用主对话
+- **回合撤销**：一键回滚变量、对话、叙事、记忆四层（跨压缩边界安全）
+
+### 🎭 身份体系
+
+创角时的身份（佣兵/拾荒者/学者/猎人/商贩/工匠/医师）是持续的玩法框架：
+
+- **差异化开局包**：金币/武器/护甲/随身物品各不相同（真实装备模板数据）
+- **领域检定优势 + 专业叙事视角**：医师诊断伤口、商贩识货议价——由身份脚本每回合注入
+- **命运点联动**：按身份行事触发「身份时刻」奖励命运点（重骰货币），扮演有人设激励
+
+### ⚔️ 战斗协议
+
+- AI 叙述战斗全程，骰值由本地骰子池实时生成注入（防编造）
+- 血量流完整：主角回合块 HP 行 + 敌人受伤 HP 行，战况一目了然
+- 数学校验：伤害与扣血不一致、耐久漏扣、HP 归零未结算时自动警示
+- 节奏收敛：按威胁等级的时长基准 + 僵局检测 + 撤退裁定，拒绝无限拉锯
+
+### 📜 状态与检定
+
+- 28 种状态（22 负面 + 6 有利）+ 元素交互链（水熄火/毒燃/寒凝/电涌/寒火互克/速滞互消）
+- 主角状态经命令区持久化，角色面板红绿标签实时显示
+- D20 检定：优势劣势掷二取一、对抗检定、DC 五档、天然 20/1 边界规则
+
+### 🧩 其他
+
+- **ST 预设导入**：兼容 SillyTavern 预设（prompt_order 消息链 + 宏引擎），带管理面板逐条启停
+- **制作系统**：锻造/炼金/词缀/材料（18 武器改装 + 15 炼金配方 + 31 材料）
+- **世界内容**：10 大区域 / 32 种生物 / 17 位具名 NPC / 5 大势力 / 6 检定体系（117 条世界书）
 
 ---
 
@@ -17,8 +57,22 @@
 
 - **前端框架**：原生 JavaScript（无框架依赖）
 - **模块系统**：ES Modules（游戏逻辑层）+ IIFE 挂 window（命令/AI 层）
-- **数据存储**：localStorage（存档/配置/对话上下文）
+- **数据存储**：localStorage（存档/配置/上下文）+ IndexedDB（`calamity-memory` 记忆库）
 - **构建工具**：无需构建；数据层由 `npm run convert` 从 YAML 再生成
+
+---
+
+## 快速开始
+
+```bash
+# 推荐：使用自带的 no-cache 服务器（避免浏览器模块缓存导致更新不生效）
+python tools-serve.py 8090
+# 访问 http://127.0.0.1:8090
+```
+
+其他方式：任意静态服务器指向本目录、GitHub Pages 部署、或直接双击 `index.html`（file:// 模式）。
+
+**配置 API**：设置 → Ⅰ. AI 配置，填入 OpenAI 兼容接口地址 / 密钥 / 模型名（支持 Gemini）。可选配置：记忆副 API、Embedding 向量、ST 预设。
 
 ---
 
@@ -26,91 +80,70 @@
 
 ```
 灾厄之后-独立版/
-├── index.html                    # 唯一入口（书式 SPA：首页/创建/游戏/设置/指南）
-├── module/                       # 运行时模块（32 个）
+├── index.html                    # 唯一入口（书式 SPA：首页/登记册/游戏/设置/指南）
+├── module/                       # 运行时模块
 │   │                             # ── 游戏逻辑层（ES Modules）──
-│   ├── dice-pool.js              # 骰子系统 v2.0（实时掷骰 + rollDice(数量,面数) 兼容接口）
+│   ├── dice-pool.js              # 骰子系统 v2.0（实时掷骰，反作弊核心）
 │   ├── check-system.js           # D20 检定系统
-│   ├── combat-system.js          # 战斗系统（回合制）
-│   ├── equipment-system.js       # 装备系统（武器/护甲/双持/耐久）
-│   ├── creature-system.js        # 生物系统（怪物/战利品）
-│   ├── narrative-system.js       # 正文生成（检定/战斗/时间标签）
-│   ├── game-state.js             # 游戏状态（含 skills/spells 列表）
-│   ├── skill-system.js / spell-system.js / status-system.js
-│   ├── quest-system.js / material-system.js / affix-system.js
-│   ├── forging-system.js / alchemy-system.js / opening-system.js
-│   │                             # ── AI/LLM 层（IIFE 挂 window）──
-│   ├── api-service.js            # LLM API（OpenAI 兼容 + Gemini，超时中断，key 走请求头）
-│   ├── calamity-data.js          # 世界书数据访问层
-│   ├── worldbook-engine.js       # 世界书触发引擎（关键词匹配 + 条目/字符预算上限）
-│   ├── prompt-builder.js         # Prompt 编排（含滚动对话历史 + 骰子池实时展开）
-│   ├── response-parser.js        # AI 响应解析（<content>/<命令>/<SUMMARY>/任务块）
-│   ├── json-repair-helper.js     # JSON 修复
-│   ├── command-engine.js         # 状态命令引擎（中文别名/白名单/容器护栏）
-│   ├── command-processor.js      # 命令调度（applyCommands + applyQuests）
+│   ├── equipment-system.js       # 装备系统（模板工厂/双持/耐久）
+│   ├── game-state.js             # 游戏状态（含旧存档迁移）
+│   ├── skill / spell / quest / material / affix / forging / alchemy-system.js
+│   ├── narrative-system.js / opening-system.js
+│   │                             # ── AI/命令层（IIFE 挂 window）──
+│   ├── api-service.js            # LLM API（OpenAI 兼容 + Gemini；采样参数；无内置代理）
+│   ├── prompt-builder.js         # Prompt 编排（身份条目/世界书/骰池/上下文预算）
+│   ├── worldbook-engine.js       # 世界书触发引擎（关键词 + 条目/字符预算）
+│   ├── response-parser.js        # 响应解析（正文/命令/SUMMARY/任务块/HTML 注释剥离）
+│   ├── command-engine.js         # 命令引擎（15 可写根/中文别名/容器护栏）
+│   ├── command-processor.js      # 命令调度（状态白名单钳制/战斗收口）
+│   ├── story-engine.js           # 记忆系统 2.0 核心（编年史/滚动合并/注入管线）
+│   ├── identity-system.js        # 身份体系脚本（领域优势/叙事视角接入）
+│   ├── memory-store.js           # 记忆库 IDB 封装（calamity-memory v1）
+│   ├── memory-api.js             # 记忆副 API 通道
 │   ├── preset-importer.js        # SillyTavern 预设导入 + 宏引擎
-│   ├── variable-system.js / variable-utils.js / variable-ui.js
-│   ├── storage / embedding 相关已冻结至 legacy/
-│   │                             # ── 数据层（npm run convert 生成）──
-│   ├── prompt-data-core-calamity.js   # 扁平 117 条（运行时主数据源）
-│   ├── prompt-data-npc-calamity.js    # NPC 兜底
-│   └── prompt-data-world-calamity.js  # 世界观兜底
+│   ├── calamity-data.js / json-repair-helper.js / variable-*.js
+│   ├── prompt-data-{core,npc,world}-calamity.js   # 数据层（npm run convert 生成）
+│   │
+│   └── legacy/                   # 冻结模块（combat/creature/status-system 等，不参与运行时）
 │
-├── module/legacy/                # 冻结的姬侠传遗留模块（8 个，不参与运行时）
-│
-├── data-source/                  # 源数据（117 个 YAML/TXT 世界书）
-│   ├── 世界书/                   # NPC/世界观/地理/势力/种族/生物/系统/装备/检定/时间线
-│   └── tools/convert-yaml-to-js.js  # 数据转换器（扁平格式 + 包装标签剥离）
-│
-├── docs/                         # 设计文档与报告
-├── img/ui/                       # UI 图片资源（羊皮纸/皮革纹理）
-├── 测试-*.html                   # 19 个系统测试页面（不入库，本地调试用）
-├── CHANGELOG.md / PROJECT-STATUS.md / SUMMARY.md
+├── data-source/世界书/            # 源数据（117+ YAML：NPC/地理/势力/生物/系统/装备/检定）
+├── data-source/tools/            # convert-yaml-to-js 数据转换器
+├── docs/                         # 设计文档（记忆 2.0 蓝图 / 战斗加固蓝图 / 状态蓝图 / 分析报告）
+├── tools-serve.py                # no-cache 开发服务器（推荐）
+├── tools-test-*.js               # 回归测试（任务块/叙事渲染/记忆/战斗数学/状态命令）
+├── CHANGELOG.md / PROJECT-STATUS.md
 └── package.json
 ```
 
 ---
 
-## 快速开始
-
-```bash
-# 启动本地服务器（推荐，避免浏览器模块加载限制）
-python -m http.server 8080
-# 访问 http://localhost:8080
-```
-
-或直接用浏览器打开 `index.html`。
-
----
-
 ## 当前状态
 
-### ✅ 已完成（游戏逻辑层 + AI 叙事层，已接线）
+### ✅ 已完成
 
-- **数据转换**：117 个 YAML/TXT → 3 个 JS 数据模块（质量 90/100），转换器输出与运行时格式一致，`npm run convert` 一键再生成
-- **骰子系统**：v2.0 实时掷骰；骰子池条目经 `{{roll:dN}}` 宏展开每轮注入 Prompt（反作弊：模型依序取用）
-- **D20 检定 / 战斗 / 装备 / 生物 / 正文生成**：完整实现并有真实模块测试页
-- **命令引擎 + 处理器**：中文别名归一化、白名单治理、容器整体赋值护栏（`set 好感度 = 10` 之类会被拒绝）
-- **多轮对话上下文**：滚动窗口（最近 8 轮）持久化并注入消息链
-- **任务块链路**：`[新任务]/[任务完成]/[任务失败]` → `applyQuests` → gameData.quests
-- **技能/法术列表**：`push 技能列表` / `push 法术列表` 命令可写
-- **书式 SPA**：单页五视图，设置按钮/回车发送均正常路由
-- **ST 预设导入**：prompt_order 消息链 + 宏引擎（setvar/random/{{user}} 等）
-- **健壮性**：API 请求默认 180s 超时中断；Gemini key 走请求头不进 URL
+- **AI 叙事链路**：世界书触发 → Prompt 编排（ST 预设兼容）→ 骰池反作弊 → 响应解析 → 命令落盘，全链路接线并有回归测试
+- **记忆系统 2.0**：五层架构 + 副 API + 撤销联动 + 三页签查看器（stub 21 项断言 + 真实 IDB e2e）
+- **身份体系**：差异化开局包 / 领域优势+叙事视角 / 命运点联动（身份时刻）
+- **战斗协议**：血量流（主角+敌人 HP 行）/ 数学校验警示 / 威胁分级节奏收敛
+- **状态持久化**：conditions 可写根（28 白名单 + 层级钳制）+ 面板标签
+- **命令引擎**：15 可写根、中文别名、容器护栏、未知状态拒绝、力竭/侵蚀层级钳制
+- **UI**：顶栏时间/命运点、位置两级显示、任务简报、物品清单卡片、状态标签、记忆库三页签、ST 预设管理面板
 
-### ⏳ 待完成
+### ⏳ 待完成 / 进行中
 
-- **真实 LLM 端到端**：配置 API Key 后验证完整链路（世界书 → Prompt → LLM → 解析 → 命令/任务落地）
-- **制作系统接入运行时**：锻造/炼金/词缀/法术/开局 5 个系统模块已完成可加载，但 index.html 尚未接入其 UI（测试页仍为内联副本，待改为 import 真模块）
+- **真实长跑验证**：记忆压缩质量、身份时刻裁定松紧、数学校验误报率——需要 20+ 层真实游玩校准（当前最有价值的事）
+- **记忆系统 P1**：实体台账、NPC 主观记忆（蓝图 `docs/记忆系统2.0-工程蓝图.md` §10-12）
+- **身份第三档**：七身份专属支线 + 声望跨档奖励（依赖实玩反馈）
+- **制作系统 UI 接入**：锻造/炼金/词缀模块已完成，index.html 尚未接入运行时 UI
 
 ### 🔧 已知问题
 
-1. **equipment 双状态源**：equipment-system 模块级单例与 gameData.equipment 未同步（combat 读单例）
-2. **opening-system 未接线**：开局注入通道（registerOpening）无调用方，初始数值与 game-state 冲突
-3. **任务三实现并存**：主链路已收敛到 gameData.quests + applyQuests；quest-system.js 的 questManager 仍独立存在
-4. **法术总纲 ST 残留**：sheet_spells 数据库表格设计属 SillyTavern 体系，独立版待重写为命令流
-5. **数据缺口**：6 个 NPC 缺六维属性（伊莎/塞壬/维克多/莉娜/莫拉/马库斯）
-6. **CORS 代理默认启用**：api-service 默认经第三方 Worker 中转（可在设置关闭），自建代理更安全
+1. **equipment 单例空转**：equipment-system 模块级单例与 gameData.equipment 并存（combat 冻结后主风险消除，维护负担仍在）
+2. **opening-system 模块闲置**：开局叙事实际走内联通道（可用），模块本身未接线
+3. **quest-system 旁路**：独立 questManager 与主链路并存
+4. **法术总纲 ST 残留**：sheet_spells 表格设计待重写为命令流
+5. **数据缺口**：6 个 NPC 缺六维属性
+6. **浏览器模块缓存**：部署到静态托管时无 no-cache 头，更新后需强刷（本地用 tools-serve.py 无此问题）
 
 ---
 
@@ -120,10 +153,10 @@ python -m http.server 8080
 # 1. 编辑 data-source/世界书/ 下的 YAML
 # 2. 一键再生成（直写 module/，格式与运行时一致）
 npm run convert
-# 3. 刷新页面验证
+# 3. 刷新页面验证（本地服务器会自动绕过缓存）
 ```
 
-注意：`prompt-data-core-calamity.js` 为生成文件，勿手改；包装标签（`<Xxx>...</Xxx>`）会在转换时成对剥离。
+注意：`prompt-data-*-calamity.js` 为生成文件，勿手改；包装标签（`<Xxx>...</Xxx>`）会在转换时成对剥离。
 
 ---
 
