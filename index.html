@@ -597,6 +597,9 @@
   .status-item{display:flex;align-items:center;gap:8px}
   .ui-icon{width:18px;height:18px;object-fit:contain;vertical-align:middle;filter:drop-shadow(0 0 3px rgba(0,0,0,0.5))}
   .ui-glyph{font-size:14px;color:var(--gold);text-shadow:0 0 6px var(--gold-glow),0 1px 0 rgba(0,0,0,0.4);line-height:1}
+  .cond-tag{display:inline-block;padding:2px 8px;margin:2px 4px 2px 0;border-radius:2px;font-size:11px;font-weight:bold;letter-spacing:1px}
+  .cond-neg{color:#c95f5f;background:rgba(163,60,60,0.12);border:1px solid rgba(163,60,60,0.4)}
+  .cond-pos{color:#7ba05b;background:rgba(123,160,91,0.12);border:1px solid rgba(123,160,91,0.4)}
   #time-text{font-size:13px;letter-spacing:1px;color:var(--parchment);text-shadow:0 1px 0 rgba(0,0,0,0.4);white-space:nowrap}
   .hp-bar{width:130px;height:20px;background:url('img/ui/ui-hp-frame.png') center/100% 100% no-repeat;border-radius:7px;overflow:hidden;box-shadow:inset 0 1px 3px rgba(0,0,0,0.5),0 0 6px rgba(0,0,0,0.4);position:relative;padding:4px 7px}
   .hp-fill{height:100%;background:linear-gradient(90deg,#4caf50,#8bc34a);transition:width 0.3s;box-shadow:0 0 6px rgba(76,175,80,0.5);position:relative;overflow:hidden}
@@ -2030,6 +2033,7 @@
           <div><strong>等级：</strong><span id="char-level">1</span></div>
           <div><strong>经验：</strong><span id="char-exp">0</span></div>
           <div><strong>位置：</strong><span id="char-location" style="color:var(--gold)">未知</span></div>
+          <div id="char-conditions" style="margin-top:6px"></div>
         </div>
       </div>
 
@@ -3362,7 +3366,6 @@ function clearSTPreset() {
   import { calamityPrompts as npcPrompts } from './module/prompt-data-npc-calamity.js';
   import { calamityPrompts as worldPrompts } from './module/prompt-data-world-calamity.js';
   import equipmentData from './module/equipment-system.js';
-  import statusData from './module/status-system.js';
   import questData from './module/quest-system.js';
   import skillData from './module/skill-system.js';
 
@@ -3413,27 +3416,6 @@ function clearSTPreset() {
 
 
   // 把状态系统数据动态构建为世界书格式，注入数据访问层
-  function buildStatusWorldbook() {
-    var NEGATIVE_STATUS = statusData.NEGATIVE_STATUS;
-    var POSITIVE_STATUS = statusData.POSITIVE_STATUS;
-    var wb = { "状态": {} };
-
-    // 负面状态列表
-    var negativeLines = Object.entries(NEGATIVE_STATUS).map(function(e) {
-      var name = e[0], s = e[1];
-      return '- **' + name + '**：' + s.effect + '（解除：' + s.removeCondition + '）';
-    }).join('\n');
-    wb["状态"]["负面状态列表"] = '# 负面状态列表\n\n' + negativeLines;
-
-    // 有利状态列表
-    var positiveLines = Object.entries(POSITIVE_STATUS).map(function(e) {
-      var name = e[0], s = e[1];
-      return '- **' + name + '**：' + s.effect + '（结束：' + s.removeCondition + '）';
-    }).join('\n');
-    wb["状态"]["有利状态列表"] = '# 有利状态列表\n\n' + positiveLines;
-
-    return wb;
-  }
 
   // 把任务系统数据动态构建为世界书格式，注入数据访问层
   function buildQuestWorldbook() {
@@ -3489,10 +3471,9 @@ function clearSTPreset() {
   }
 
   var equipmentWorldbook = buildEquipmentWorldbook();
-  var statusWorldbook = buildStatusWorldbook();
   var questWorldbook = buildQuestWorldbook();
   var skillWorldbook = buildSkillWorldbook();
-  var mergedWorld = Object.assign({}, worldPrompts, equipmentWorldbook, statusWorldbook, questWorldbook, skillWorldbook);
+  var mergedWorld = Object.assign({}, worldPrompts, equipmentWorldbook, questWorldbook, skillWorldbook);
 
   // 注册灾厄世界书数据到数据访问层（供 worldbook-engine / prompt-builder 消费）
   window.calamityData.register(promptData, npcPrompts, mergedWorld);
@@ -4437,6 +4418,22 @@ function clearSTPreset() {
     const loc = (gd.progress && gd.progress.currentLocation) || '未知';
     const place = gd.progress && gd.progress.currentPlace;
     document.getElementById('char-location').textContent = place ? loc + ' · ' + place : loc;
+    // 主角状态标签（conditions 白名单着色：负面红/有利绿，力竭显示层级）
+    const condEl = document.getElementById('char-conditions');
+    if (condEl) {
+      const cond = gd.conditions || {};
+      const names = Object.keys(cond);
+      if (!names.length) { condEl.innerHTML = ''; }
+      else {
+        condEl.innerHTML = names.map(function (n) {
+          const positive = ['隐形','加速','耀眼','灵巧','专注','护体'].indexOf(n) >= 0;
+          let label = n;
+          if (n === '力竭' && cond[n] && cond[n].层级) label += ' ×' + cond[n].层级;
+          if (n === '侵蚀' && cond[n] && cond[n].层级) label += ' ×' + cond[n].层级;
+          return '<span class="cond-tag ' + (positive ? 'cond-pos' : 'cond-neg') + '">' + label + '</span>';
+        }).join('');
+      }
+    }
     updateHPBar(gd.hp.current, gd.hp.max);
     updateAttributes(gd.attributes);
     updateEquipment(gd.equipment);

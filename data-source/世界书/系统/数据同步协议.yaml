@@ -12,7 +12,7 @@
 
 ## 1. 可写根路径（AI 权限白名单）
 
-AI 只可写以下 14 个顶层根：
+AI 只可写以下 15 个顶层根：
 
 - **character**（角色基础）
 - **attributes**（六维属性）
@@ -22,7 +22,8 @@ AI 只可写以下 14 个顶层根：
 - **equipment**（装备 10 槽位）
 - **inventory**（背包数组）
 - **currency**（金币）
-- **progress**（进度：位置/已完成任务/已解锁地点）
+- **progress**（进度：位置/已完成任务/已解锁地点/当前场所）
+- **conditions**（主角状态：状态名 → true 或 {层级, 来源}；白名单见「状态列表」）
 - **relationships**（关系对象：NPC 名 → {好感度, 关系状态, ...}）
 - **gameTime**（灾厄纪年：年/月/日/时/分/季节）
 - **tone**（剧情基调字符串）
@@ -144,6 +145,18 @@ AI 只可写以下 14 个顶层根：
 | unlockedLocations | string[] | ['锈钉镇'] | 已解锁地点数组 |
 | backstory | string | '' | 角色背景故事 |
 
+### 2.9b conditions（主角状态）
+
+| 字段 | 类型 | 默认值 | 说明 |
+|---|---|---|---|
+| {状态名} | true 或 object | —（无状态时 conditions 为 `{}`） | 键为状态名（白名单见「状态列表」28 条）；力竭值为 `{层级: 1~3}`，侵蚀值为 `{层级: 1~2}`；其他状态可为 true 或 `{来源}` |
+
+**规则**：
+- 获得：`set 状态.中毒 = {"来源":"感染撕咬"}`；解除：`delete 状态.燃烧`
+- 力竭层级钳制 1~3、侵蚀层级钳制 1~2（引擎硬保证）；力竭达 3 层时 AI 应同时 `set 状态.昏迷 = true`
+- **仅主角状态入此根**；敌人状态由 battle 卡状态栏呈现，不入命令区
+- 元素交互转化（如中毒遇火转燃烧）由 AI 按状态列表执行：先 delete 旧状态，再 set 新状态
+
 ### 2.10 relationships（关系）
 
 - **类型**：`object`（对象，键为 NPC 名）
@@ -221,6 +234,8 @@ AI 只可写以下 14 个顶层根：
 | 当前场所 / 具体位置 / 场所 | progress.currentPlace |
 | 已完成任务 | progress.completedQuests |
 | 已解锁地点 | progress.unlockedLocations |
+| 状态 / 当前状态 | conditions |
+| 状态.{状态名} | conditions.{状态名} |
 | 关系.{NPC名}.好感度 | relationships.{NPC名}.好感度 |
 | 时间.年 / 年份 | gameTime.year |
 | 时间.月 / 月份 | gameTime.month |

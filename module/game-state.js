@@ -87,6 +87,9 @@ const defaultGameData = {
     completedQuests: [],
     unlockedLocations: ['佣兵镇']
   },
+
+  // 主角状态（键=状态名，权威清单见世界书「状态列表」；力竭/侵蚀带层级）
+  conditions: {},
   
   // 任务系统（对齐 ST 的"任务"顶层容器）
   quests: {

@@ -44,11 +44,38 @@ var commandProcessor = (function () {
 
     // ==================== 应用前规范化 ====================
 
+    // 主角状态白名单（与世界书「状态列表」同步维护）：值 0=负面 / 1=有利（面板着色用）
+    var STATUS_WHITELIST = {
+        '目盲': 0, '耳聋': 0, '失明': 0, '失能': 0, '昏迷': 0, '麻痹': 0, '震慑': 0, '石化': 0, '中毒': 0, '恐慌': 0, '魅惑': 0,
+        '受擒': 0, '束缚': 0, '倒地': 0, '力竭': 0, '燃烧': 0, '出血': 0, '残废': 0, '失衡': 0, '减速': 0, '侵蚀': 0, '寒冷': 0, '感电': 0,
+        '隐形': 1, '加速': 1, '耀眼': 1, '灵巧': 1, '专注': 1, '护体': 1
+    };
+
+    /** 主角状态规范化：白名单过滤 + 力竭/侵蚀层级钳制（应用前与应用后都调用） */
+    function 规范条件(gd) {
+        var conditions = gd.conditions = gd.conditions || {};
+        Object.keys(conditions).forEach(function (name) {
+            if (!STATUS_WHITELIST.hasOwnProperty(name)) {
+                delete conditions[name];   // 未知状态名拒绝落地
+                return;
+            }
+            var v = conditions[name];
+            if (name === '力竭') {
+                var lvl = (v && v.层级) ? 规范化整数(v.层级, 1) : 1;
+                conditions[name] = { 层级: Math.max(1, Math.min(3, lvl)) };
+            } else if (name === '侵蚀') {
+                var st = (v && v.层级) ? 规范化整数(v.层级, 1) : 1;
+                conditions[name] = { 层级: Math.max(1, Math.min(2, st)) };
+            } else {
+                conditions[name] = (v && typeof v === 'object') ? v : true;
+            }
+        });
+    }
+
     /**
      * 防御式规范化 gameData：保证字段类型与形状合法（不改变语义）。
      */
-    function normalizeGameData(gd) {
-        if (!gd || typeof gd !== 'object') return gd;
+    function normalizeGameData(gd) {        if (!gd || typeof gd !== 'object') return gd;
 
         var c = gd.character = gd.character || {};
         c.name = 规范化文本(c.name, '旅行者');
@@ -105,6 +132,9 @@ var commandProcessor = (function () {
         progress.currentPlace = 规范化文本(progress.currentPlace || '', '');
         if (!Array.isArray(progress.completedQuests)) progress.completedQuests = [];
         if (!Array.isArray(progress.unlockedLocations)) progress.unlockedLocations = ['锈钉镇'];
+
+        // 主角状态规范化（白名单 + 层级钳制）
+        规范条件(gd);
 
         // 任务系统规范化
         var quests = gd.quests = gd.quests || {};
@@ -198,11 +228,16 @@ var commandProcessor = (function () {
         gd.hp.current = 取区间(gd.hp.current, 0, gd.hp.max, gd.hp.max);
         if (hpBefore !== gd.hp.current) corrections.push('hp.current 钳制 ' + hpBefore + ' -> ' + gd.hp.current);
 
-        // 命运点（结算协议：上限 1，不积累）
+        // 命运点（结算协议：上限 3；「身份时刻」经身份体系结算增加）
         var fpBefore = gd.fatePoints.current;
-        gd.fatePoints.max = Math.max(0, 规范化整数(gd.fatePoints.max, 1));
+        gd.fatePoints.max = Math.max(0, 规范化整数(gd.fatePoints.max, 3));
         gd.fatePoints.current = 取区间(gd.fatePoints.current, 0, gd.fatePoints.max, gd.fatePoints.max);
         if (fpBefore !== gd.fatePoints.current) corrections.push('fatePoints 钳制');
+
+        // 主角状态（白名单过滤 + 层级钳制）
+        var condBefore = JSON.stringify(gd.conditions || {});
+        规范条件(gd);
+        if (JSON.stringify(gd.conditions || {}) !== condBefore) corrections.push('conditions 规范');
 
         // 金币非负
         var goldBefore = gd.currency.gold;

@@ -21,7 +21,7 @@ var commandEngine = (function () {
     /** AI 可写的 gameData 顶层根 */
     var WRITABLE_ROOTS = [
         'character', 'attributes', 'backgrounds', 'fatePoints', 'hp',
-        'equipment', 'inventory', 'currency', 'progress',
+        'equipment', 'inventory', 'currency', 'progress', 'conditions',
         'relationships', 'gameTime', 'tone', 'skills', 'spells'
     ];
 
@@ -93,6 +93,8 @@ var commandEngine = (function () {
         '金钱': 'currency.gold',
         '资金': 'currency.gold',
         '进度': function (rest) { return rest ? 'progress' + rest : null; },
+        '状态': function (rest) { return rest ? 'conditions' + rest : 'conditions'; },
+        '当前状态': 'conditions',
         '当前位置': 'progress.currentLocation',
         '位置': 'progress.currentLocation',
         '所在地': 'progress.currentLocation',
