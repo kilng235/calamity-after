@@ -255,7 +255,13 @@ var promptBuilder = (function() {
     function _buildSystem(gd, npcBlocks, wbBlocks, actionGuide) {
         var sections = [];
         sections.push(_buildStateBlock(gd));
-        
+
+        // 身份条目（身份体系脚本按当前存档身份接入：领域检定优势 + 专业叙事视角）
+        if (typeof window !== 'undefined' && window.identitySystem) {
+            var identityBlock = window.identitySystem.buildBlock();
+            if (identityBlock) sections.push(identityBlock);
+        }
+
         // 当前任务数据（让 LLM 知道玩家当前任务）
         var questBlock = (window.worldbookEngine && window.worldbookEngine.buildQuestBlock) 
             ? window.worldbookEngine.buildQuestBlock(gd) 

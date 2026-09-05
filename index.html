@@ -2753,6 +2753,7 @@ window.addEventListener('DOMContentLoaded', function() {
 <script src="module/memory-store.js"></script>
 <script src="module/memory-api.js"></script>
 <script src="module/story-engine.js"></script>
+<script src="module/identity-system.js"></script>
 <script>
 'use strict';
 
@@ -3579,6 +3580,7 @@ function clearSTPreset() {
 
     // 填 UI（refreshGameUI 覆盖含顶栏时间与角色信息面板位置的完整状态）
     document.querySelector('#player-name span').textContent = gd.character.name;
+    if (window.identitySystem && gd.character.identity) identitySystem.activateFromSave();   // 读档/刷新：重挂身份条目
     refreshGameUI();
 
     // 首次进入：优先渲染「启程」开局叙事（与登记册第ⅲ页同源），无开局数据时退回欢迎语
@@ -4782,6 +4784,7 @@ function saveCharacter() {
   var intVal = attributes.智力;
   var kit = buildIdentityKit(identity);   // 身份开局包：金币/装备/背包按身份查表
   if (kit.equipment.body && kit.equipment.body.armor) ac += kit.equipment.body.armor.acBase - 10;
+  if (window.identitySystem) identitySystem.activate(identity);   // 注册完成：接入身份条目
   var gameData = {
     character: { name: name, race: race, gender: gender, age: age, level: 1, exp: 0, expToNextLevel: 100, proficiencyBonus: 2, ac: ac, identity: identity },
     attributes: attributes,
