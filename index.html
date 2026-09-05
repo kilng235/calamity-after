@@ -4228,6 +4228,62 @@ function clearSTPreset() {
   }
   window.vecRecompute = vecRecompute;
 
+  // ── 战斗数学校验（P2）：对比战斗卡面与命令落地的前后状态差分，只警示不改值 ──
+  // gdBefore/gdAfter：命令应用前后的 gameData；battleCardText：本回复最新 battle 卡文本
+  function battleMathCheck(gdBefore, gdAfter, battleCardText, playerName) {
+    if (!battleCardText || !gdBefore || !gdAfter) return null;
+    const lines = String(battleCardText).split('\n').map(l => l.trim()).filter(Boolean);
+
+    // 卡面归因切分：按【X的回合】分块，敌人回合块伤害合计 = 主角承伤 T；主角回合块 ✓ 计数 = 命中 N
+    let T = 0, N = 0, currentActor = null, inPlayerTurn = false;
+    let hasTurnBlock = false;
+    for (const line of lines) {
+      let m = line.match(/^【(.+?)(?:的回合)?】/) || line.match(/^◆\s*(.+)$/);
+      if (m) {
+        currentActor = m[1].trim();
+        inPlayerTurn = currentActor === playerName;
+        hasTurnBlock = true;
+        continue;
+      }
+      m = line.match(/^\[\s*伤害[:：]\s*(\d+)\s*\]$/);
+      if (m && currentActor) {
+        if (!inPlayerTurn) T += parseInt(m[1]);
+        continue;
+      }
+      if (/^✓/.test(line) && inPlayerTurn) N++;
+    }
+
+    // R1 伤害-HP 一致（有混合治疗时降级 console，不进叙事流）
+    const L = gdBefore.hp.current - gdAfter.hp.current;
+    const healed = gdAfter.hp.current > gdBefore.hp.current;
+    if (hasTurnBlock && T > 0 && !healed && Math.abs(L - T) > 2) {
+      return '⚠ 伤害结算不一致：战斗卡合计 -' + T + '，实际生命值扣减 -' + L + '（请核对 <命令> 区）';
+    }
+    if (hasTurnBlock && T > 0 && healed) {
+      console.info('[战斗校验] 受伤与治疗混合回合：卡面承伤 ' + T + '，净变化 ' + (-L) + '（不作警示）');
+    }
+
+    // R2 耐久漏扣（只查"完全漏扣"：命中 N≥2 次但主手耐久分文未动；单次命中进 console）
+    const dBefore = gdBefore.equipment && gdBefore.equipment.mainHand && gdBefore.equipment.mainHand.durability;
+    const dAfter = gdAfter.equipment && gdAfter.equipment.mainHand && gdAfter.equipment.mainHand.durability;
+    if (N >= 1 && dBefore && dAfter) {
+      const durDelta = dAfter.current - dBefore.current;
+      if (durDelta === 0) {
+        if (N >= 2) return '⚠ 疑似漏扣武器耐久：命中 ' + N + ' 次但耐久未变动（<命令> 区应含 add 装备.主手.耐久 = -1）';
+        console.warn('[战斗校验] 命中 1 次未扣武器耐久');
+      } else if (Math.abs(durDelta) > N + 5) {
+        console.warn('[战斗校验] 武器耐久扣减异常：命中 ' + N + ' 次但耐久变动 ' + durDelta);
+      }
+    }
+
+    // R3 HP 归零未结算
+    if (gdAfter.hp.current === 0 && !/(死亡|倒下|倒在|战败|已死)/.test(battleCardText)) {
+      return '⚠ 生命值已归零，但叙事未结算后果（应写倒下/死亡判定）';
+    }
+    return null;
+  }
+  window.battleMathCheck = battleMathCheck;   // 调试/测试钩子
+
   // ── AI 主链路 ──
   window.sendMessage = async function() {
     const input = document.getElementById('input-box');
@@ -4289,6 +4345,12 @@ function clearSTPreset() {
       const parsed = responseParser.run(responseContent);
       displayNarrative('\n' + parsed.mainText);
 
+      // 提取本回复的 battle 卡文本（战斗数学校验用）
+      const battleCards = parsed.mainText.match(/<battle>([\s\S]*?)<\/battle>/gi) || [];
+      const battleCardText = battleCards.length
+        ? battleCards[battleCards.length - 1].replace(/<\/?battle>/gi, '')
+        : null;
+
       // 应用命令 + 任务块（两条都走深拷贝工作流，最后一次性落盘）
       let finalGd = gd;
       if (parsed.commands && parsed.commands.length > 0) {
@@ -4307,6 +4369,12 @@ function clearSTPreset() {
       if (finalGd !== gd) {
         gameState.importGameData(finalGd);
         refreshGameUI();
+      }
+
+      // 战斗数学校验（P2）：卡面伤害/命中 vs 命令落地差分，不一致时警示一行
+      if (battleCardText && window.battleMathCheck) {
+        const warning = battleMathCheck(gd, finalGd, battleCardText, gd.character && gd.character.name);
+        if (warning) displayNarrative('\n' + warning + '\n');
       }
 
       // 正文写入滚动上下文（不含命令标签），原始响应另存调试历史
