@@ -4935,6 +4935,11 @@ window.addEventListener('DOMContentLoaded', function(){
     updateAttr();
     if(typeof updateRaceHint==='function') updateRaceHint();
   }
+  // 恢复 ST 预设挂载：勾选启用过的预设，刷新页面后继续生效（否则 _stPreset 为空、静默回退默认提示词）
+  if (typeof presetImporter !== 'undefined' && window.promptBuilder && presetImporter.加载启用状态()) {
+    var preset = presetImporter.加载当前预设();
+    if (preset && window.promptBuilder.setSTPreset) promptBuilder.setSTPreset(preset);
+  }
 });
 
 /* ══ 属性值闪烁 ══ */
