@@ -3357,13 +3357,11 @@ function clearSTPreset() {
 <script type="module">
   import * as gameState from './module/game-state.js';
   import * as narrativeSystem from './module/narrative-system.js';
-  import * as combatSystem from './module/combat-system.js';
   import * as checkSystem from './module/check-system.js';
   import { promptData } from './module/prompt-data-core-calamity.js';
   import { calamityPrompts as npcPrompts } from './module/prompt-data-npc-calamity.js';
   import { calamityPrompts as worldPrompts } from './module/prompt-data-world-calamity.js';
   import equipmentData from './module/equipment-system.js';
-  import creatureData from './module/creature-system.js';
   import statusData from './module/status-system.js';
   import questData from './module/quest-system.js';
   import skillData from './module/skill-system.js';
@@ -3413,64 +3411,6 @@ function clearSTPreset() {
     return wb;
   }
 
-  // 把生物系统模板数据动态构建为世界书格式，注入数据访问层
-  function buildCreatureWorldbook() {
-    var CREATURE_TEMPLATES = creatureData.CREATURE_TEMPLATES;
-    var THREAT_LEVELS = creatureData.THREAT_LEVELS;
-    var wb = { "生物": {}, "威胁等级": {} };
-
-    // 威胁等级总纲
-    var threatLines = Object.entries(THREAT_LEVELS).map(function(e) {
-      var lvl = e[0], stats = e[1];
-      return '- ' + lvl + '：AC ' + stats.ac + '，HP ' + stats.hp + '，伤害 ' + stats.damage + '，攻击加值 +' + stats.attackBonus + '，经验 ' + stats.exp[0] + '-' + stats.exp[1];
-    }).join('\n');
-    wb["威胁等级"]["威胁等级数据"] = '# 威胁等级数据\n\n' + threatLines;
-
-    // 每个生物详情
-    Object.entries(CREATURE_TEMPLATES).forEach(function(e) {
-      var name = e[0], c = e[1];
-      var lines = [];
-      lines.push('# ' + name);
-      lines.push('');
-      lines.push('## 基础信息');
-      lines.push('- 威胁等级：' + c.threatLevel);
-      lines.push('- 类型：' + c.type);
-      lines.push('- 区域：' + c.region);
-      lines.push('');
-      lines.push('## 描述');
-      lines.push(c.description);
-      lines.push('');
-      lines.push('## 外貌');
-      lines.push(c.appearance);
-      lines.push('');
-      lines.push('## 行为模式');
-      lines.push(c.behavior);
-      lines.push('');
-      if (c.abilities && c.abilities.length) {
-        lines.push('## 能力');
-        c.abilities.forEach(function(ab) {
-          lines.push('- **' + ab.name + '**：' + ab.description);
-        });
-        lines.push('');
-      }
-      if (c.weaknesses && c.weaknesses.length) {
-        lines.push('## 弱点');
-        c.weaknesses.forEach(function(wk) {
-          lines.push('- **' + wk.name + '**：' + wk.description);
-        });
-        lines.push('');
-      }
-      if (c.loot && c.loot.length) {
-        lines.push('## 战利品');
-        c.loot.forEach(function(lt) {
-          lines.push('- ' + lt.item + '（掉率 ' + Math.round(lt.chance * 100) + '%，价值 ' + lt.value + ' 金币）');
-        });
-      }
-      wb["生物"][name] = lines.join('\n');
-    });
-
-    return wb;
-  }
 
   // 把状态系统数据动态构建为世界书格式，注入数据访问层
   function buildStatusWorldbook() {
@@ -3549,11 +3489,10 @@ function clearSTPreset() {
   }
 
   var equipmentWorldbook = buildEquipmentWorldbook();
-  var creatureWorldbook = buildCreatureWorldbook();
   var statusWorldbook = buildStatusWorldbook();
   var questWorldbook = buildQuestWorldbook();
   var skillWorldbook = buildSkillWorldbook();
-  var mergedWorld = Object.assign({}, worldPrompts, equipmentWorldbook, creatureWorldbook, statusWorldbook, questWorldbook, skillWorldbook);
+  var mergedWorld = Object.assign({}, worldPrompts, equipmentWorldbook, statusWorldbook, questWorldbook, skillWorldbook);
 
   // 注册灾厄世界书数据到数据访问层（供 worldbook-engine / prompt-builder 消费）
   window.calamityData.register(promptData, npcPrompts, mergedWorld);

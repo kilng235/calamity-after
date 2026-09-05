@@ -68,7 +68,7 @@
 
 ## ⚠️ 已知问题
 
-1. **equipment 双状态源**：combat-system 读 equipment-system 模块级单例，与 gameData.equipment 不同步（开局包经 gameData 落库，不受影响，但战斗耐久路径仍走单例）
+1. ~~**equipment 双状态源**~~：✅ 已消除（2026-09-05）——combat-system/creature-system 移入 `module/legacy/` 冻结；其生物模板已整合进世界书（10 只 JS 独有生物迁移为 yaml，5 只重叠核对一致）；同时修复 `buildCreatureWorldbook()` 在 Object.assign 时遮蔽静态 yaml 生物条目的活体 bug，生物数据单一事实源为 `世界书/生物/*.yaml`（32 只）
 2. **opening-system.js 模块闲置**：开局叙事实际由内联 `IDENTITY_OPENINGS` + `calamityOpening` 通道实现（可用），模块本身未接线
 3. **quest-system.js 旁路**：主链路收敛于 gameData.quests，独立 questManager 仍是并行代码
 4. **身份时刻为 AI 裁定**：触发松紧依赖模型自觉，频控规则（每日 1 次/场景去重）无引擎硬约束——需实玩校准措辞
@@ -78,6 +78,11 @@
 ---
 
 ## 🔄 更新日志
+
+### 2026-09-05（晚·战斗引擎加固 P0）
+- 死引擎冻结：combat-system/creature-system 移入 `module/legacy/`，双状态源暗雷消除
+- 生物数据整合：JS 独有 10 只迁移为世界书 yaml（世界书生物 22→32 只）；修复 `buildCreatureWorldbook` 在 Object.assign 时遮蔽静态 yaml 生物条目的活体 bug；生物单一事实源确立
+- 附带清理：narrative-system 的死 import；index.html 两个冻结模块 import
 
 ### 2026-09-05
 - 记忆系统 2.0：五层架构（纪要/编年史/滚动合并常驻线/词法+可选向量）+ 副API + 撤销联动；新库 calamity-memory；查看器三页签

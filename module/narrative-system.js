@@ -8,7 +8,6 @@
  * @module narrative-system
  */
 
-import { getCombatLog } from './combat-system.js';
 
 // ==================== 时间系统 ====================
 
