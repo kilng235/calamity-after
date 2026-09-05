@@ -160,6 +160,17 @@ export function loadGameData() {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const loaded = JSON.parse(saved);
+      // 旧存档迁移（必须在 mergeWithDefaults 之前：合并后 currentPlace 会被默认值填充，无法识别旧存档）：
+      // currentPlace 字段引入前创建的存档，若开局仍在锈钉镇，补齐据点名与开局场所
+      const prog = loaded.progress || {};
+      if (prog.currentPlace === undefined) {
+        if (prog.currentLocation === '锈钉镇' || prog.currentLocation === '佣兵镇·锈钉') {
+          prog.currentLocation = '佣兵镇·锈钉';
+          prog.currentPlace = '佣兵公会大厅';
+        } else {
+          prog.currentPlace = '';
+        }
+      }
       gameData = mergeWithDefaults(loaded, defaultGameData);
       console.log('✓ 游戏数据已加载');
       return true;
