@@ -132,9 +132,3 @@ npm run convert
 MIT License
 
 ---
-
-## 致谢
-
-- 基于 [姬侠传/瀚海](https://github.com/Ji-Haitang/char_card_1) 架构
-- ST 预设导入参考墨染江湖 tavernPreset 实现
-- 灵感来源于 DND 5E
