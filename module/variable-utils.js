@@ -35,8 +35,6 @@ var variableUtils = (function() {
         if (typeof window !== 'undefined') {
             if (window.gameData) {
                 gameData = window.gameData;
-            } else if (window.CalamityStateBridge && typeof window.CalamityStateBridge.getGameData === 'function') {
-                gameData = window.CalamityStateBridge.getGameData();
             } else if (window.gameState && typeof window.gameState.getGameData === 'function') {
                 gameData = window.gameState.getGameData();
             }

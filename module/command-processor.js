@@ -5,9 +5,9 @@
  * 1. 应用前：规范化 gameData（防中间态）
  * 2. 逐条应用命令（单条失败不中断，记录报告）
  * 3. 应用后收口：数值钳制、经验升级查表、背包条目形状、状态到期结算
- * 4. 落盘与 UI 刷新（通过 window.CalamityStateBridge 桥接 game-state / UI）
+ * 4. 落盘与 UI 刷新：由调用方（index.html 主链路）执行 gameState.importGameData + refreshGameUI
  *
- * 依赖：command-engine.js（全局）、game-state.js（经 CalamityStateBridge）
+ * 依赖：command-engine.js（全局）；gameData 由调用方传入，本模块不持有状态
  *
  * @module command-processor
  * @version 1.0.0
@@ -387,58 +387,12 @@ var commandProcessor = (function () {
         return { gameData: gd, report: report };
     }
     
-    /**
-     * 对当前存档直接应用命令（走 CalamityStateBridge，供 pipeline 调用）。
-     * 桥由 game.html 注入：{ getGameData, saveGameData, refreshUI }
-     */
-    function processCurrent(commands) {
-        var bridge = (typeof window !== 'undefined') ? window.CalamityStateBridge : null;
-        if (!bridge || typeof bridge.getGameData !== 'function') {
-            log('⚠️ CalamityStateBridge 未注入，命令未应用');
-            return null;
-        }
-        var current = bridge.getGameData();
-        var result = applyCommands(current, commands);
-        bridge.saveGameData(result.gameData);
-        if (typeof bridge.refreshUI === 'function') bridge.refreshUI();
-        
-        // 触发 variableUI 防抖刷新（对齐 ST 的 VARIABLE_UPDATE_ENDED 事件）
-        if (typeof window !== 'undefined' && window.variableUI && typeof window.variableUI.schedulePopulate === 'function') {
-            window.variableUI.schedulePopulate(80);
-        }
-        
-        return result;
-    }
-    
-    /**
-     * 对当前存档直接应用任务（走 CalamityStateBridge，供 pipeline 调用）。
-     */
-    function processQuestsCurrent(quests) {
-        var bridge = (typeof window !== 'undefined') ? window.CalamityStateBridge : null;
-        if (!bridge || typeof bridge.getGameData !== 'function') {
-            log('⚠️ CalamityStateBridge 未注入，任务未应用');
-            return null;
-        }
-        var current = bridge.getGameData();
-        var result = applyQuests(current, quests);
-        bridge.saveGameData(result.gameData);
-        if (typeof bridge.refreshUI === 'function') bridge.refreshUI();
-        
-        // 触发 variableUI 防抖刷新（对齐 ST 的 VARIABLE_UPDATE_ENDED 事件）
-        if (typeof window !== 'undefined' && window.variableUI && typeof window.variableUI.schedulePopulate === 'function') {
-            window.variableUI.schedulePopulate(80);
-        }
-        
-        return result;
-    }
 
     // ==================== 导出 ====================
 
     return {
         applyCommands: applyCommands,
         applyQuests: applyQuests,
-        processCurrent: processCurrent,
-        processQuestsCurrent: processQuestsCurrent,
         normalizeGameData: normalizeGameData,
         normalizeGameTime: normalizeGameTime,
         命令后校准: 命令后校准
