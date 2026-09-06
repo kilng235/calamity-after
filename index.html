@@ -2124,7 +2124,6 @@
   <div class="bottom-bar">
     <input type="text" class="input-box" id="input-box" placeholder="输入你的行动..." onkeypress="if(event.key==='Enter') sendMessage()">
     <button class="send-btn" onclick="sendMessage()">发送</button>
-    <button class="send-btn" onclick="rollDice()">🎲</button>
   </div>
 </div>
 
@@ -4966,11 +4965,6 @@ function clearSTPreset() {
 
   window.openInventory = openInventory;
   window.closeInventory = closeInventory;
-
-  window.rollDice = function() {
-    const r = Math.floor(Math.random() * 20) + 1;
-    displayNarrative('\n🎲 你掷出了：' + r + '\n');
-  };
 
   function applyDisplaySettings() {
     try {
