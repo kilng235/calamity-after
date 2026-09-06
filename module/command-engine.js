@@ -28,6 +28,17 @@ var commandEngine = (function () {
     /** 本地保留域：AI 一律不可写 */
     var RESERVED_ROOTS = ['stats', 'meta'];
 
+    /**
+     * 装备槽中文 → 标准槽位映射（与 prompt-builder._fmtEquipment 的槽位名一致）。
+     * 命令引擎归一（装备.主手 → equipment.mainHand）与 command-processor 的
+     * 旧存档垃圾键迁移共用此表。
+     */
+    var EQUIP_SLOT_MAP = {
+        '主手': 'mainHand', '副手': 'offHand', '身体': 'body', '头部': 'head',
+        '手部': 'hands', '腿部': 'legs', '脚部': 'feet', '足部': 'feet',
+        '肩部': 'shoulders', '饰品1': 'accessory1', '饰品2': 'accessory2'
+    };
+
     // ==================== 中文别名 → 规范路径 ====================
 
     /**
@@ -61,7 +72,12 @@ var commandEngine = (function () {
         '属性': function (rest) { return rest ? 'attributes' + rest : null; },
         '属性值': function (rest) { return rest ? 'attributes' + rest : null; },
         '六维': function (rest) { return rest ? 'attributes' + rest : null; },
-        '角色': function (rest) { return rest ? 'character' + rest : null; },
+        '角色': function (rest) {
+            if (!rest) return null;
+            // MP 大小写归一：AI 常按玩家档案写"角色.MP"，而法术/炼金系统读 character.mp（小写）
+            if (/^\.MP/i.test(rest)) return 'character.mp' + rest.slice(3);
+            return 'character' + rest;
+        },
         '主角': function (rest) { return rest ? 'character' + rest : null; },
         '玩家': function (rest) { return rest ? 'character' + rest : null; },
         '名字': 'character.name',
@@ -82,11 +98,20 @@ var commandEngine = (function () {
         '生命上限': 'hp.max',
         'HP上限': 'hp.max',
         '最大生命': 'hp.max',
+        'MP': 'character.mp',
+        '法力': 'character.mp',
+        '法力值': 'character.mp',
         '命运点': 'fatePoints.current',
         '命运点上限': 'fatePoints.max',
         '背景特长': 'backgrounds',
         '特质': 'backgrounds',
-        '装备': function (rest) { return rest ? 'equipment' + rest : null; },
+        // 装备槽中文别名：面板与 normalize 只认标准槽位（mainHand 等），中文键是静默死数据
+        '装备': function (rest) {
+            if (!rest) return null;
+            var m = /^\.([^.\[]+)/.exec(rest);
+            if (m && EQUIP_SLOT_MAP[m[1]]) return 'equipment.' + EQUIP_SLOT_MAP[m[1]] + rest.slice(m[0].length);
+            return 'equipment' + rest;
+        },
         '背包': 'inventory',
         '物品列表': 'inventory',
         '金币': 'currency.gold',
@@ -245,6 +270,26 @@ var commandEngine = (function () {
         var lastToken = tokens[tokens.length - 1];
         var current = cursor[lastToken];
 
+        // 耐久语义化：协议命令 `add 装备.主手.耐久 = -1` 作用于装备对象的 durability（{current,max}）
+        // 的 current（按 max 钳制）；装备对象内键为英文 durability（兼容中文 耐久 键），
+        // 整对象 set 仍走通用深合并，两种写法兼容
+        if (lastToken === '耐久' || lastToken === 'durability') {
+            var durObj = null;
+            if (是对象(cursor.durability) && Number.isFinite(Number(cursor.durability.current))) durObj = cursor.durability;
+            else if (是对象(cursor['耐久']) && Number.isFinite(Number(cursor['耐久'].current))) durObj = cursor['耐久'];
+            if (durObj) {
+                var durMax = Number.isFinite(Number(durObj.max)) ? Number(durObj.max) : Infinity;
+                if (action === 'add') {
+                    durObj.current = Math.max(0, Math.min(durMax, Number(durObj.current) + (Number(nextValue) || 0)));
+                    return { ok: true };
+                }
+                if (action === 'set') {
+                    durObj.current = Math.max(0, Math.min(durMax, Number(nextValue) || 0));
+                    return { ok: true };
+                }
+            }
+        }
+
         if (typeof lastToken === 'number') {
             if (!Array.isArray(cursor)) return { ok: false, reason: '索引路径宿主不是数组' };
             if (action === 'delete') {
@@ -338,6 +383,7 @@ var commandEngine = (function () {
     return {
         WRITABLE_ROOTS: WRITABLE_ROOTS,
         RESERVED_ROOTS: RESERVED_ROOTS,
+        EQUIP_SLOT_MAP: EQUIP_SLOT_MAP,
         normalizeCommandKey: normalizeCommandKey,
         applyCommand: applyCommand,
         readValueByPath: readValueByPath,

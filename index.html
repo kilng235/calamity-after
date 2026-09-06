@@ -2033,6 +2033,7 @@
           <div><strong>等级：</strong><span id="char-level">1</span></div>
           <div><strong>经验：</strong><span id="char-exp">0</span></div>
           <div><strong>位置：</strong><span id="char-location" style="color:var(--gold)">未知</span></div>
+          <div><strong>负重：</strong><span id="char-burden" style="color:var(--gold)">—</span></div>
           <div id="char-conditions" style="margin-top:6px"></div>
         </div>
       </div>
@@ -4546,6 +4547,17 @@ function clearSTPreset() {
     const loc = (gd.progress && gd.progress.currentLocation) || '未知';
     const place = gd.progress && gd.progress.currentPlace;
     document.getElementById('char-location').textContent = place ? loc + ' · ' + place : loc;
+    // 负重显示（引擎派生：总重/上限，超重标红）
+    const burdenEl = document.getElementById('char-burden');
+    if (burdenEl) {
+      if (window.commandProcessor && commandProcessor.computeEncumbrance) {
+        const enc = commandProcessor.computeEncumbrance(gd);
+        burdenEl.textContent = enc.total + ' / ' + enc.cap + ' 公斤' + (enc.extreme ? '（极端超重）' : enc.over ? '（超重）' : '');
+        burdenEl.style.color = enc.over ? 'var(--danger)' : 'var(--gold)';
+      } else {
+        burdenEl.textContent = '—';
+      }
+    }
     // 主角状态标签（conditions 白名单着色：负面红/有利绿，力竭显示层级）
     const condEl = document.getElementById('char-conditions');
     if (condEl) {
@@ -4558,6 +4570,7 @@ function clearSTPreset() {
           let label = n;
           if (n === '力竭' && cond[n] && cond[n].层级) label += ' ×' + cond[n].层级;
           if (n === '侵蚀' && cond[n] && cond[n].层级) label += ' ×' + cond[n].层级;
+          if (n === '超重' && cond[n] && cond[n].层级) label += ' ×' + cond[n].层级;
           return '<span class="cond-tag ' + (positive ? 'cond-pos' : 'cond-neg') + '">' + label + '</span>';
         }).join('');
       }

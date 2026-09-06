@@ -47,9 +47,67 @@ var commandProcessor = (function () {
     // 主角状态白名单（与世界书「状态列表」同步维护）：值 0=负面 / 1=有利（面板着色用）
     var STATUS_WHITELIST = {
         '目盲': 0, '耳聋': 0, '失明': 0, '失能': 0, '昏迷': 0, '麻痹': 0, '震慑': 0, '石化': 0, '中毒': 0, '恐慌': 0, '魅惑': 0,
-        '受擒': 0, '束缚': 0, '倒地': 0, '力竭': 0, '燃烧': 0, '出血': 0, '残废': 0, '失衡': 0, '减速': 0, '侵蚀': 0, '寒冷': 0, '感电': 0,
-        '隐形': 1, '加速': 1, '耀眼': 1, '灵巧': 1, '专注': 1, '护体': 1
+        '受擒': 0, '束缚': 0, '倒地': 0, '力竭': 0, '燃烧': 0, '残废': 0, '失衡': 0, '减速': 0, '侵蚀': 0, '寒冷': 0, '感电': 0,
+        '隐形': 1, '加速': 1, '耀眼': 1, '灵巧': 1, '专注': 1, '护体': 1,
+        '超重': 0   // 引擎派生状态：总重 > 负重上限时自动落地/解除（命令后校准），AI 不经命令维护
     };
+
+    // ==================== 负重结算（背包系统：上限 10 + 力量×2 公斤） ====================
+
+    /**
+     * 重量估算表（公斤/单位）：按名称关键词匹配，未命中按 item.type 兜底，最后默认 1kg。
+     * 数据源优先级：物品自带 weight 字段 > 本表估算。档位对齐装备总纲（板甲重/皮甲轻）与背包系统重量表。
+     */
+    var WEIGHT_KEYWORDS = [
+        [/板甲|全罩盔/, 15], [/锁甲/, 10], [/皮甲|皮革甲/, 5], [/布甲|拼装甲/, 3], [/盾/, 4],
+        [/头盔|面盔|盔/, 2], [/铁靴|护腿|肩甲|护手|臂甲/, 1.5],
+        [/双手剑|巨剑|战斧|战锤|巨锤/, 4], [/长弓|重弩/, 3],
+        [/铁剑|短剑|短矛|长矛|铁斧|铁锤|猎弓|轻弩|法杖|长枪/, 2], [/匕首|投掷/, 0.8],
+        [/药剂|药水|绷带|卷轴|血清|萃取/, 0.3],
+        [/矿石|矿锭|精铁|黑曜铁|皮革|毛皮|鳞片|牙齿|毒腺|草药|材料|焦木/, 1.5],
+        [/干粮|肉干|口粮|水袋|食物/, 1],
+        [/信件|地图|委托书|文件|笔记/, 0.1]
+    ];
+    var WEIGHT_TYPE_DEFAULTS = { weapon: 2, armor: 5, shield: 4, consumable: 0.3, material: 1.5, food: 1, document: 0.1, misc: 1 };
+
+    function 估算重量(item) {
+        var name = String(item && item.name || '');
+        for (var i = 0; i < WEIGHT_KEYWORDS.length; i++) {
+            if (WEIGHT_KEYWORDS[i][0].test(name)) return WEIGHT_KEYWORDS[i][1];
+        }
+        var type = String(item && item.type || '').toLowerCase();
+        return WEIGHT_TYPE_DEFAULTS[type] !== undefined ? WEIGHT_TYPE_DEFAULTS[type] : 1;
+    }
+
+    /** 单件重量（公斤）：物品自带 weight 字段优先，否则按名称/类别估算 */
+    function 物品重量(item) {
+        if (!item || typeof item !== 'object') return 0;
+        var w = Number(item.weight);
+        if (Number.isFinite(w) && w >= 0) return w;
+        return 估算重量(item);
+    }
+
+    var EQUIP_SLOTS = ['mainHand', 'offHand', 'body', 'head', 'hands', 'legs', 'feet', 'shoulders', 'accessory1', 'accessory2'];
+
+    /**
+     * 负重结算：装备 10 槽 + 背包（weight × count），上限 = 10 + 力量×2（背包系统）。
+     * 供命令后校准（超重状态）、prompt-builder 状态块与角色面板共用。
+     */
+    function computeEncumbrance(gd) {
+        var cap = 10 + ((gd && gd.attributes && Number(gd.attributes['力量'])) || 10) * 2;
+        var total = 0;
+        var slots = (gd && gd.equipment) || {};
+        EQUIP_SLOTS.forEach(function (s) {
+            var it = slots[s];
+            if (it && typeof it === 'object') total += 物品重量(it);
+        });
+        var inv = (gd && Array.isArray(gd.inventory)) ? gd.inventory : [];
+        inv.forEach(function (it) {
+            if (it && typeof it === 'object') total += 物品重量(it) * (Math.max(1, Math.trunc(Number(it.count)) || 1));
+        });
+        total = Math.round(total * 10) / 10;
+        return { total: total, cap: cap, over: total > cap, extreme: total > cap * 1.5 };
+    }
 
     /** 主角状态规范化：白名单过滤 + 力竭/侵蚀层级钳制（应用前与应用后都调用） */
     function 规范条件(gd) {
@@ -87,6 +145,10 @@ var commandProcessor = (function () {
         c.expToNextLevel = Math.max(1, 规范化数值(c.expToNextLevel, 100));
         c.proficiencyBonus = Math.max(0, 规范化整数(c.proficiencyBonus, 2));
         c.ac = Math.max(0, 规范化整数(c.ac, 10));
+        // MP：法术/炼金系统读写 character.mp；迁移旧存档误写的大写 character.MP 垃圾键
+        if (c.MP !== undefined && c.mp === undefined) { c.mp = c.MP; }
+        delete c.MP;
+        c.mp = Math.max(0, 规范化数值(c.mp, 0));
 
         if (!gd.attributes || typeof gd.attributes !== 'object') gd.attributes = {};
         ['力量', '敏捷', '体质', '感知', '智力', '魅力'].forEach(function (key) {
@@ -112,6 +174,17 @@ var commandProcessor = (function () {
                     gd.equipment[slot] = null;
                 }
             });
+        // 旧存档垃圾键迁移：AI 曾写出的中文槽位键（装备.主手 等）迁入标准槽位后删除
+        // （标准槽位已有装备时丢弃中文键版本，避免覆盖有效数据）
+        var SLOT_MAP = (typeof commandEngine !== 'undefined' && commandEngine.EQUIP_SLOT_MAP) || {};
+        Object.keys(SLOT_MAP).forEach(function (cnKey) {
+            if (gd.equipment[cnKey] === undefined) return;
+            var slot = SLOT_MAP[cnKey];
+            if ((gd.equipment[slot] === undefined || gd.equipment[slot] === null) && gd.equipment[cnKey] && typeof gd.equipment[cnKey] === 'object') {
+                gd.equipment[slot] = gd.equipment[cnKey];
+            }
+            delete gd.equipment[cnKey];
+        });
 
         if (!Array.isArray(gd.inventory)) gd.inventory = [];
 
@@ -239,6 +312,17 @@ var commandProcessor = (function () {
         规范条件(gd);
         if (JSON.stringify(gd.conditions || {}) !== condBefore) corrections.push('conditions 规范');
 
+        // 负重结算（引擎派生状态）：超重自动落地/解除，极端超重（>1.5×上限）层级 2
+        var enc = computeEncumbrance(gd);
+        if (enc.over) {
+            var next = enc.extreme ? { 层级: 2 } : true;
+            if (JSON.stringify(gd.conditions['超重']) !== JSON.stringify(next)) corrections.push('超重状态结算（' + enc.total + '/' + enc.cap + 'kg）');
+            gd.conditions['超重'] = next;
+        } else if (gd.conditions['超重'] !== undefined) {
+            delete gd.conditions['超重'];
+            corrections.push('超重解除（' + enc.total + '/' + enc.cap + 'kg）');
+        }
+
         // 金币非负
         var goldBefore = gd.currency.gold;
         gd.currency.gold = Math.max(0, 规范化数值(gd.currency.gold, 0));
@@ -258,6 +342,12 @@ var commandProcessor = (function () {
         // AC 重算（10 + 敏捷调整值，装备加成由 equipment-system 叠加）
         // 这里只保证下限，装备 AC 由战斗系统在用时计算
         gd.character.ac = Math.max(0, 规范化整数(gd.character.ac, 10));
+
+        // MP 钳制：上限 = 智力 × 5（与 spell-system.calculateMPMax 同公式）
+        var mpMaxCap = Math.max(0, (gd.attributes['智力'] || 10) * 5);
+        var mpBefore = gd.character.mp;
+        gd.character.mp = Math.max(0, Math.min(mpMaxCap, Number(gd.character.mp) || 0));
+        if (mpBefore !== gd.character.mp) corrections.push('character.mp 钳制');
 
         // 时间规范化
         gd.gameTime = normalizeGameTime(gd.gameTime);
@@ -316,16 +406,27 @@ var commandProcessor = (function () {
     function applyQuests(sourceGameData, quests) {
         var gd = JSON.parse(JSON.stringify(sourceGameData));
         gd = normalizeGameData(gd);
-        var report = { added: [], completed: [], failed: [] };
-        
+        var report = { added: [], completed: [], failed: [], duplicated: [] };
+
         if (!Array.isArray(quests)) return { gameData: gd, report: report };
-        
+
         quests.forEach(function(item) {
             if (!item || !item.quest) return;
             var quest = item.quest;
             var type = item.type;
-            
+
             if (type === 'new') {
+                // 同名去重：任务已在 进行中/已完成/失败 任一状态时拒绝重复登记
+                // （护栏：开局初始任务已落库，AI 第一回合常误报 [新任务] 重复接取）
+                var newName = String(quest.name || '').trim();
+                var exists = newName && (gd.quests.active.some(function (q) { return q.name === newName; })
+                    || gd.quests.completed.some(function (q) { return q.name === newName; })
+                    || gd.quests.failed.some(function (q) { return q.name === newName; }));
+                if (exists) {
+                    report.duplicated.push(newName);
+                    log('⚠️ 任务已存在，跳过重复登记：' + newName);
+                    return;
+                }
                 // 添加新任务
                 var newQuest = {
                     id: quest.id || 'quest_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
@@ -395,6 +496,8 @@ var commandProcessor = (function () {
         applyQuests: applyQuests,
         normalizeGameData: normalizeGameData,
         normalizeGameTime: normalizeGameTime,
+        computeEncumbrance: computeEncumbrance,
+        物品重量: 物品重量,
         命令后校准: 命令后校准
     };
 })();

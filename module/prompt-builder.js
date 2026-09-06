@@ -122,6 +122,15 @@ var promptBuilder = (function() {
         lines.push(_fmtEquipment(gd.equipment));
         lines.push('## 背包');
         lines.push(_fmtInventory(gd.inventory));
+        // 负重（引擎派生：command-processor.computeEncumbrance；超重由引擎自动落地状态，AI 按叙事规则演出后果）
+        if (typeof window !== 'undefined' && window.commandProcessor && window.commandProcessor.computeEncumbrance) {
+            var enc = window.commandProcessor.computeEncumbrance(gd);
+            lines.push('## 负重');
+            lines.push('当前总重：' + enc.total + ' / ' + enc.cap + ' 公斤（上限 10+力量×2）'
+                + (enc.extreme ? '——极端超重！行动受限（行走困难/无法奔跑），力量与敏捷检定劣势'
+                   : enc.over ? '——已超重！力量相关检定劣势，应尽快卸载物品'
+                   : ''));
+        }
         lines.push('## 位置与时间');
         lines.push('当前位置：' + (p.currentLocation || '未知') + '　灾厄纪年：' + (t.year || 300) + '年'
             + (t.month || '') + '月' + (t.day || '') + '日 ' + (t.hour || '') + ':' + (String(t.minute || 0).padStart(2, '0'))
@@ -234,6 +243,7 @@ var promptBuilder = (function() {
             parts.push('目标：' + q.objectives.map(o => o.target + ' ×' + o.required).join('、'));
             parts.push('时限：' + q.deadline.display);
             parts.push('奖励：' + q.rewards.gold + '金 + 声望' + q.rewards.reputation.amount);
+            parts.push('**该任务已在任务面板登记为「进行中」，禁止再输出 [新任务] 块重复上报；目标进度随剧情推进自动同步，接取/交付只需正文呈现**');
         }
         if (c.mainPlotHook) {
             var hook = c.mainPlotHook;

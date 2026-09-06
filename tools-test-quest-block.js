@@ -31,8 +31,18 @@ console.log('8. 完成块解析:', p2.quests.length === 1 && p2.quests[0].type =
 console.log('9. 完成后活跃任务数:', r2.gameData.quests.active.length, '(期望 1)');
 console.log('10. 进入已完成:', r2.gameData.quests.completed.some(q => q.name === '枯萎的焦木'), '(期望 true)');
 
+// 同名去重（开局任务被 AI 第一回合重复上报的护栏）
+const dupResp = parser.run('你接过委托板上的委托书。\n\n[新任务]\n名称：灰烬森林材料狩猎\n类型：佣兵委托\n发布者：佣兵公会\n描述：收集灰烬狼皮和焦木蜥鳞片\n目标：\n- 收集灰烬狼皮 0/3\n奖励：19 金币\n[/新任务]');
+const r3 = processor.applyQuests(startGd, dupResp.quests);
+console.log('11. 同名新任务块被拒登（活跃仍 1 个）:', r3.gameData.quests.active.length === 1, '(期望 true)');
+console.log('12. 重复任务进 duplicated 报告:', Array.isArray(r3.report.duplicated) && r3.report.duplicated.indexOf('灰烬森林材料狩猎') >= 0, '(期望 true)');
+// 已完成后再报同名新任务同样拒绝（防任务线重开刷屏）
+const r4 = processor.applyQuests(r2.gameData, dupResp.quests);
+console.log('13. 已完成状态的同名任务同样拒登:', r4.gameData.quests.active.length === 1 && r4.report.duplicated.length >= 1, '(期望 true)');
+
 const pass = p.quests.length === 1 && p.quests[0].quest.name === '枯萎的焦木'
   && p.mainText.indexOf('新任务') < 0 && p.mainText.indexOf('艾莉丝') >= 0
-  && active.length === 2 && r2.gameData.quests.active.length === 1;
+  && active.length === 2 && r2.gameData.quests.active.length === 1
+  && r3.gameData.quests.active.length === 1 && r3.report.duplicated.indexOf('灰烬森林材料狩猎') >= 0;
 console.log(pass ? '✅ 全部通过' : '❌ 存在失败项');
 process.exit(pass ? 0 : 1);

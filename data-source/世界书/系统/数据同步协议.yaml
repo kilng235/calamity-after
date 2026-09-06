@@ -39,6 +39,10 @@ AI 只可写以下 15 个顶层根：
 
 白名单外命令一律拒绝并记录警告。
 
+**引擎派生值（禁止写入命令）**：
+- **负重/超重**：负重上限 10+力量×2 公斤，总重与「超重」状态由引擎每回合自动结算（见「背包系统」）；不要 `set 负重`，也不要用命令增删「超重」状态（卸载物品后自动解除）。新物品入包时建议带 `weight` 字段（公斤/件），未带时引擎按类别估算
+- **MP 上限**：恒等于智力×5，由引擎钳制，无需也无法单独设置（写 `MP` 即可，超上限部分自动钳回）
+
 ---
 
 ## 2. 字段类型与范围表
@@ -56,6 +60,7 @@ AI 只可写以下 15 个顶层根：
 | expToNextLevel | number | ≥1 | 100 | 升级所需经验 |
 | proficiencyBonus | number | ≥0 | 2 | 熟练加值（4级/次+1） |
 | ac | number | ≥0 | 10 | 护甲等级（10+敏捷调整值+装备AC） |
+| mp | number | 0~智力×5 | 0 | 法力值（施法消耗/长休恢复，上限=智力×5；别名 MP/法力/法力值） |
 
 ### 2.2 attributes（六维属性）
 
@@ -109,6 +114,8 @@ AI 只可写以下 15 个顶层根：
 - **shoulders**（肩部）
 - **accessory1**（饰品1）
 - **accessory2**（饰品2）
+
+中文槽位名（主手/副手/身体/头部/手部/腿部/脚部/足部/肩部/饰品1/饰品2）会自动归一到对应标准槽位；旧存档中的中文槽位垃圾键在每次命令结算时自动迁移/清除。
 
 装备对象字段示例：
 ```json
@@ -227,9 +234,10 @@ AI 只可写以下 15 个顶层根：
 | 年龄 | character.age |
 | 熟练加值 | character.proficiencyBonus |
 | AC / 护甲等级 | character.ac |
+| MP / 法力 / 法力值 / 角色.MP | character.mp |
 | 属性.力量 / 属性.敏捷 / ... | attributes.力量 / attributes.敏捷 / ... |
 | 背景特长 / 特质 | backgrounds |
-| 装备.主手 / 装备.mainHand | equipment.mainHand |
+| 装备.主手 / 装备.副手 / 装备.身体 / 装备.头部 / 装备.手部 / 装备.腿部 / 装备.脚部（足部）/ 装备.肩部 / 装备.饰品1 / 装备.饰品2 | equipment.mainHand / offHand / body / head / hands / legs / feet / shoulders / accessory1 / accessory2 |
 | 背包 / 物品列表 | inventory |
 | 位置 / 当前位置 / 所在地 | progress.currentLocation |
 | 当前场所 / 具体位置 / 场所 | progress.currentPlace |
