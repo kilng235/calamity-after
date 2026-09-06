@@ -19,8 +19,8 @@ import { materialSystem } from './material-system.js';
 
 export const ALCHEMY_DC = {
   TIER_1: { dc: 10, name: '一阶', example: '法力药水 5金档' },
-  TIER_2: { dc: 15, name: '二阶', example: '法力药水 25金档' },
-  TIER_3: { dc: 20, name: '三阶', example: '法力药水 80金档' }
+  TIER_2: { dc: 15, name: '二阶', example: '法力药水（大）80金档（二阶高）' },
+  TIER_3: { dc: 20, name: '三阶', example: '传奇法力药水 200金档' }
 };
 
 // ============== 成败判定 ==============
@@ -98,7 +98,7 @@ export const ALCHEMY_RECIPES = {
     tier: 2,
     dc: 15,
     basePrice: 25,
-    baseEffect: '恢复 50 生命值',
+    baseEffect: '恢复 40 生命值',
     category: '治疗',
     materials: { '草药': 5, '魔力精华': 1, '清水': 1 }
   },
@@ -111,12 +111,12 @@ export const ALCHEMY_RECIPES = {
     materials: { '稀有草药': 3, '魔力结晶': 2, '圣水': 1 }
   },
 
-  // 法力类
+  // 法力类（数值对齐世界书·炼金配方表：低阶+5/中阶+15/高阶+30，传奇全满）
   '法力药水（小）': {
     tier: 1,
     dc: 10,
     basePrice: 5,
-    baseEffect: '恢复 10 法力值',
+    baseEffect: '恢复 5 法力值',
     category: '法力',
     materials: { '魔力苔藓': 2, '清水': 1 }
   },
@@ -124,17 +124,25 @@ export const ALCHEMY_RECIPES = {
     tier: 2,
     dc: 15,
     basePrice: 25,
-    baseEffect: '恢复 25 法力值',
+    baseEffect: '恢复 15 法力值',
     category: '法力',
     materials: { '魔力苔藓': 5, '能量晶簇': 1, '清水': 1 }
   },
   '法力药水（大）': {
-    tier: 3,
-    dc: 20,
+    tier: 2,
+    dc: 15,
     basePrice: 80,
-    baseEffect: '恢复 50 法力值',
+    baseEffect: '恢复 30 法力值',
     category: '法力',
     materials: { '稀有魔力苔藓': 3, '能量结晶': 2, '蒸馏水': 1 }
+  },
+  '传奇法力药水': {
+    tier: 3,
+    dc: 20,
+    basePrice: 200,
+    baseEffect: '恢复全部法力值',
+    category: '法力',
+    materials: { '能量晶簇': 2, '魔力精华': 1 }
   },
 
   // 增益类
@@ -525,13 +533,19 @@ class AlchemySystem {
         );
         result.healed = potion.effectValue;
         break;
-      case '法力':
+      case '法力': {
+        // 「恢复全部法力值」（传奇法力药水）：按当前 MP 上限直接补满，钳制同常量药水
+        const fullRestore = /全部|全满/.test(potion.effect || '');
+        const amount = fullRestore
+          ? Math.max(0, (character.maxMp || 0) - (character.mp || 0))
+          : potion.effectValue;
         character.mp = Math.min(
-          (character.mp || 0) + potion.effectValue,
+          (character.mp || 0) + amount,
           character.maxMp || character.mp
         );
-        result.restored = potion.effectValue;
+        result.restored = amount;
         break;
+      }
       case '增益':
         if (!character.statusEffects) character.statusEffects = [];
         character.statusEffects.push({

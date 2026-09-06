@@ -236,7 +236,8 @@ const ARMOR_TEMPLATES = {
     acBase: 13,
     weight: '中',
     stealthPenalty: false,
-    dexBonus: 'limited',
+    // 世界书《护甲/锁甲.yaml》：不获敏捷调整值（笨重，重甲惩罚）——映射条目的规则字段
+    dexBonus: 'none',
     basePrice: 50,
     durabilityMax: 75,
     description: '旧世界防暴链甲改装，链环部分修补过。穿在皮甲外，沉重但可靠。'
@@ -468,7 +469,11 @@ function generateId() {
  * @returns {number} 加成值
  */
 function calculateDamageBonus(tier) {
-  return tier - 1;  // 0/+1/+2/+3
+  // 材料伤害加成查数值契约（源：武器 yaml 材料加成公式表：一阶 +0 / 二阶 +1 / 三阶 +1 / 灾厄 +2）
+  const nc = (typeof window !== 'undefined' && window.numericContract) || null;
+  const tbl = (nc && nc.材料伤害加成) || { 档1: 0, 档2: 1, 档3: 1, 档4: 2 };
+  const t = Math.min(4, Math.max(1, tier));
+  return tbl['档' + t] !== undefined ? tbl['档' + t] : 0;
 }
 
 /**
@@ -478,10 +483,11 @@ function calculateDamageBonus(tier) {
  * @returns {number} 升级后骰子
  */
 function upgradeDice(baseSize, tier) {
-  if (tier >= 3) {
-    // 三阶和灾厄：升档
-    const upgrade = tier >= 3 ? 2 : 0;
-    return Math.min(12, baseSize + upgrade);
+  // 骰面升级参数走数值契约（三阶起骰面 +2，封顶 d12）
+  const nc = (typeof window !== 'undefined' && window.numericContract) || null;
+  const s = (nc && nc.材料升骰) || { 起始档: 3, 面数加成: 2, 骰面上限: 12 };
+  if (tier >= s.起始档) {
+    return Math.min(s.骰面上限, baseSize + s.面数加成);
   }
   return baseSize;
 }
@@ -530,6 +536,7 @@ export function createWeapon(weaponType, materialTier = 1) {
     
     weapon: {
       damageBase: upgradedDice,
+      baseDie: template.damageBase,   // 出厂规格骰面：双持资格按此判定（材料升骰不改体积手感）
       damageBonus: damageBonus,
       damageType: template.damageType,
       speed: template.speed,
@@ -684,7 +691,27 @@ function checkDualWieldRequirements(weapon) {
       reason: '无法双持远程武器'
     };
   }
-  
+
+  // 轻武器检查（世界书·战斗规则：主手+副手各持一把轻武器，基础伤害骰≤1d6；法杖不可双持）
+  // 按「出厂规格骰面」判定——材料升骰改锋利度不改体积手感；旧存档无 baseDie 时按当前骰面兜底
+  const isLightWeapon = (w) => {
+    if (!w || !w.weapon) return false;
+    const die = (w.weapon.baseDie !== undefined) ? w.weapon.baseDie : w.weapon.damageBase;
+    return die <= 6 && w.category !== 'staff';
+  };
+  if (!isLightWeapon(weapon)) {
+    return {
+      allowed: false,
+      reason: '副手武器不是轻武器（基础伤害骰≤1d6，法杖除外），无法双持'
+    };
+  }
+  if (mainHand && !isLightWeapon(mainHand)) {
+    return {
+      allowed: false,
+      reason: '主手武器不是轻武器（基础伤害骰≤1d6，法杖除外），无法双持'
+    };
+  }
+
   return { allowed: true, reason: '' };
 }
 

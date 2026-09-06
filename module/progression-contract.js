@@ -1,13 +1,13 @@
 /**
  * 灾厄之后·重制版 - 升级进度契约（自动生成，勿手动编辑）
- * 生成时间: 2026-09-06 13:00:58
+ * 生成时间: 2026-09-06 14:41:46
  * 来源: data-source/世界书/系统/经验与成长.yaml §4 等级进度总表
  *
  * command-processor.syncLevel 单源消费此契约（表内查行，表外按 beyond 公式延续）；
  * 调整成长曲线请编辑源 YAML 后重跑转换器。表内自洽校验警告数: 0
  */
 var progressionContract = {
-  generatedAt: "2026-09-06 13:00:58",
+  generatedAt: "2026-09-06 14:41:46",
   source: 'data-source/世界书/系统/经验与成长.yaml',
   levels: {
   "1": {

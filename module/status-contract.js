@@ -1,13 +1,13 @@
 /**
  * 灾厄之后·重制版 - 状态契约（自动生成，勿手动编辑）
- * 生成时间: 2026-09-06 13:00:58
+ * 生成时间: 2026-09-06 14:41:46
  * 来源: data-source/世界书/系统/状态列表.yaml（负面/有利状态表）
  *
  * command-processor 的状态白名单单源消费此契约；
  * 修改状态请编辑源 YAML 后重跑: node tools/convert-yaml-to-js.js
  */
 var statusContract = {
-  generatedAt: "2026-09-06 13:00:58",
+  generatedAt: "2026-09-06 14:41:46",
   source: 'data-source/世界书/系统/状态列表.yaml',
   statuses: {
   "目盲": 0,

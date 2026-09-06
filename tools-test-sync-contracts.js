@@ -249,6 +249,95 @@ const attrSysYaml = fs.readFileSync(path.join(ROOT, 'data-source/世界书/系�
   check('6d12. 全套叠加：身体12+敏捷2+盾2+盔2 = 18', acFull.total === 18 && acFull.breakdown.shield === 2 && acFull.breakdown.head === 2);
   eq.unequipItem('head'); eq.unequipItem('offHand'); eq.unequipItem('body');
 
+  // 材料档位：武器伤害加成对齐世界书（三阶 +1 升骰 / 灾厄 +2；旧引擎 tier−1 的 +2/+3 已纠偏）
+  const w3 = eq.createWeapon('废土长刀', 3);
+  check('6d13. 材料三阶（秘银）铁剑：1d10+1（加成 1、骰面 10，旧值 +2 已纠偏）',
+    w3.weapon.damageBonus === 1 && w3.weapon.damageBase === 10);
+  const w4 = eq.createWeapon('废土长刀', 4);
+  check('6d14. 材料灾厄铁剑：1d10+2（加成 2，旧值 +3 已纠偏）',
+    w4.weapon.damageBonus === 2 && w4.weapon.damageBase === 10);
+  const w2 = eq.createWeapon('废土长刀', 2);
+  check('6d15. 材料二阶（精铁）铁剑：1d8+1（不升骰）',
+    w2.weapon.damageBonus === 1 && w2.weapon.damageBase === 8);
+
+  // 锁甲敏捷：世界书条目「不获敏捷调整值（笨重，重甲惩罚）」在引擎生效（旧中甲 limited 已纠偏）
+  eq.equipItem(eq.createArmor('拾荒链甲衫', 1));
+  const acLock = eq.calculateTotalAC({ 敏捷: 16 });
+  check('6d16. 锁甲不获敏捷：AC 14 固定（敏捷 +3 不加成，旧值 16 已纠偏）',
+    AT['拾荒链甲衫'].dexBonus === 'none' && acLock.total === 14 && acLock.breakdown.dex === 0);
+  eq.unequipItem('body');
+
+  // 双持资格：世界书战斗规则「基础伤害骰≤1d6 的轻武器，法杖除外」在引擎生效
+  eq.unequipItem('mainHand'); eq.unequipItem('offHand');
+  eq.equipItem(eq.createWeapon('废土短刃', 3));   // 秘银短剑：当前骰 1d8，出厂规格 1d6
+  const offDagger = eq.createWeapon('废土匕首', 1);
+  eq.equipItem(offDagger, 'offHand');
+  const dualLight = eq.getEquippedItem('offHand') && eq.getEquippedItem('offHand').id === offDagger.id;
+  check('6d17. 秘银短剑（升骰 1d8）主手 + 匕首副手：可双持（按出厂骰面判定，材料不改资格）', !!dualLight);
+
+  eq.unequipItem('offHand'); eq.unequipItem('mainHand');
+  eq.equipItem(eq.createWeapon('废土长刀', 1));   // 出厂 1d8 重武器
+  const offD2 = eq.createWeapon('废土匕首', 1);
+  eq.equipItem(offD2, 'offHand');
+  const dualHeavy = eq.getEquippedItem('offHand') && eq.getEquippedItem('offHand').id === offD2.id;
+  check('6d18. 长刀（1d8）主手 + 匕首副手：拒绝双持（旧引擎放行已纠偏）', !dualHeavy);
+
+  eq.unequipItem('offHand'); eq.unequipItem('mainHand');
+  eq.equipItem(eq.createWeapon('废土匕首', 1));
+  const offStaff = eq.createWeapon('法杖', 1);
+  eq.equipItem(offStaff, 'offHand');
+  const dualStaff = eq.getEquippedItem('offHand') && eq.getEquippedItem('offHand').id === offStaff.id;
+  check('6d19. 匕首主手 + 法杖副手：拒绝双持（法杖不可双持）', !dualStaff);
+  eq.unequipItem('mainHand');
+
+  // ===== 第 7 层：炼金对账（炼金配方表.yaml ↔ alchemy-system.ALCHEMY_RECIPES） =====
+  const alchYaml = fs.readFileSync(path.join(ROOT, 'data-source/世界书/装备/炼金配方表.yaml'), 'utf8');
+  const alchMod = await import('./module/alchemy-system.js');
+  const R = (alchMod.default && alchMod.default.ALCHEMY_RECIPES) || alchMod.ALCHEMY_RECIPES;
+  const wbAlch = (name) => {
+    const line = alchYaml.split('\n').find(l => l.indexOf('| ' + name + ' |') === 0);
+    if (!line) return null;
+    const c = line.split('|').map(s => s.trim());
+    const num = (s) => { const m = String(s).match(/[\d.]+/); return m ? Number(m[0]) : null; };
+    return { dc: num(c[4]), effect: c[5], price: num(c[6]) };
+  };
+  const effectNum = (s) => { const m = String(s).match(/\d+/); return m ? Number(m[0]) : null; };
+
+  const mpPairs = [
+    ['法力药水（小）', '低阶法力药水'],
+    ['法力药水（中）', '中阶法力药水'],
+    ['法力药水（大）', '高阶法力药水']
+  ];
+  const mpOk = mpPairs.every(([eng, wb]) => {
+    const row = wbAlch(wb); const rec = R[eng];
+    return row && rec && rec.dc === row.dc && rec.basePrice === row.price
+      && effectNum(rec.baseEffect) === effectNum(row.effect);
+  });
+  check('7a. 法力三档对齐：引擎 5/15/30 MP = 世界书低/中/高阶（DC 与价格同验）',
+    mpOk && effectNum(R['法力药水（小）'].baseEffect) === 5 && effectNum(R['法力药水（大）'].baseEffect) === 30);
+
+  const legendWb = wbAlch('传奇法力药水');
+  check('7b. 传奇法力药水两侧都有（DC20/200金/全满，引擎旧缺已补）',
+    !!R['传奇法力药水'] && !!legendWb && R['传奇法力药水'].dc === 20 && R['传奇法力药水'].basePrice === 200
+    && /全部|全满/.test(R['传奇法力药水'].baseEffect) && /全满/.test(legendWb.effect));
+
+  const strongWb = wbAlch('强效治疗药水');
+  check('7c. 强效治疗药水 40 HP 对齐（旧值 50 已纠偏；DC15/25金）',
+    effectNum(R['强效治疗药水'].baseEffect) === 40 && !!strongWb && strongWb.dc === 15 && strongWb.price === 25
+    && effectNum(strongWb.effect) === 40);
+
+  const superWb = wbAlch('超级治疗药水');
+  check('7d. 超级治疗药水两侧都有（100 HP/DC20/80金，世界书旧缺已补行）',
+    !!R['超级治疗药水'] && !!superWb && R['超级治疗药水'].dc === 20
+    && R['超级治疗药水'].basePrice === 80 && effectNum(superWb.effect) === 100);
+
+  const healed = alchMod.alchemySystem.usePotion(
+    { mp: 10, maxMp: 50 },
+    { brewed: true, name: '传奇法力药水', effect: '恢复全部法力值', category: '法力', effectValue: 10 }
+  );
+  check('7e. 传奇法力药水行为：MP 10 → 补满至 50（全满特判）',
+    healed.success === true && healed.restored === 40 && healed.success && healed.restored === 40);
+
   console.log('\n' + (fail === 0 ? '✅ 全部通过（' + pass + ' 项）' : '❌ 失败 ' + fail + ' 项 / 通过 ' + pass + ' 项'));
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error('测试执行异常:', e); process.exit(1); });

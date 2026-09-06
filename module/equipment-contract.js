@@ -1,13 +1,13 @@
 /**
  * 灾厄之后·重制版 - 装备契约（自动生成，勿手动编辑）
- * 生成时间: 2026-09-06 13:00:58
+ * 生成时间: 2026-09-06 14:41:46
  * 来源: data-source/世界书/装备/武器|护甲/*.yaml + data-source/契约/装备映射.yaml
  *
  * equipment-system 启动时按 mapping 用世界书数值覆盖引擎模板（数值单源），
  * 并按 registered 把世界书独有条目注册为新模板；skipped 仅解析不落地。
  */
 var equipmentContract = {
-  generatedAt: "2026-09-06 13:00:58",
+  generatedAt: "2026-09-06 14:41:46",
   source: 'data-source/世界书/装备',
   weapons: {
   "匕首": {
