@@ -391,6 +391,56 @@ export function getAllPrompts(category) {
   }
 }
 
+// ==================== 状态契约生成（世界书 ↔ 引擎 单源同步） ====================
+// 从 状态列表.yaml 的 负面/有利 状态表生成 module/status-contract.js，
+// command-processor 的状态白名单消费此契约（兜底名单仅防加载失败）。
+// 以后新增状态只改 yaml + 重跑本转换器，AI 文档与引擎自动一致。
+YAMLConverter.prototype.generateStatusContract = function () {
+  const sys = this.flat['系统'] || {};
+  const text = sys['系统/状态列表'] || sys['状态列表'] || '';
+  if (!text) {
+    console.log('   ⚠ 未找到 系统/状态列表，跳过状态契约生成');
+    return;
+  }
+  const statuses = {};
+  let polarity = null;   // 0=负面 1=有利（由章节标题推导）
+  for (const line of text.split('\n')) {
+    const h = line.match(/^##\s*(负面状态表|有利状态表)/);
+    if (h) { polarity = h[1].indexOf('负面') === 0 ? 0 : 1; continue; }
+    if (line.indexOf('|') !== 0) continue;
+    const cells = line.split('|').map(c => c.trim());
+    const name = cells[1];
+    if (!name || name === '状态' || /^-+$/.test(name)) continue;
+    if (polarity === null) continue;
+    statuses[name] = polarity;
+  }
+  const count = Object.keys(statuses).length;
+  if (!count) {
+    console.log('   ⚠ 状态表解析为空，跳过状态契约生成');
+    return;
+  }
+  const timestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
+  const content = `/**
+ * 灾厄之后·重制版 - 状态契约（自动生成，勿手动编辑）
+ * 生成时间: ${timestamp}
+ * 来源: data-source/世界书/系统/状态列表.yaml（负面/有利状态表）
+ *
+ * command-processor 的状态白名单单源消费此契约；
+ * 修改状态请编辑源 YAML 后重跑: node tools/convert-yaml-to-js.js
+ */
+var statusContract = {
+  generatedAt: ${JSON.stringify(timestamp)},
+  source: 'data-source/世界书/系统/状态列表.yaml',
+  statuses: ${JSON.stringify(statuses, null, 2)}
+};
+
+if (typeof window !== 'undefined') { window.statusContract = statusContract; }
+`;
+  const outputPath = path.join(CONFIG.outputDir, 'status-contract.js');
+  fs.writeFileSync(outputPath, content, 'utf8');
+  console.log(`   ✓ status-contract.js（状态 ${count} 条）→ ${outputPath}`);
+};
+
 // ==================== 报告生成器 ====================
 class ReportGenerator {
   constructor(checker, converter) {
@@ -581,6 +631,9 @@ async function main() {
 
     // 生成 JS 模块
     converter.generateModules();
+
+    // 生成状态契约（世界书 → 引擎 单源同步）
+    converter.generateStatusContract();
 
     // 生成报告
     const reporter = new ReportGenerator(checker, converter);

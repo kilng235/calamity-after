@@ -44,14 +44,24 @@ var commandProcessor = (function () {
 
     // ==================== 应用前规范化 ====================
 
-    // 主角状态白名单（与世界书「状态列表」同步维护）：值 0=负面 / 1=有利（面板着色用）
+    // 主角状态白名单（兜底名单）：正常情况下由 module/status-contract.js（转换器从
+    // 状态列表.yaml 生成，单源）提供——见 effectiveWhitelist()。兜底仅防契约加载失败，
+    // 与契约的一致性由 tools-test-contract.js 保证。值 0=负面 / 1=有利（面板着色用）。
     var STATUS_WHITELIST = {
-        '目盲': 0, '耳聋': 0, '失明': 0, '失能': 0, '昏迷': 0, '麻痹': 0, '震慑': 0, '石化': 0, '中毒': 0, '恐慌': 0, '魅惑': 0,
+        '目盲': 0, '耳聋': 0, '失能': 0, '昏迷': 0, '麻痹': 0, '震慑': 0, '石化': 0, '中毒': 0, '恐慌': 0, '魅惑': 0,
         '受擒': 0, '束缚': 0, '倒地': 0, '力竭': 0, '燃烧': 0, '残废': 0, '失衡': 0, '减速': 0, '侵蚀': 0, '寒冷': 0, '感电': 0,
         '出血': 0,
         '隐形': 1, '加速': 1, '耀眼': 1, '灵巧': 1, '专注': 1, '护体': 1,
         '超重': 0   // 引擎派生状态：总重 > 负重上限时自动落地/解除（命令后校准），AI 不经命令维护
     };
+
+    // 生效白名单：优先消费世界书生成的状态契约（单源），加载失败时回退兜底名单
+    function effectiveWhitelist() {
+        if (typeof window !== 'undefined' && window.statusContract && window.statusContract.statuses) {
+            return window.statusContract.statuses;
+        }
+        return STATUS_WHITELIST;
+    }
 
     // ==================== 负重结算（背包系统：上限 10 + 力量×2 公斤） ====================
 
@@ -113,8 +123,14 @@ var commandProcessor = (function () {
     /** 主角状态规范化：白名单过滤 + 力竭/侵蚀层级钳制（应用前与应用后都调用） */
     function 规范条件(gd) {
         var conditions = gd.conditions = gd.conditions || {};
+        // 旧存档迁移：「失明」并入「目盲」（失明未入状态契约，目盲为规范名）
+        if (conditions['失明'] !== undefined) {
+            if (conditions['目盲'] === undefined) conditions['目盲'] = conditions['失明'];
+            delete conditions['失明'];
+        }
+        var whitelist = effectiveWhitelist();
         Object.keys(conditions).forEach(function (name) {
-            if (!STATUS_WHITELIST.hasOwnProperty(name)) {
+            if (!whitelist.hasOwnProperty(name)) {
                 delete conditions[name];   // 未知状态名拒绝落地
                 return;
             }
@@ -517,6 +533,8 @@ var commandProcessor = (function () {
         normalizeGameTime: normalizeGameTime,
         computeEncumbrance: computeEncumbrance,
         物品重量: 物品重量,
+        getStatusWhitelist: effectiveWhitelist,
+        FALLBACK_WHITELIST: STATUS_WHITELIST,
         命令后校准: 命令后校准
     };
 })();

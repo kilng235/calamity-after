@@ -19,9 +19,9 @@ const base = () => ({
 let r = processor.applyCommands(base(), [{ action: 'set', key: '状态.中毒', value: { 来源: '感染撕咬' } }]);
 check('1. set 状态.中毒 落地（带来源）', r.gameData.conditions['中毒'] && r.gameData.conditions['中毒'].来源 === '感染撕咬');
 
-// 2. 布尔形式
+// 2. 布尔形式（失明为旧名：契约迁移为规范名「目盲」）
 r = processor.applyCommands(base(), [{ action: 'set', key: '状态.失明', value: true }]);
-check('2. set 状态.失明 = true 落地', r.gameData.conditions['失明'] === true);
+check('2. set 状态.失明 迁移为目盲落地', r.gameData.conditions['目盲'] === true && r.gameData.conditions['失明'] === undefined);
 
 // 3. 力竭层级钳制 1~3
 r = processor.applyCommands(base(), [

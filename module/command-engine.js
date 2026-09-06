@@ -108,7 +108,7 @@ var commandEngine = (function () {
         // 装备槽中文别名：面板与 normalize 只认标准槽位（mainHand 等），中文键是静默死数据
         '装备': function (rest) {
             if (!rest) return null;
-            var m = /^\.([^.\[]+)/.exec(rest);
+            var m = /^\.([^.\[（]+)/.exec(rest);   // 括号注音（如 脚部（足部））截断后再查槽位表
             if (m && EQUIP_SLOT_MAP[m[1]]) return 'equipment.' + EQUIP_SLOT_MAP[m[1]] + rest.slice(m[0].length);
             return 'equipment' + rest;
         },
@@ -123,6 +123,9 @@ var commandEngine = (function () {
         '当前位置': 'progress.currentLocation',
         '位置': 'progress.currentLocation',
         '所在地': 'progress.currentLocation',
+        '当前场所': 'progress.currentPlace',
+        '具体位置': 'progress.currentPlace',
+        '场所': 'progress.currentPlace',
         '已解锁地点': 'progress.unlockedLocations',
         '已完成任务': 'progress.completedQuests',
         '关系': function (rest) { return rest ? 'relationships' + rest : null; },
