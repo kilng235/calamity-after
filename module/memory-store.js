@@ -1,24 +1,29 @@
 /**
- * memory-store.js - 记忆系统的纯文本 IndexedDB 存储（calamity-memory v1）
+ * memory-store.js - 记忆系统的纯文本 IndexedDB 存储（calamity-memory v2）
  *
- * 四个 store：
+ * 七个 store：
  *   summary    每层纪要全文（keyPath: floor）——压缩输入 + 词法命中展开源
  *   chronicle  编年史一行（keyPath: floor）——主键即楼层号，天然防重
  *   story      纪事/卷宗/典章（keyPath: id，level 1/2/3 区分，absorbedBy 吸收标记）
  *   embeddings 向量模块的摘要向量（keyPath: id，含 floor 索引；vector 为 ArrayBuffer）
+ *   ledger     实体台账（P1，keyPath: id）——组织/物品/地点/能力等世界事实的当前态 + 变更史
+ *   suspense   悬念簿（P1，keyPath: id）——未决悬念建立/核销
+ *   subjective 主观记忆（P1，keyPath: id）——NPC 主观认知（挂纪事压缩批量提取）
  *
  * 设计要点：
  *   - 全部为纯文本/二进制记录，无向量概念泄漏到核心链路（embeddings 只被向量模块使用）
  *   - 提供同步可用的内存镜像（init 预载），满足 storyEngine 高频同步读
  *   - embeddings 的读写同时兼容 legacy memory-recall 的同步契约（loadAllEmbeddings）
+ *   - v1→v2 升级：onupgradeneeded 补建新 store，旧数据不受影响
  */
 var memoryStore = (function() {
     const DB_NAME = 'calamity-memory';
-    const DB_VERSION = 1;
-    const STORES = ['summary', 'chronicle', 'story', 'embeddings'];
+    const DB_VERSION = 2;
+    const STORES = ['summary', 'chronicle', 'story', 'embeddings', 'ledger', 'suspense', 'subjective'];
     let _db = null;
-    // 内存镜像：{summary:{floor:rec}, chronicle:{floor:rec}, story:[rec...], embeddings:[rec...]}
-    const _mem = { summary: {}, chronicle: {}, story: [], embeddings: [] };
+    // 内存镜像：{summary:{floor:rec}, chronicle:{floor:rec}, story:[rec...], embeddings:[rec...],
+    //            ledger:[rec...], suspense:[rec...], subjective:[rec...]}
+    const _mem = { summary: {}, chronicle: {}, story: [], embeddings: [], ledger: [], suspense: [], subjective: [] };
     let _loaded = false;
 
     function openDb() {
@@ -34,6 +39,9 @@ var memoryStore = (function() {
                     const st = db.createObjectStore('embeddings', { keyPath: 'id' });
                     st.createIndex('floor', 'floor', { unique: false });
                 }
+                if (!db.objectStoreNames.contains('ledger')) db.createObjectStore('ledger', { keyPath: 'id' });
+                if (!db.objectStoreNames.contains('suspense')) db.createObjectStore('suspense', { keyPath: 'id' });
+                if (!db.objectStoreNames.contains('subjective')) db.createObjectStore('subjective', { keyPath: 'id' });
             };
             req.onsuccess = function(e) { _db = e.target.result; resolve(_db); };
             req.onerror = function(e) { reject(e.target.error || new Error('IDB 打开失败')); };
@@ -65,7 +73,8 @@ var memoryStore = (function() {
             _loaded = true;
             console.log('[MemoryStore] 已载入 纪要 ' + Object.keys(_mem.summary).length
                 + ' 层 / 编年史 ' + Object.keys(_mem.chronicle).length
-                + ' 行 / 常驻线 ' + _mem.story.length + ' 篇 / 向量 ' + _mem.embeddings.length + ' 条');
+                + ' 行 / 常驻线 ' + _mem.story.length + ' 篇 / 向量 ' + _mem.embeddings.length + ' 条'
+                + ' / 台账 ' + _mem.ledger.length + ' 条 / 悬念 ' + _mem.suspense.length + ' 条 / 主观记忆 ' + _mem.subjective.length + ' 条');
         } catch (e) {
             _loaded = true;
             console.warn('[MemoryStore] IDB 载入失败（以空库运行）:', e && e.message || e);
@@ -84,6 +93,9 @@ var memoryStore = (function() {
     function allChronicle() { assertLoaded(); return Object.values(_mem.chronicle).sort((a, b) => a.floor - b.floor); }
     function allStory() { assertLoaded(); return _mem.story.slice(); }
     function allEmbeddings() { assertLoaded(); return _mem.embeddings.slice(); }
+    function allLedger() { assertLoaded(); return _mem.ledger.slice(); }
+    function allSuspense() { assertLoaded(); return _mem.suspense.slice(); }
+    function allSubjective() { assertLoaded(); return _mem.subjective.slice(); }
     function maxFloor() {
         const s = Object.keys(_mem.summary).reduce((m, k) => Math.max(m, +k), 0);
         const c = Object.keys(_mem.chronicle).reduce((m, k) => Math.max(m, +k), 0);
@@ -140,6 +152,7 @@ var memoryStore = (function() {
         getSummary: getSummary, allSummaries: allSummaries,
         getChronicle: getChronicle, allChronicle: allChronicle,
         allStory: allStory, allEmbeddings: allEmbeddings, maxFloor: maxFloor,
+        allLedger: allLedger, allSuspense: allSuspense, allSubjective: allSubjective,
         // 异步写
         put: put, del: del, clearStore: clearStore, clearAll: clearAll,
         STORES: STORES

@@ -271,6 +271,117 @@ var responseParser = (function () {
         return quest.name ? quest : null;
     }
 
+    // ==================== 实体台账块 / 悬念块提取（P1 记忆账本） ====================
+
+    var ENTITY_KINDS = ['NPC', '物品', '地点', '组织', '能力'];
+
+    /**
+     * 解析一个 [实体更新] 块的内容：一个块内可含多个实体，实体之间以空行分隔，
+     * 每个实体为键值行（名称必需；类别/别名/状态/变更可选）。
+     */
+    function parseEntityContent(content) {
+        var entities = [];
+        var blocks = String(content || '').split(/\n\s*\n/);
+        blocks.forEach(function (chunk) {
+            var ent = { name: '', kind: 'NPC', aliases: [], state: '', change: '' };
+            var hasAny = false;
+            chunk.split('\n').forEach(function (line) {
+                line = line.trim().replace(/^[-*•]\s+/, '');
+                if (!line) return;
+                var kv = line.match(/^([^:=：]+)[=:：]\s*([\s\S]*)$/);
+                if (!kv) return;
+                var key = kv[1].trim().toLowerCase();
+                var value = kv[2].trim();
+                if (!value && key !== '别名') return;
+                hasAny = true;
+                if (key === '名称' || key === 'name') {
+                    ent.name = value;
+                } else if (key === '类别' || key === '类型' || key === 'kind') {
+                    ent.kind = value;
+                } else if (key === '别名' || key === '别称' || key === 'aliases') {
+                    ent.aliases = value.split(/[、,，;；\/]/).map(function (s) { return s.trim(); }).filter(Boolean);
+                } else if (key === '状态' || key === '当前' || key === '当前态' || key === 'state') {
+                    ent.state = value;
+                } else if (key === '变更' || key === '变化' || key === 'change') {
+                    ent.change = value;
+                }
+            });
+            if (hasAny && ent.name) {
+                // 类别归一到白名单词表（容错：'人物'→NPC）
+                var kindMap = { '人物': 'NPC', '角色': 'NPC', 'npc': 'NPC', 'item': '物品', 'location': '地点', 'organization': '组织', 'org': '组织' };
+                ent.kind = ENTITY_KINDS.indexOf(ent.kind) >= 0 ? ent.kind : (kindMap[ent.kind.toLowerCase()] || 'NPC');
+                entities.push(ent);
+            }
+        });
+        return entities;
+    }
+
+    /**
+     * 提取实体更新块（[实体更新]...[/实体更新] 或 <实体更新>...</实体更新>）
+     * @returns {Array<{name,kind,aliases,state,change}>}
+     */
+    function extractEntityBlocks(text) {
+        if (!text) return [];
+        var entities = [];
+        var regex = /[\[<][\s_]*(?:实体更新|實體更新|EntityUpdate|entity_update)[\s_]*[\]>]([\s\S]*?)[\[<][\s_]*\/[\s_]*(?:实体更新|實體更新|EntityUpdate|entity_update)[\s_]*[\]>]/gi;
+        var match;
+        while ((match = regex.exec(text)) !== null) {
+            entities = entities.concat(parseEntityContent(match[1]));
+        }
+        return entities;
+    }
+
+    /** 从展示文本中剥离实体更新块 */
+    function stripEntityBlocks(text) {
+        if (!text) return text || '';
+        return String(text).replace(
+            /[\[<][\s_]*(?:实体更新|實體更新|EntityUpdate|entity_update)[\s_]*[\]>][\s\S]*?[\[<][\s_]*\/[\s_]*(?:实体更新|實體更新|EntityUpdate|entity_update)[\s_]*[\]>]/gi, '');
+    }
+
+    /**
+     * 提取悬念块（建立：[悬念]/[新悬念]；核销：[悬念核销]）
+     * @returns {Array<{type:'new'|'resolve', name, desc, result}>}
+     */
+    function extractSuspenseBlocks(text) {
+        if (!text) return [];
+        var items = [];
+        var match;
+        var newRe = /[\[<][\s_]*(?:悬念|新悬念|懸念|新懸念|Suspense|suspense_new)[\s_]*[\]>]([\s\S]*?)[\[<][\s_]*\/[\s_]*(?:悬念|新悬念|懸念|新懸念|Suspense|suspense_new)[\s_]*[\]>]/gi;
+        while ((match = newRe.exec(text)) !== null) {
+            var created = parseKvFields(match[1], { '名称': 'name', 'name': 'name', '描述': 'desc', 'description': 'desc', '说明': 'desc' });
+            if (created && created.name) items.push({ type: 'new', name: created.name, desc: created.desc || '', result: '' });
+        }
+        var resolveRe = /[\[<][\s_]*(?:悬念核销|懸念核銷|悬念解除|SuspenseResolve|suspense_resolve)[\s_]*[\]>]([\s\S]*?)[\[<][\s_]*\/[\s_]*(?:悬念核销|懸念核銷|悬念解除|SuspenseResolve|suspense_resolve)[\s_]*[\]>]/gi;
+        while ((match = resolveRe.exec(text)) !== null) {
+            var resolved = parseKvFields(match[1], { '名称': 'name', 'name': 'name', '结果': 'result', '結果': 'result', '描述': 'result', '说明': 'result' });
+            if (resolved && resolved.name) items.push({ type: 'resolve', name: resolved.name, desc: '', result: resolved.result || '' });
+        }
+        return items;
+    }
+
+    /** 通用键值行解析（名称/描述/结果等简单字段） */
+    function parseKvFields(content, keyMap) {
+        var out = {};
+        String(content || '').split('\n').forEach(function (line) {
+            line = line.trim().replace(/^[-*•]\s+/, '');
+            if (!line) return;
+            var kv = line.match(/^([^:=：]+)[=:：]\s*([\s\S]*)$/);
+            if (!kv) return;
+            var key = kv[1].trim();
+            var field = keyMap[key] || keyMap[key.toLowerCase()];
+            if (field && !out[field]) out[field] = kv[2].trim();
+        });
+        return out;
+    }
+
+    /** 从展示文本中剥离悬念块（建立与核销） */
+    function stripSuspenseBlocks(text) {
+        if (!text) return text || '';
+        return String(text)
+            .replace(/[\[<][\s_]*(?:悬念|新悬念|懸念|新懸念|Suspense|suspense_new)[\s_]*[\]>][\s\S]*?[\[<][\s_]*\/[\s_]*(?:悬念|新悬念|懸念|新懸念|Suspense|suspense_new)[\s_]*[\]>]/gi, '')
+            .replace(/[\[<][\s_]*(?:悬念核销|懸念核銷|悬念解除|SuspenseResolve|suspense_resolve)[\s_]*[\]>][\s\S]*?[\[<][\s_]*\/[\s_]*(?:悬念核销|懸念核銷|悬念解除|SuspenseResolve|suspense_resolve)[\s_]*[\]>]/gi, '');
+    }
+
     // ==================== 通用 XML 块提取 ====================
 
     /**
@@ -682,6 +793,13 @@ var responseParser = (function () {
             cleaned = stripQuestBlocks(cleaned);
         }
 
+        // P1 记忆账本：实体更新块 / 悬念块（提取后从展示文本剥离）
+        var entities = extractEntityBlocks(cleaned);
+        var suspenses = extractSuspenseBlocks(cleaned);
+        if (entities.length > 0 || suspenses.length > 0) {
+            cleaned = stripEntityBlocks(stripSuspenseBlocks(cleaned));
+        }
+
         return {
             raw: rawText,
             cleanedText: cleaned,
@@ -691,6 +809,8 @@ var responseParser = (function () {
             commandBlockClosed: commandBlock.closed,
             commands: commands,
             quests: quests,  // 新增：解析出的任务列表
+            entities: entities,    // P1：解析出的实体台账列表
+            suspenses: suspenses,  // P1：解析出的悬念变动列表
             parseError: parseError,
             parseIncomplete: (commandBlock.found && !commandBlock.closed) || Boolean(parseError)
         };
@@ -703,6 +823,9 @@ var responseParser = (function () {
         extractXmlBlock: extractXmlBlock,
         extractQuestBlocks: extractQuestBlocks,
         parseQuestContent: parseQuestContent,
+        extractEntityBlocks: extractEntityBlocks,
+        extractSuspenseBlocks: extractSuspenseBlocks,
+        parseEntityContent: parseEntityContent,
         解析命令块: 解析命令块,
         run: run
     };

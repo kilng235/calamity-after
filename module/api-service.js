@@ -152,6 +152,13 @@ var apiService = (function() {
             return await _callOpenAI(messages, signal, maxTokens, cfg, temperature);
         } catch (e) {
             if (e && (e.name === 'AbortError' || e.name === 'TimeoutError')) {
+                // 调用方传入 signal 且已中止 → 用户手动终止（区别于内置超时），带 isManualAbort 标记供 UI 区分
+                if (options && options.signal && options.signal.aborted) {
+                    var manual = new Error('已手动终止本轮生成');
+                    manual.name = 'AbortError';
+                    manual.isManualAbort = true;
+                    throw manual;
+                }
                 throw new Error('请求超时（' + Math.round(timeoutMs / 1000) + ' 秒），已中断');
             }
             throw e;
@@ -227,7 +234,8 @@ var apiService = (function() {
                 contents: contents,
                 systemInstruction: { parts: [{ text: systemPrompt }] },
                 generationConfig: _genConfig
-            })
+            }),
+            signal: signal
         });
         if (!response.ok) {
             var text = '';

@@ -2122,6 +2122,9 @@
         <button class="vec-tab vec-tab-active" data-tab="story" onclick="switchVecTab('story')">常驻线</button>
         <button class="vec-tab" data-tab="chronicle" onclick="switchVecTab('chronicle')">编年史</button>
         <button class="vec-tab" data-tab="summary" onclick="switchVecTab('summary')">纪要</button>
+        <button class="vec-tab" data-tab="ledger" onclick="switchVecTab('ledger')">台账</button>
+        <button class="vec-tab" data-tab="suspense" onclick="switchVecTab('suspense')">悬念</button>
+        <button class="vec-tab" data-tab="subjective" onclick="switchVecTab('subjective')">人物记忆</button>
       </div>
       <input type="text" id="vec-filter" placeholder="◈ 筛选关键词..." oninput="renderVecList()">
       <div id="vec-list"></div>
@@ -2529,9 +2532,15 @@
           </div>
           <div>
             <label>◈ 模型名称</label>
-            <input type="text" id="mem-api-model" placeholder="如 deepseek-chat">
+            <input type="text" id="mem-api-model" placeholder="如 deepseek-chat" list="memory-model-list">
           </div>
         </div>
+        <datalist id="memory-model-list"></datalist>
+        <div class="btn-row" style="gap:8px">
+          <button type="button" class="inline-btn" onclick="fetchMemoryModelList()" style="">⟳ 拉取模型列表</button>
+          <button type="button" class="inline-btn" onclick="testMemoryConnection()" style="">🔌 测试副 API 连接</button>
+        </div>
+        <div class="feedback" id="mem-api-feedback" style="min-height:2.2em"></div>
         <div class="check-row" style="">
           <input type="checkbox" id="emb-enabled">
           <label for="emb-enabled" style="margin:0">向量记忆 <span style="color:var(--ink-faded);font-size:0.85em">（可选增强：语义召回历史楼层）</span></label>
@@ -3016,6 +3025,59 @@ function saveMemoryConfig(){
     });
   } catch(e){ console.warn('保存记忆系统配置失败', e); }
 }
+
+// ── 副 API：拉取模型列表 + 测试连接（按输入框当前值实测，未保存也生效） ──
+function collectMemoryApiFields(){
+  return {
+    endpoint: document.getElementById('mem-api-endpoint').value.trim(),
+    apiKey: document.getElementById('mem-api-key').value.trim(),
+    model: document.getElementById('mem-api-model').value.trim()
+  };
+}
+
+async function fetchMemoryModelList(){
+  var fb = document.getElementById('mem-api-feedback');
+  var c = collectMemoryApiFields();
+  if(!c.endpoint || !c.apiKey){ fb.textContent = '◈ 请先填写副API地址与密钥（留空则跟随主API，无需拉取）'; fb.className = 'feedback err'; return; }
+  fb.textContent = '◈ 正在召唤副 API 模型名录...'; fb.className = 'feedback';
+  try {
+    var models = await apiService.fetchModels(c.endpoint, c.apiKey, 'openai');
+    var dl = document.getElementById('memory-model-list');
+    dl.innerHTML = '';
+    models.forEach(function(m){
+      var opt = document.createElement('option');
+      opt.value = m.id || m;
+      dl.appendChild(opt);
+    });
+    fb.textContent = '◈ 已获得 ' + models.length + ' 个模型，点击模型输入框可选择';
+    fb.className = 'feedback ok';
+  } catch(e){
+    fb.textContent = '◈ 拉取失败：' + (e.message || e);
+    fb.className = 'feedback err';
+  }
+}
+
+async function testMemoryConnection(){
+  var fb = document.getElementById('mem-api-feedback');
+  fb.textContent = '◈ 正在测试副 API 连接...'; fb.className = 'feedback';
+  try {
+    var c = collectMemoryApiFields();
+    var t0 = Date.now();
+    var opts = { temperature: 0, stream: false, maxOutputTokens: 16, timeoutMs: 30000 };
+    if (c.endpoint && c.apiKey && c.model) { opts.endpoint = c.endpoint; opts.apiKey = c.apiKey; opts.model = c.model; }
+    var result = await apiService.sendMessages([{ role: 'user', content: '连接测试：请只回复 OK' }], opts);
+    var ms = Date.now() - t0;
+    var via = (c.endpoint && c.apiKey && c.model) ? '独立副 API' : '主 API';
+    var reply = String((result && result.content) || '').trim().slice(0, 30);
+    fb.textContent = '◈ 连接成功（经' + via + '，' + ms + 'ms）' + (reply ? '：' + reply : '');
+    fb.className = 'feedback ok';
+  } catch(e){
+    fb.textContent = '◈ 连接失败：' + (e.message || e);
+    fb.className = 'feedback err';
+  }
+}
+window.fetchMemoryModelList = fetchMemoryModelList;
+window.testMemoryConnection = testMemoryConnection;
 
 var DEFAULT_SETTINGS = {
   display: { fontSize:15 },
@@ -4064,20 +4126,25 @@ function clearSTPreset() {
     return storyEngine.nextFloor();
   }
 
-  // 纪要归档：文本进 storyEngine（summary/chronicle/压缩），向量模块由其内部按开关处理
-  async function storeSummariesToMemory(summaries) {
+  // 纪要归档 + P1 账本落地：文本/实体/悬念一并进 storyEngine（向量模块由其内部按开关处理）
+  // 楼层号只在有纪要时推进；无纪要但有账本变动时复用当前楼层（避免编年史空洞）
+  async function storeSummariesToMemory(summaries, turnData) {
     if (!window.storyEngine) return 0;
     const texts = (summaries || []).map(s => String(s).trim()).filter(s => s.length > 1);
-    if (!texts.length) return 0;
+    const entities = (turnData && Array.isArray(turnData.entities)) ? turnData.entities : [];
+    const suspenses = (turnData && Array.isArray(turnData.suspenses)) ? turnData.suspenses : [];
+    if (!texts.length && !entities.length && !suspenses.length) return 0;
     let time = '', location = '';
     try {
       const gd = gameState.getGameData();
       location = (gd && gd.progress && gd.progress.currentLocation) || '';
       time = storyEngine.fmtGameTime ? storyEngine.fmtGameTime(gd.gameTime) : '';
     } catch (e) { /* ignore */ }
-    const floor = storyEngine.nextFloor();
-    await storyEngine.onTurnArchived({ floor: floor, texts: texts, time: time, location: location });
-    console.log('[MemorySystem] 第' + floor + '层纪要已归档 ' + texts.length + ' 条');
+    const floor = texts.length
+      ? storyEngine.nextFloor()
+      : (storyEngine.currentFloor ? storyEngine.currentFloor() : 0);
+    await storyEngine.onTurnArchived({ floor: floor, texts: texts, time: time, location: location, entities: entities, suspenses: suspenses });
+    console.log('[MemorySystem] 第' + floor + '层已归档：纪要 ' + texts.length + ' 条 / 实体 ' + entities.length + ' / 悬念 ' + suspenses.length);
     return texts.length;
   }
 
@@ -4106,6 +4173,7 @@ function clearSTPreset() {
     if (statsEl) {
       statsEl.textContent = '第' + st.floor + '层 ｜ 纪要 ' + st.summary + ' · 编年史 ' + st.chronicle
         + ' ｜ 纪事 ' + st.l1 + ' · 卷宗 ' + st.l2 + ' · 典章 ' + st.l3
+        + ' ｜ 台账 ' + st.ledger + ' · 悬念 ' + st.suspenseActive + '/' + st.suspenseTotal + ' · 人物记忆 ' + st.subjective
         + ' ｜ 下一纪事：第' + st.nextChronicleAt + '层'
         + ' ｜ 副API：' + (st.apiIndependent ? '独立' : '跟随主API')
         + ' ｜ 向量：' + (st.vec ? '开' : '关')
@@ -4155,6 +4223,37 @@ function clearSTPreset() {
       lines.forEach(r => {
         addEntry(r.text, '第' + r.floor + '层 ｜ ' + (r.time || '') + (r.location ? '·' + r.location : ''));
       });
+    } else if (_vecTab === 'ledger') {
+      const recs = memoryStore.allLedger()
+        .filter(r => match(r.name) || match(r.state) || (r.aliases || []).some(a => match(a)))
+        .sort((a, b) => (b.lastFloor || 0) - (a.lastFloor || 0));
+      if (!recs.length) empty(kw ? '◈ 无匹配记录' : '◈ 台账为空（AI 通过 [实体更新] 块登记的世界事实会出现在这里）');
+      recs.forEach(r => {
+        const hist = (r.history || []).map(h => '第' + h.floor + '层：' + h.change);
+        addEntry('【' + r.kind + '】' + r.name + (r.aliases && r.aliases.length ? '（别称：' + r.aliases.join('/') + '）' : '') + '\n' + (r.state || '（无当前态）')
+          + (hist.length ? '\n' + hist.join('\n') : ''),
+          '最近更新：第' + (r.lastFloor || 0) + '层');
+      });
+    } else if (_vecTab === 'suspense') {
+      const recs = memoryStore.allSuspense().filter(r => match(r.name) || match(r.desc) || match(r.result))
+        .sort((a, b) => (b.floor || 0) - (a.floor || 0));
+      if (!recs.length) empty(kw ? '◈ 无匹配记录' : '◈ 悬念簿为空（AI 通过 [悬念] 块建立、[悬念核销] 块收束）');
+      recs.forEach(r => {
+        const active = r.status === 'active';
+        addEntry((active ? '❓ ' : '✔ ') + r.name + (r.desc ? '\n' + r.desc : '')
+          + (!active && r.result ? '\n核销：' + r.result : ''),
+          (active ? '未决 ｜ 第' + r.floor + '层建立' : '已核销 ｜ 第' + r.floor + '层建立 → 第' + (r.resolvedFloor || '?') + '层收束'),
+          !active);
+      });
+    } else if (_vecTab === 'subjective') {
+      const recs = memoryStore.allSubjective().filter(r => match(r.holder) || match(r.text))
+        .sort((a, b) => (b.to || 0) - (a.to || 0));
+      if (!recs.length) empty(kw ? '◈ 无匹配记录' : '◈ 人物记忆为空（每 20 层纪事压缩后自动提取 NPC 主观认知）');
+      recs.forEach(r => {
+        addEntry(r.holder + '（' + r.kind + '）：' + r.text
+          + (r.knownBy && r.knownBy.length ? '\n知情者：' + r.knownBy.join('、') : ''),
+          '来源：第' + r.from + '~' + r.to + '层纪事');
+      });
     } else {
       const recs = memoryStore.allSummaries().filter(r => match(r.text)).sort((a, b) => b.floor - a.floor);
       if (!recs.length) empty(kw ? '◈ 无匹配记录' : '◈ 暂无纪要（对话后每一楼的剧情纪要会自动出现在这里）');
@@ -4180,12 +4279,15 @@ function clearSTPreset() {
 
   function clearVectorMemory() {
     if (!window.memoryStore || !window.storyEngine) return;
-    if (!confirm('确定清空全部记忆（纪要/编年史/常驻线/向量）？此操作不可恢复，AI 将失去全部远期记忆（游戏存档不受影响）。')) return;
+    if (!confirm('确定清空全部记忆（纪要/编年史/常驻线/向量/台账/悬念/人物记忆）？此操作不可恢复，AI 将失去全部远期记忆（游戏存档不受影响）。')) return;
     Promise.all([
       memoryStore.clearStore('summary'),
       memoryStore.clearStore('chronicle'),
       memoryStore.clearStore('story'),
-      memoryStore.clearStore('embeddings')
+      memoryStore.clearStore('embeddings'),
+      memoryStore.clearStore('ledger'),
+      memoryStore.clearStore('suspense'),
+      memoryStore.clearStore('subjective')
     ]).then(function() {
       if (window.memoryRecall) window.memoryRecall.clearCache();
       try { localStorage.removeItem('calamity-memory-floor'); localStorage.removeItem('calamity-memory-pending'); } catch (e) { /* ignore */ }
@@ -4265,6 +4367,15 @@ function clearSTPreset() {
   }
   window.battleMathCheck = battleMathCheck;   // 调试/测试钩子
 
+  // ── 回合终止：AI 思考时中断本轮请求 ──
+  // 请求被 AbortController 中止后走 catch 分支，不解析、不落地任何状态/记忆；
+  // 发送前快照保留在撤销栈中，可用「撤销上一回合」清掉本轮已显示的用户输入行。
+  window.abortTurn = function() {
+    if (window._turnAbortController) {
+      try { window._turnAbortController.abort(); } catch (e) { /* ignore */ }
+    }
+  };
+
   // ── AI 主链路 ──
   window.sendMessage = async function() {
     const input = document.getElementById('input-box');
@@ -4272,6 +4383,8 @@ function clearSTPreset() {
     if (!message || window._gameBusy) return;
 
     window._gameBusy = true;
+    const abortController = new AbortController();
+    window._turnAbortController = abortController;
     input.value = '';
     input.disabled = true;
     pushUndoSnapshot();  // 发送前快照：撤销时回退本轮的变量、记忆与叙事
@@ -4282,6 +4395,14 @@ function clearSTPreset() {
       loadingDiv.id = 'loading-indicator';
       loadingDiv.textContent = '🌀 AI 思考中...';
       loadingDiv.style.cssText = 'padding: 10px; color: #b8942a; font-style: italic;';
+      // 终止按钮：挂载在加载指示器内，随其一并移除
+      const stopBtn = document.createElement('button');
+      stopBtn.type = 'button';
+      stopBtn.className = 'undo-turn-btn';
+      stopBtn.style.cssText = 'margin-left:10px;padding:3px 12px;border-style:solid;cursor:pointer';
+      stopBtn.textContent = '⏹ 终止';
+      stopBtn.onclick = function() { window.abortTurn(); };
+      loadingDiv.appendChild(stopBtn);
       document.getElementById('narrative-display').appendChild(loadingDiv);
 
       const gd = gameState.getGameData();
@@ -4313,7 +4434,8 @@ function clearSTPreset() {
       if (!apiConfig || !apiConfig.apiKey) throw new Error('未配置 API Key，请先到「设置」填写');
       const aiResult = await apiService.sendMessages(prompt.messages, {
         model: apiConfig.model,
-        stream: false
+        stream: false,
+        signal: abortController.signal  // 「终止」按钮触发中止
         // 温度不在此覆盖，回退到设置页的 Temperature 滑杆（cfg.temperature）
       });
       const responseContent = (aiResult && aiResult.content)
@@ -4361,15 +4483,21 @@ function clearSTPreset() {
       // 正文写入滚动上下文（不含命令标签），原始响应另存调试历史
       appendChatContext(message, parsed.mainText || '');
       saveToHistory(message, responseContent);
-      // 向量化记忆：本轮摘要入库（异步，不阻塞主流程，失败静默）
-      storeSummariesToMemory(parsed.summaries);
+      // 向量化记忆：本轮摘要/实体/悬念入库（异步，不阻塞主流程，失败静默）
+      storeSummariesToMemory(parsed.summaries, { entities: parsed.entities, suspenses: parsed.suspenses });
     } catch (error) {
-      console.error('AI 调用失败:', error);
-      displayNarrative('\n❌ 错误: ' + error.message + '\n');
+      if (error && error.isManualAbort) {
+        // 用户手动终止：本轮请求已中止，不解析、不落地任何状态/记忆，快照留在撤销栈供清除输入行
+        displayNarrative('\n⛔ 已终止本轮生成（本轮未产生任何状态与记忆变动）\n');
+      } else {
+        console.error('AI 调用失败:', error);
+        displayNarrative('\n❌ 错误: ' + error.message + '\n');
+      }
       const ld = document.getElementById('loading-indicator');
       if (ld && ld.parentNode) ld.remove();
     } finally {
       window._gameBusy = false;
+      window._turnAbortController = null;
       input.disabled = false;
       input.focus();
     }

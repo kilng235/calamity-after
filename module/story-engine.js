@@ -1,11 +1,13 @@
 /**
- * story-engine.js - 记忆系统核心（v2.0）
+ * story-engine.js - 记忆系统核心（v2.1，含 P1 账本套件）
  *
  * 架构（见 docs/记忆系统2.0-工程蓝图.md）：
  *   核心（常启）：每层纪要 → 编年史一行 → 滚动合并（纪事20层→卷宗100层→典章300层）
  *                 注入 = 典章/卷宗/纪事(常驻) + 编年史尾窗(常驻) + 词法命中展开(按需)
  *   向量模块（可选，calamity-memory-vec）：摘要向量化，召回与词法按楼层去重合并
- *   通道：所有 LLM 压缩调用走 memoryApi（副API，未配置跟随主API）
+ *   P1 账本套件：实体台账（[实体更新] 块维护）+ 悬念簿（[悬念]/[悬念核销]）+ 主观记忆
+ *                （挂纪事压缩批量提取，走副API；主演/龙套分级注入）
+ *   通道：所有 LLM 压缩/提取调用走 memoryApi（副API，未配置跟随主API）
  *
  * 依赖：memoryStore（同步镜像读）、memoryApi、gameState（词法检索名词源）
  *       向量模块另需：embeddingService、memoryRecall（可选）
@@ -16,6 +18,19 @@ var storyEngine = (function() {
     const CHRONICLE_TAIL = 100;     // 编年史常驻尾窗行数
     const RECALL_TOPK = 3;          // 词法命中展开楼层数
     const LINE_MAX = 40;            // 编年史行正文上限
+
+    // P1 账本套件参数
+    const LEDGER_HISTORY_MAX = 5;   // 台账每实体变更史上限
+    const LEDGER_STATE_MAX = 80;    // 台账当前态字数上限
+    const LEDGER_CHANGE_MAX = 60;   // 台账单条变更字数上限
+    const SUSPENSE_ACTIVE_MAX = 8;  // 悬念注入条数上限
+    const SUSPENSE_BLOCK_MAX = 600; // 悬念块字数预算
+    const SUBJ_PER_HOLDER_MAX = 3;  // 主观记忆每人上限（提取与主演注入共用）
+    const SUBJ_BATCH_MAX = 10;      // 主观记忆整批上限
+    const SUBJ_MEMORY_MAX = 50;     // 单条主观记忆字数上限
+    const SUBJ_BLOCK_MAX = 500;     // 人物记忆块字数预算
+    const LEDGER_BLOCK_MAX = 400;   // 实体台账块字数预算
+    const LEDGER_INJECT_MAX = 6;    // 台账注入实体数上限
 
     let _compressing = false;
 
@@ -67,6 +82,15 @@ var storyEngine = (function() {
     async function onTurnArchived(payload) {
         if (!enabled() || !payload) return;
         const p = payload;
+        // P1 账本套件：实体台账/悬念簿先落地（不依赖纪要文本；floor 为本回合楼层号）
+        if (Array.isArray(p.entities) && p.entities.length) {
+            await applyEntities(p.entities, p.floor, p.time || '')
+                .catch(e => console.warn('[StoryEngine] 实体台账落地失败（跳过）:', e && e.message || e));
+        }
+        if (Array.isArray(p.suspenses) && p.suspenses.length) {
+            await applySuspenses(p.suspenses, p.floor, p.time || '')
+                .catch(e => console.warn('[StoryEngine] 悬念簿落地失败（跳过）:', e && e.message || e));
+        }
         const text = (p.texts || []).join('；');
         if (!text) return;
         await memoryStore.put('summary', {
@@ -86,6 +110,115 @@ var storyEngine = (function() {
         // 压缩链：await 保证归档返回时常驻线状态确定（撤销与压缩不撞车）
         await maybeCompress(p.floor).catch(e =>
             console.warn('[StoryEngine] 压缩流程异常:', e && e.message || e));
+    }
+
+    // ---------- P1 账本套件：实体台账 ----------
+    function clampText(v, max) {
+        const s = String(v == null ? '' : v).trim();
+        return s.length > max ? s.slice(0, max) : s;
+    }
+    function uid(prefix) {
+        return prefix + '_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+    }
+
+    /** 实体的规范名归并：按 名称/别名 双向匹配（大小写不敏感），命中即视为同一实体 */
+    function findLedgerRecord(name) {
+        const key = String(name || '').trim().toLowerCase();
+        if (!key) return null;
+        return memoryStore.allLedger().find(r =>
+            r.name.toLowerCase() === key || (r.aliases || []).some(a => String(a).toLowerCase() === key)) || null;
+    }
+
+    /**
+     * 应用 [实体更新] 块解析出的实体列表（upsert，幂等）。
+     * 规范名保持首次登记的名字（后续别名归并进 aliases，注入时提示 AI 沿用规范名）；
+     * 权威数值（金币/背包/好感度等）不进台账——那由命令引擎 gameData 承载。
+     */
+    async function applyEntities(entities, floor, time) {
+        for (const ent of entities) {
+            const name = clampText(ent.name, 20);
+            if (!name) continue;
+            const kind = clampText(ent.kind, 10) || 'NPC';
+            const aliases = (Array.isArray(ent.aliases) ? ent.aliases : [])
+                .map(a => clampText(a, 20)).filter(a => a && a.toLowerCase() !== name.toLowerCase());
+            const state = clampText(ent.state, LEDGER_STATE_MAX);
+            const change = clampText(ent.change, LEDGER_CHANGE_MAX);
+            if (!state && !change) continue;
+
+            const existing = findLedgerRecord(name);
+            if (existing) {
+                const mergedAliases = Array.from(new Set([]
+                    .concat(existing.aliases || [], aliases)
+                    .filter(a => a.toLowerCase() !== existing.name.toLowerCase())));
+                // 新名与规范名不同 → 旧名与新名都进别名，保证后续回合可归并
+                if (name.toLowerCase() !== existing.name.toLowerCase()) {
+                    if (mergedAliases.indexOf(name) === -1) mergedAliases.push(name);
+                    if (mergedAliases.indexOf(existing.name) === -1) mergedAliases.push(existing.name);
+                }
+                const hist = (existing.history || []).slice();
+                if (change || (state && state !== existing.state)) {
+                    hist.push({ floor: floor, time: time, change: change || ('状态更新：' + state) });
+                }
+                await memoryStore.put('ledger', Object.assign({}, existing, {
+                    kind: existing.kind || kind,
+                    aliases: mergedAliases.slice(-6),
+                    state: state || existing.state,
+                    history: hist.slice(-LEDGER_HISTORY_MAX),
+                    lastFloor: floor, updatedAt: Date.now()
+                }));
+            } else {
+                await memoryStore.put('ledger', {
+                    id: 'ld_' + name, name: name, kind: kind,
+                    aliases: aliases.slice(-6), state: state,
+                    history: change ? [{ floor: floor, time: time, change: change }] : [],
+                    createdFloor: floor, lastFloor: floor, createdAt: Date.now(), updatedAt: Date.now()
+                });
+            }
+        }
+        return true;
+    }
+
+    // ---------- P1 账本套件：悬念簿 ----------
+    /**
+     * 应用 [悬念]（建立）/ [悬念核销]（收束）块。核销未建立的悬念时按已核销存档，
+     * 保留叙事事实（悬念可能在账本启用前建立）。
+     */
+    async function applySuspenses(suspenses, floor, time) {
+        for (const item of suspenses) {
+            const name = clampText(item.name, 30);
+            if (!name) continue;
+            const existing = memoryStore.allSuspense()
+                .find(r => r.name.toLowerCase() === name.toLowerCase());
+            if (item.type === 'resolve') {
+                const result = clampText(item.result || item.desc, LEDGER_STATE_MAX);
+                if (existing) {
+                    if (existing.status !== 'resolved') {
+                        await memoryStore.put('suspense', Object.assign({}, existing, {
+                            status: 'resolved', result: result, resolvedFloor: floor, resolvedTime: time
+                        }));
+                    }
+                } else {
+                    await memoryStore.put('suspense', {
+                        id: uid('sp'), name: name, desc: '', status: 'resolved', result: result,
+                        floor: floor, time: time, resolvedFloor: floor, createdAt: Date.now()
+                    });
+                }
+            } else {
+                if (existing) {
+                    // 重复建立：仅未决时补写描述，不重复开线
+                    if (existing.status === 'active' && item.desc && !existing.desc) {
+                        await memoryStore.put('suspense', Object.assign({}, existing,
+                            { desc: clampText(item.desc, LEDGER_STATE_MAX) }));
+                    }
+                } else {
+                    await memoryStore.put('suspense', {
+                        id: uid('sp'), name: name, desc: clampText(item.desc, LEDGER_STATE_MAX),
+                        status: 'active', floor: floor, time: time, createdAt: Date.now()
+                    });
+                }
+            }
+        }
+        return true;
     }
 
     async function vectorizeFloor(floor, text) {
@@ -122,17 +255,23 @@ var storyEngine = (function() {
     function pendingLoad() { try { return JSON.parse(ls('calamity-memory-pending') || '[]'); } catch (e) { return []; } }
     function pendingSave(list) { try { localStorage.setItem('calamity-memory-pending', JSON.stringify(list)); } catch (e) { /* ignore */ } }
 
+    /** 收集楼层区间的压缩/提取输入行（超长保护：只取最近 80 层，优先保留新近因果） */
+    function collectInputs(from, to) {
+        const inputs = [];
+        for (let f = from; f <= to; f++) {
+            const s = memoryStore.getSummary(f);
+            if (s) inputs.push('第' + f + '层(' + (s.time || '') + '·' + (s.location || '') + ')：' + s.text);
+        }
+        if (inputs.length > 80) inputs = inputs.slice(-80);
+        return inputs;
+    }
+
     async function compressStory(level, from, to, sources) {
         let inputs = [];
         if (sources && sources.length) {
             inputs = sources.map(r => r.text);
         } else {
-            for (let f = from; f <= to; f++) {
-                const s = memoryStore.getSummary(f);
-                if (s) inputs.push('第' + f + '层(' + (s.time || '') + '·' + (s.location || '') + ')：' + s.text);
-            }
-            // 输入超长保护：异常缺口（如长期未配置 API 后补压）时只取最近 80 层，优先保留新近因果
-            if (inputs.length > 80) inputs = inputs.slice(-80);
+            inputs = collectInputs(from, to);
         }
         if (!inputs.length) return null;
         const res = await memoryApi.sendMessages([
@@ -162,6 +301,74 @@ var storyEngine = (function() {
             .sort((a, b) => a.from - b.from);
     }
 
+    // ---------- P1 账本套件：主观记忆批量提取（挂纪事压缩，走副API） ----------
+    function extractPrompt() {
+        return '你是记忆提取员。从输入的按时间排列的剧情记录中，提取 NPC 的主观记忆'
+            + '（某个 NPC 记得/相信/怀疑/误解的事），只提取会影响后续剧情认知的长期印象。\n\n'
+            + '要求：\n'
+            + '1. 每条格式：{"holder":"NPC名","kind":"记得|相信|怀疑|误解","memory":"≤50字","known_by":["知情者NPC名"]}\n'
+            + '2. kind 为怀疑/误解时必须如实标注，禁止把人物认知写成世界事实；known_by 写除 holder 外还有哪些 NPC 知晓（无则空数组）。\n'
+            + '3. 每个 NPC 最多 ' + SUBJ_PER_HOLDER_MAX + ' 条，总共最多 ' + SUBJ_BATCH_MAX + ' 条；优先保留对后续剧情影响最大的。\n'
+            + '4. 只依据输入，不补写未发生的情节。\n\n'
+            + '直接输出 JSON 数组，不要评论、标题或代码块标记。';
+    }
+
+    function safeParseJsonArray(text) {
+        const t = String(text || '').trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+        try {
+            const v = JSON.parse(t);
+            return Array.isArray(v) ? v : null;
+        } catch (e) { return null; }
+    }
+
+    /**
+     * 纪事压缩成功后的二次调用：从同区间提取主观记忆。
+     * 幂等：rangeId（l1_from_to）已有记录则跳过（重试/重掷/重算安全）；
+     * 失败只告警不阻塞压缩链，该区间记为"本轮未提取"（不重试，等下一纪事）。
+     */
+    async function extractSubjectiveMemories(from, to) {
+        if (!window.memoryApi || !window.apiService) return;
+        const rangeId = 'l1_' + from + '_' + to;
+        if (memoryStore.allSubjective().some(r => r.rangeId === rangeId)) return;
+        const inputs = collectInputs(from, to);
+        if (!inputs.length) return;
+        const res = await memoryApi.sendMessages([
+            { role: 'system', content: extractPrompt() },
+            { role: 'user', content: inputs.join('\n') }
+        ], { temperature: 0.2, stream: false, maxOutputTokens: 1500 });
+        const list = safeParseJsonArray(res && res.content);
+        if (!list) throw new Error('主观记忆提取返回非 JSON 数组');
+        const perHolder = {};
+        let total = 0;
+        for (const item of list) {
+            if (!item || total >= SUBJ_BATCH_MAX) break;
+            const holder = clampText(item.holder, 20);
+            const memory = clampText(item.memory, SUBJ_MEMORY_MAX);
+            if (!holder || !memory) continue;
+            perHolder[holder] = (perHolder[holder] || 0) + 1;
+            if (perHolder[holder] > SUBJ_PER_HOLDER_MAX) continue;
+            const knownBy = (Array.isArray(item.known_by) ? item.known_by : [])
+                .map(k => clampText(k, 20)).filter(Boolean).slice(0, 3);
+            const kind = ['记得', '相信', '怀疑', '误解'].indexOf(item.kind) >= 0 ? item.kind : '记得';
+            await memoryStore.put('subjective', {
+                id: uid('sub'), rangeId: rangeId, from: from, to: to,
+                holder: holder, kind: kind, text: memory, knownBy: knownBy,
+                createdAt: Date.now()
+            });
+            total++;
+        }
+        console.log('[StoryEngine] 主观记忆提取完成：第' + from + '~' + to + '层 → ' + total + ' 条');
+    }
+
+    /** 纪事压缩成功后统一触发的提取钩子（await 于压缩互斥锁内，避免与撤销回滚并发；失败不阻塞压缩链） */
+    async function hookSubjectiveExtraction(from, to) {
+        try {
+            await extractSubjectiveMemories(from, to);
+        } catch (e) {
+            console.warn('[StoryEngine] 主观记忆提取失败（跳过本区间）:', e && e.message || e);
+        }
+    }
+
     async function doCompressTask(task) {
         if (task.level > 1) {
             const sources = memoryStore.allStory()
@@ -171,6 +378,8 @@ var storyEngine = (function() {
             await compressStory(task.level, sources[0].from, sources[sources.length - 1].to, sources);
         } else {
             await compressStory(1, task.from, task.to, null);
+            // P1：纪事压缩成功 → 同区间主观记忆提取（await 于压缩锁内，失败不阻塞）
+            await hookSubjectiveExtraction(task.from, task.to);
         }
     }
 
@@ -195,7 +404,11 @@ var storyEngine = (function() {
             if (currentFloor - covered >= ev) {
                 const from = covered + 1;
                 if (!unabsorbed(1).some(r => r.from === from)) {
-                    try { await compressStory(1, from, currentFloor, null); }
+                    try {
+                        await compressStory(1, from, currentFloor, null);
+                        // P1：纪事压缩成功 → 同区间主观记忆提取
+                        await hookSubjectiveExtraction(from, currentFloor);
+                    }
                     catch (e) {
                         console.warn('[StoryEngine] 纪事压缩失败（已入重试队列）:', e && e.message || e);
                         pending.push({ level: 1, from: from, to: currentFloor, batch: 0 });
@@ -313,6 +526,107 @@ var storyEngine = (function() {
             + items.join('\n');
     }
 
+    // ---------- P1 注入块：悬念簿 / 人物记忆 / 实体台账 ----------
+    function buildSuspenseBlock() {
+        const active = memoryStore.allSuspense()
+            .filter(r => r.status === 'active')
+            .sort((a, b) => b.floor - a.floor)
+            .slice(0, SUSPENSE_ACTIVE_MAX);
+        if (!active.length) return '';
+        let budget = 0;
+        const lines = [];
+        for (const s of active) {
+            const line = '- ' + s.name + (s.desc ? '：' + s.desc : '') + '（第' + s.floor + '层建立）';
+            if (budget + line.length > SUSPENSE_BLOCK_MAX) break;
+            budget += line.length;
+            lines.push(line);
+        }
+        if (!lines.length) return '';
+        return '【未决悬念】（已抛出但尚未收束的剧情线索：核销前保持未解状态，不要自行当作已解决）\n' + lines.join('\n');
+    }
+
+    /** 主演/龙套分级：关系簿/任务发布者/本回合消息/近期编年史中出现过的 holder 为主演 */
+    function subjectiveHolderTiers(gd, userMessage) {
+        const leads = new Set();
+        const msg = String(userMessage || '');
+        try {
+            if (gd) {
+                if (gd.relationships) Object.keys(gd.relationships).forEach(n => leads.add(n));
+                const quests = (gd.quests && Array.isArray(gd.quests.active)) ? gd.quests.active : [];
+                quests.forEach(q => { if (q && q.giver) leads.add(q.giver); });
+            }
+        } catch (e) { /* ignore */ }
+        const recentChron = memoryStore.allChronicle().slice(-30)
+            .map(r => (r.text || '') + (r.location || '')).join('\n');
+        const tiers = {};
+        const byHolder = {};
+        for (const r of memoryStore.allSubjective()) {
+            (byHolder[r.holder] = byHolder[r.holder] || []).push(r);
+            if (leads.has(r.holder) || (msg && msg.indexOf(r.holder) >= 0) || recentChron.indexOf(r.holder) >= 0) {
+                tiers[r.holder] = '主演';
+            }
+        }
+        Object.keys(byHolder).forEach(h => { if (!tiers[h]) tiers[h] = '龙套'; });
+        return { tiers: tiers, byHolder: byHolder };
+    }
+
+    function buildSubjectiveBlock(userMessage, gd) {
+        if (!memoryStore.allSubjective().length) return '';
+        const meta = subjectiveHolderTiers(gd, userMessage);
+        // 主演优先（每人至多 SUBJ_PER_HOLDER_MAX 条），龙套只保留最近 1 条
+        const holderNames = Object.keys(meta.byHolder)
+            .sort((a, b) => (meta.tiers[b] === '主演') - (meta.tiers[a] === '主演'));
+        let budget = 0, count = 0;
+        const lines = [];
+        for (const holder of holderNames) {
+            const recs = meta.byHolder[holder].sort((a, b) => (b.to || 0) - (a.to || 0));
+            const cap = meta.tiers[holder] === '主演' ? SUBJ_PER_HOLDER_MAX : 1;
+            for (const r of recs.slice(0, cap)) {
+                if (count >= SUBJ_BATCH_MAX || budget >= SUBJ_BLOCK_MAX) break;
+                const known = (r.knownBy && r.knownBy.length) ? '（知情者：' + r.knownBy.join('、') + '）' : '';
+                const line = '- ' + holder + '（' + r.kind + '）：' + r.text + known;
+                if (budget + line.length > SUBJ_BLOCK_MAX) break;
+                budget += line.length; count++;
+                lines.push(line);
+            }
+            if (count >= SUBJ_BATCH_MAX || budget >= SUBJ_BLOCK_MAX) break;
+        }
+        if (!lines.length) return '';
+        return '【人物记忆】登场 NPC 的主观认知（是人物自己的记忆/怀疑/误解，不代表世界事实，仅供把握其言行立场）\n' + lines.join('\n');
+    }
+
+    function buildLedgerBlock(userMessage, gd) {
+        const recs = memoryStore.allLedger();
+        if (!recs.length) return '';
+        const msg = String(userMessage || '');
+        const recentCut = currentFloor() - every() * 2;   // 近期活跃实体
+        const scored = [];
+        for (const r of recs) {
+            let score = 0;
+            if (msg && (msg.indexOf(r.name) >= 0 || (r.aliases || []).some(a => msg.indexOf(a) >= 0))) score += 10;
+            if ((r.lastFloor || 0) >= recentCut) {
+                score += 2 + Math.min(1, ((r.lastFloor || 0) - recentCut) / Math.max(1, every() * 2));
+            }
+            if (score > 0) scored.push({ r: r, score: score });
+        }
+        scored.sort((a, b) => b.score - a.score);
+        let budget = 0, count = 0;
+        const lines = [];
+        for (const item of scored) {
+            if (count >= LEDGER_INJECT_MAX || budget >= LEDGER_BLOCK_MAX) break;
+            const r = item.r;
+            const hist = (r.history || []).slice(-2).map(h => '此前：' + h.change).join('；');
+            const aliasPart = (r.aliases && r.aliases.length) ? '[别称：' + r.aliases.join('/') + ']' : '';
+            const line = '- ' + r.name + '（' + r.kind + '）' + aliasPart + '：' + (r.state || '（无当前态记录）')
+                + (hist ? '；' + hist : '');
+            if (budget + line.length > LEDGER_BLOCK_MAX) break;
+            budget += line.length; count++;
+            lines.push(line);
+        }
+        if (!lines.length) return '';
+        return '【实体台账】场景相关实体的当前态与近况（金币/背包/好感度等权威数值以状态面板为准，此处为世界事实）\n' + lines.join('\n');
+    }
+
     async function buildInjectBlocks(userMessage, gd) {
         if (!enabled()) return [];
         const blocks = [];
@@ -334,6 +648,13 @@ var storyEngine = (function() {
         }
         const recall = await buildRecallBlock(userMessage, gd);
         if (recall) blocks.push(recall);
+        // P1 账本套件注入（顺序对齐设计方案管线：检索 → 悬念 → 人物记忆 → 实体台账）
+        const suspenseBlock = buildSuspenseBlock();
+        if (suspenseBlock) blocks.push(suspenseBlock);
+        const subjectiveBlock = buildSubjectiveBlock(userMessage, gd);
+        if (subjectiveBlock) blocks.push(subjectiveBlock);
+        const ledgerBlock = buildLedgerBlock(userMessage, gd);
+        if (ledgerBlock) blocks.push(ledgerBlock);
         return blocks;
     }
 
@@ -343,8 +664,26 @@ var storyEngine = (function() {
             storyIds: memoryStore.allStory().map(r => r.id),
             summaryFloors: memoryStore.allSummaries().map(r => r.floor),
             chronicleFloors: memoryStore.allChronicle().map(r => r.floor),
-            vecIds: memoryStore.allEmbeddings().map(r => r.id)
+            vecIds: memoryStore.allEmbeddings().map(r => r.id),
+            // P1 账本套件：记录量小（<100 条级），快照直接存全量内容（覆盖式回滚，
+            // 比 id 差量更精确——台账 upsert 会被原地更新，id 集合差量无法恢复旧态）
+            ledgerRecs: JSON.parse(JSON.stringify(memoryStore.allLedger())),
+            suspenseRecs: JSON.parse(JSON.stringify(memoryStore.allSuspense())),
+            subjectiveRecs: JSON.parse(JSON.stringify(memoryStore.allSubjective()))
         };
+    }
+
+    /** 恢复 P1 store 到快照内容（旧快照无该字段时跳过，保持向后兼容） */
+    async function restoreP1Store(store, snapKey) {
+        const snapList = snapKey ? snapKey : null;
+        if (!Array.isArray(snapList)) return;   // 旧快照（P1 之前）不含此字段 → 不动该 store
+        const keep = new Set(snapList.map(r => r.id));
+        for (const r of memoryStore['all' + store.charAt(0).toUpperCase() + store.slice(1)]()) {
+            if (!keep.has(r.id)) await memoryStore.del(store, r.id);
+        }
+        for (const r of snapList) {
+            await memoryStore.put(store, JSON.parse(JSON.stringify(r)));
+        }
     }
 
     async function rollback(snap) {
@@ -380,12 +719,17 @@ var storyEngine = (function() {
         for (const r of memoryStore.allEmbeddings()) {
             if (!vKeep.has(r.id)) await memoryStore.del('embeddings', r.id);
         }
+        // 5. P1 账本套件回滚：台账/悬念/主观记忆恢复到快照内容（旧快照无字段时跳过）
+        await restoreP1Store('ledger', snap.ledgerRecs);
+        await restoreP1Store('suspense', snap.suspenseRecs);
+        await restoreP1Store('subjective', snap.subjectiveRecs);
         console.log('[StoryEngine] 已回滚至快照（纪要 '
             + (snap.summaryFloors || []).length + ' 层 / 常驻线 ' + (snap.storyIds || []).length + ' 篇）');
     }
 
     // ---------- 查看器支撑 ----------
     function stats() {
+        const suspenseAll = memoryStore.allSuspense();
         return {
             enabled: enabled(),
             vec: vecEnabled(),
@@ -394,7 +738,11 @@ var storyEngine = (function() {
             summary: memoryStore.allSummaries().length,
             chronicle: memoryStore.allChronicle().length,
             l1: unabsorbed(1).length, l2: unabsorbed(2).length, l3: unabsorbed(3).length,
-            nextChronicleAt: memoryStore.allStory().reduce((m, r) => Math.max(m, r.to || 0), 0) + every()
+            nextChronicleAt: memoryStore.allStory().reduce((m, r) => Math.max(m, r.to || 0), 0) + every(),
+            ledger: memoryStore.allLedger().length,
+            suspenseActive: suspenseAll.filter(r => r.status === 'active').length,
+            suspenseTotal: suspenseAll.length,
+            subjective: memoryStore.allSubjective().length
         };
     }
 
@@ -406,6 +754,7 @@ var storyEngine = (function() {
         init: init,
         onTurnArchived: onTurnArchived,
         nextFloor: nextFloor,
+        currentFloor: currentFloor,
         fmtGameTime: fmtTime,
         buildInjectBlocks: buildInjectBlocks,
         snapshotIds: snapshotIds,
@@ -415,7 +764,13 @@ var storyEngine = (function() {
         lexicalRecall: lexicalRecall,
         // 内部暴露（测试用）
         _compressStory: compressStory,
-        _maybeCompress: maybeCompress
+        _maybeCompress: maybeCompress,
+        _applyEntities: applyEntities,
+        _applySuspenses: applySuspenses,
+        _extractSubjectiveMemories: extractSubjectiveMemories,
+        _buildLedgerBlock: buildLedgerBlock,
+        _buildSubjectiveBlock: buildSubjectiveBlock,
+        _buildSuspenseBlock: buildSuspenseBlock
     };
 })();
 
