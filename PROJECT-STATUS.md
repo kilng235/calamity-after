@@ -122,6 +122,9 @@
 
 ## 🔄 更新日志
 
+### 2026-09-06（晚·手机适配）
+- ≤900px：单列 + 左右滑出抽屉（角色/任务）+ 顶栏切换按钮；--app-height 键盘自适应 + 安全区 + 16px 输入；弹层全宽。IAB 390×844/1200×800 真机模拟验证通过，桌面零回归
+
 ### 2026-09-06（晚·叙事区持久化）
 - narrative-display DOM 不持久化 → F5 后楼层消失但撤销按钮还在（localStorage/IDB 独立）。修复：displayNarrative 累加原文到 calamity-narrative-log（最多 200），initGame 优先按序重渲染，undoLastTurn 同步裁剪。tools-test-narrative-persist.js 8 项 exit=0
 
