@@ -348,10 +348,12 @@ class SpellSystem {
   }
 
   /**
-   * 计算角色MP上限
+   * 计算角色MP上限（系数走数值契约 window.numericContract.法力.每点智力，源 data-source/契约/数值常量.yaml）
    */
   calculateMPMax(intelligence) {
-    return intelligence * 5;
+    const nc = (typeof window !== 'undefined' && window.numericContract) || null;
+    const perInt = (nc && typeof nc.法力 === 'object' && typeof nc.法力.每点智力 === 'number') ? nc.法力.每点智力 : 5;
+    return intelligence * perInt;
   }
 
   /**

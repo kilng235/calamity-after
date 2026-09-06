@@ -174,8 +174,11 @@ export function loadGameData() {
           prog.currentPlace = '';
         }
       }
-      // 命运点上限迁移：旧规则固定 1，新规则固定 3（身份时刻奖励循环）
-      if (loaded.fatePoints && Number(loaded.fatePoints.max) === 1) loaded.fatePoints.max = 3;
+      // 命运点上限迁移：旧规则固定 1，新规则上限（数值契约「命运点.上限」，身份时刻奖励循环）
+      if (loaded.fatePoints && Number(loaded.fatePoints.max) === 1) {
+        const ncFate = (typeof window !== 'undefined' && window.numericContract && window.numericContract.命运点) ? window.numericContract.命运点.上限 : 3;
+        loaded.fatePoints.max = ncFate;
+      }
       gameData = mergeWithDefaults(loaded, defaultGameData);
       console.log('✓ 游戏数据已加载');
       return true;

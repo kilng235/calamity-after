@@ -354,9 +354,85 @@ const ARMOR_TEMPLATES = {
     dexBonus: 'none',
     basePrice: 10,
     durabilityMax: 60,
-    description: '铁皮敲打成的简易头盔，护住头顶和后脑。虽然不提供 AC 加成，但能防止头部受伤。'
+    description: '铁皮敲打成的简易头盔，护住头顶和后脑。提供少量 AC 加成，也能防止落石与流矢伤头。'
   }
 };
+
+// ==================== 契约合并（世界书数值单源） ====================
+
+// equipment-contract.js 由 convert-yaml-to-js.js 从 装备/武器|护甲/*.yaml 生成：
+// - mapping：引擎模板保留结构字段（槽位/双手/描述等），数值字段（伤害骰/耐久/基准价格/AC/重量档）以世界书为权威覆盖
+// - registered：世界书独有条目按 yaml 数值注册为新模板（结构字段按槽位合成）
+// AC 换算规则：身体甲 acBase = 10 + AC加成（引擎模型 acBase 含基准 10）；盾/头为加值本身
+(function applyEquipmentContract() {
+  const ct = (typeof window !== 'undefined' && window.equipmentContract) || null;
+  if (!ct) return;
+  const num = (v, fb) => (typeof v === 'number' && isFinite(v)) ? v : fb;
+
+  Object.keys((ct.mapping && ct.mapping.weapons) || {}).forEach(engineName => {
+    const t = WEAPON_TEMPLATES[engineName];
+    const src = ct.weapons[ct.mapping.weapons[engineName]];
+    if (!t || !src) return;
+    t.damageBase = num(src.die, t.damageBase);
+    if (src.damageType) t.damageType = src.damageType;
+    if (src.speed) t.speed = src.speed;
+    t.durabilityMax = num(src.durabilityMax, t.durabilityMax);
+    t.basePrice = num(src.basePrice, t.basePrice);
+    t.contractSource = ct.mapping.weapons[engineName];
+  });
+
+  Object.keys((ct.mapping && ct.mapping.armors) || {}).forEach(engineName => {
+    const t = ARMOR_TEMPLATES[engineName];
+    const src = ct.armors[ct.mapping.armors[engineName]];
+    if (!t || !src) return;
+    const isBody = t.slot === 'body';
+    const bonus = num(src.acBonus, isBody ? t.acBase - 10 : t.acBase);
+    t.acBase = isBody ? 10 + bonus : bonus;
+    if (src.weightClass) t.weight = src.weightClass;
+    t.durabilityMax = num(src.durabilityMax, t.durabilityMax);
+    t.basePrice = num(src.basePrice, t.basePrice);
+    t.contractSource = ct.mapping.armors[engineName];
+  });
+
+  const SLOT_MAP = { '主手': 'mainHand', '副手': 'offHand', '身体': 'body', '头部': 'head', '足部': 'feet' };
+  Object.keys((ct.registered && ct.registered.weapons) || {}).forEach(name => {
+    if (WEAPON_TEMPLATES[name]) return;
+    const src = ct.weapons[name];
+    if (!src) return;
+    WEAPON_TEMPLATES[name] = {
+      category: ct.registered.weapons[name],
+      slot: 'mainHand',
+      damageBase: num(src.die, 4),
+      damageType: src.damageType || '穿刺',
+      speed: src.speed || '中',
+      twoHanded: /双手/.test(src.slotText || ''),
+      ranged: /远程/.test(src.slotText || ''),
+      basePrice: num(src.basePrice, 10),
+      durabilityMax: num(src.durabilityMax, 60),
+      description: '（世界书装备条目自动注册，描述见世界书）',
+      contractSource: name
+    };
+  });
+  Object.keys((ct.registered && ct.registered.armors) || {}).forEach(name => {
+    if (ARMOR_TEMPLATES[name]) return;
+    const src = ct.armors[name];
+    if (!src) return;
+    const slot = SLOT_MAP[(src.slotText || '').slice(0, 2)] || 'body';
+    const isBody = slot === 'body';
+    ARMOR_TEMPLATES[name] = {
+      category: ct.registered.armors[name],
+      slot: slot,
+      acBase: isBody ? 10 + num(src.acBonus, 0) : num(src.acBonus, 0),
+      weight: src.weightClass || '中',
+      stealthPenalty: src.weightClass === '重',
+      dexBonus: src.weightClass === '轻' ? 'full' : (src.weightClass === '中' ? 'limited' : 'none'),
+      basePrice: num(src.basePrice, 50),
+      durabilityMax: num(src.durabilityMax, 60),
+      description: '（世界书装备条目自动注册，描述见世界书）',
+      contractSource: name
+    };
+  });
+})();
 
 // ==================== 装备状态 ====================
 
@@ -727,7 +803,7 @@ export function findEquipmentById(equipmentId) {
  */
 export function calculateTotalAC(attributes) {
   let totalAC = 10;
-  let acBreakdown = { base: 10, armor: 0, dex: 0, shield: 0 };
+  let acBreakdown = { base: 10, armor: 0, dex: 0, shield: 0, head: 0 };
   
   const dexMod = calculateModifier(attributes.敏捷 || 10);
   
@@ -770,6 +846,13 @@ export function calculateTotalAC(attributes) {
   if (shield && shield.category === 'shield') {
     totalAC += shield.armor.acBase;
     acBreakdown.shield = shield.armor.acBase;
+  }
+
+  // 头盔加成（世界书：头盔 +2 / 全罩盔 +3；头部槽为加值模型，与盾牌同算法）
+  const headGear = equippedSlots.head;
+  if (headGear && headGear.armor && headGear.armor.acBase > 0) {
+    totalAC += headGear.armor.acBase;
+    acBreakdown.head = headGear.armor.acBase;
   }
   
   return {

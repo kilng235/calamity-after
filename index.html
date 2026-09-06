@@ -2558,6 +2558,9 @@ body{padding:0}
 
 
 <script src="./module/status-contract.js"></script>
+<script src="./module/numeric-contract.js"></script>
+<script src="./module/progression-contract.js"></script>
+<script src="./module/equipment-contract.js"></script>
 <script src="./module/json-repair-helper.js"></script>
 <script src="./module/command-engine.js"></script>
 <script src="./module/command-processor.js"></script>
@@ -5223,12 +5226,18 @@ function saveCharacter() {
   var kit = buildIdentityKit(identity);   // 身份开局包：金币/装备/背包按身份查表
   if (kit.equipment.body && kit.equipment.body.armor) ac += kit.equipment.body.armor.acBase - 10;
   if (window.identitySystem) identitySystem.activate(identity);   // 注册完成：接入身份条目
+  // 初始数值走契约（numeric-contract / progression-contract），未加载时回退字面量
+  var NC0 = (typeof window !== 'undefined' && window.numericContract) || {};
+  var PC0 = (typeof window !== 'undefined' && window.progressionContract) || null;
+  var hpBase = (NC0.生命 && NC0.生命.基础上限) || 100;
+  var fateMax = (NC0.命运点 && NC0.命运点.上限) || 3;
+  var firstCost = (PC0 && PC0.levels && PC0.levels['2'] && PC0.levels['1']) ? (PC0.levels['2'].cumXp - PC0.levels['1'].cumXp) : 50;
   var gameData = {
-    character: { name: name, race: race, gender: gender, age: age, level: 1, exp: 0, expToNextLevel: 100, proficiencyBonus: 2, ac: ac, identity: identity },
+    character: { name: name, race: race, gender: gender, age: age, level: 1, exp: 0, expToNextLevel: firstCost, proficiencyBonus: 2, ac: ac, identity: identity },
     attributes: attributes,
     backgrounds: traits,
-    fatePoints: { current: 1, max: 3, lastRefreshDate: null },
-    hp: { current: 100, max: 100 },
+    fatePoints: { current: 1, max: fateMax, lastRefreshDate: null },
+    hp: { current: hpBase, max: hpBase },
     equipment: kit.equipment,
     inventory: kit.inventory,
     currency: { gold: kit.gold },
@@ -5290,6 +5299,12 @@ function createOpeningData(charData){
   var int=charData.attributes.智力;
   var dex=charData.attributes.敏捷;
   var str=charData.attributes.力量;
+  // 数值走契约（numeric-contract），未加载时回退字面量
+  var NC1 = (typeof window !== 'undefined' && window.numericContract) || {};
+  var hpBase1 = (NC1.生命 && NC1.生命.基础上限) || 100;
+  var perInt1 = (NC1.法力 && NC1.法力.每点智力) || 5;
+  var perStr1 = (NC1.负重 && NC1.负重.每点力量) || 2;
+  var encBase1 = (NC1.负重 && NC1.负重.基础) || 10;
 
   return {
     time:{year:300,month:11,day:12,hour:7,minute:10,display:'灾厄纪年300年11月12日 07:10'},
@@ -5304,11 +5319,11 @@ function createOpeningData(charData){
       talents:charData.traits?charData.traits.split(','):[]
     },
     stats:{
-      hp:100,hpMax:100,
-      mp:int*5,mpMax:int*5,
+      hp:hpBase1,hpMax:hpBase1,
+      mp:int*perInt1,mpMax:int*perInt1,
       gold:15,fatePoint:1,level:1,
       ac:10+Math.floor((dex-10)/2),
-      carryCapacity:10+str*2
+      carryCapacity:encBase1+str*perStr1
     },
     initialQuest:{
       name:'灰烬森林材料狩猎',

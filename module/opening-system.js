@@ -246,8 +246,9 @@ class OpeningSystem {
     // 初始法术
     defaults.spells = [];
 
-    // 初始MP（按智力）
-    defaults.mp = defaults.attributes.智力 * 5;
+    // 初始MP（按智力，系数走数值契约）
+    const perInt = (typeof window !== 'undefined' && window.numericContract && window.numericContract.法力) ? (window.numericContract.法力.每点智力 || 5) : 5;
+    defaults.mp = defaults.attributes.智力 * perInt;
     defaults.mpMax = defaults.mp;
 
     // 初始时间地点

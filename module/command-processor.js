@@ -36,6 +36,19 @@ var commandProcessor = (function () {
         return typeof v === 'string' ? v : (fallback || '');
     }
 
+    /** 数值契约读取：点路径取值（module/numeric-contract.js，源 data-source/契约/数值常量.yaml），契约未加载时回退默认值 */
+    function 契约值(dotPath, fallback) {
+        var nc = (typeof window !== 'undefined' && window.numericContract) || null;
+        if (!nc) return fallback;
+        var cur = nc;
+        var parts = dotPath.split('.');
+        for (var i = 0; i < parts.length; i++) {
+            if (!cur || typeof cur !== 'object') return fallback;
+            cur = cur[parts[i]];
+        }
+        return (typeof cur === 'number' && isFinite(cur)) ? cur : fallback;
+    }
+
     function log() {
         var args = Array.prototype.slice.call(arguments);
         args.unshift('[CommandProcessor]');
@@ -105,7 +118,7 @@ var commandProcessor = (function () {
      * 供命令后校准（超重状态）、prompt-builder 状态块与角色面板共用。
      */
     function computeEncumbrance(gd) {
-        var cap = 10 + ((gd && gd.attributes && Number(gd.attributes['力量'])) || 10) * 2;
+        var cap = 契约值('负重.基础', 10) + ((gd && gd.attributes && Number(gd.attributes['力量'])) || 10) * 契约值('负重.每点力量', 2);
         var total = 0;
         var slots = (gd && gd.equipment) || {};
         EQUIP_SLOTS.forEach(function (s) {
@@ -117,7 +130,7 @@ var commandProcessor = (function () {
             if (it && typeof it === 'object') total += 物品重量(it) * (Math.max(1, Math.trunc(Number(it.count)) || 1));
         });
         total = Math.round(total * 10) / 10;
-        return { total: total, cap: cap, over: total > cap, extreme: total > cap * 1.5 };
+        return { total: total, cap: cap, over: total > cap, extreme: total > cap * 契约值('负重.超重倍率', 1.5) };
     }
 
     /** 主角状态规范化：白名单过滤 + 力竭/侵蚀层级钳制（应用前与应用后都调用） */
@@ -137,10 +150,10 @@ var commandProcessor = (function () {
             var v = conditions[name];
             if (name === '力竭') {
                 var lvl = (v && v.层级) ? 规范化整数(v.层级, 1) : 1;
-                conditions[name] = { 层级: Math.max(1, Math.min(3, lvl)) };
+                conditions[name] = { 层级: Math.max(1, Math.min(契约值('力竭.最高层级', 3), lvl)) };
             } else if (name === '侵蚀') {
                 var st = (v && v.层级) ? 规范化整数(v.层级, 1) : 1;
-                conditions[name] = { 层级: Math.max(1, Math.min(2, st)) };
+                conditions[name] = { 层级: Math.max(1, Math.min(契约值('侵蚀.最高层级', 2), st)) };
             } else {
                 conditions[name] = (v && typeof v === 'object') ? v : true;
             }
@@ -170,13 +183,13 @@ var commandProcessor = (function () {
 
         if (!gd.attributes || typeof gd.attributes !== 'object') gd.attributes = {};
         ['力量', '敏捷', '体质', '感知', '智力', '魅力'].forEach(function (key) {
-            gd.attributes[key] = 取区间(gd.attributes[key], 1, 30, 10);
+            gd.attributes[key] = 取区间(gd.attributes[key], 契约值('属性.下限', 3), 契约值('属性.上限', 20), 契约值('属性.默认值', 10));
         });
 
         if (!Array.isArray(gd.backgrounds)) gd.backgrounds = [];
 
         var fp = gd.fatePoints = gd.fatePoints || {};
-        fp.max = Math.max(0, 规范化整数(fp.max, 1));
+        fp.max = Math.max(0, 规范化整数(fp.max, 契约值('命运点.上限', 3)));
         fp.current = 取区间(fp.current, 0, fp.max, fp.max);
 
         var hp = gd.hp = gd.hp || {};
@@ -224,7 +237,7 @@ var commandProcessor = (function () {
         if (!Array.isArray(progress.completedQuests)) progress.completedQuests = [];
         if (!Array.isArray(progress.unlockedLocations)) progress.unlockedLocations = ['锈钉镇'];
         // 未分配属性点：引擎派生（升级获得，面板分配），钳制非负防 AI 误写
-        progress.unspentPoints = Math.max(0, 规范化整数(progress.unspentPoints, 0));
+        progress.unspentPoints = Math.min(契约值('属性点.存储上限', 10), Math.max(0, 规范化整数(progress.unspentPoints, 0)));
 
         // 主角状态规范化（白名单 + 层级钳制）
         规范条件(gd);
@@ -296,25 +309,41 @@ var commandProcessor = (function () {
         var c = gd.character;
         var leveledUp = 0;
         var pointsGained = 0;
-        // 升级所需经验 = 等级 × 50（《经验与成长》§4 线性表；expToNextLevel 为引擎派生值，AI 写入无效）
-        while (c.exp >= c.level * 50) {
-            c.exp -= c.level * 50;
+        // 升级进度契约（module/progression-contract.js，源《经验与成长》§4）：表内查行，表外按公式延续
+        var PC = (typeof window !== 'undefined' && window.progressionContract) || null;
+        var hpPerLevel = 契约值('生命.每级成长', 10);
+        // 本级升级所需：进表等级 = 累计 XP 差；表外 = 等级 × 50（§4 公式行）
+        function levelCost(level) {
+            if (PC && PC.levels) {
+                var nxt = PC.levels[String(level + 1)];
+                var cur = PC.levels[String(level)];
+                if (nxt && cur) return Math.max(1, nxt.cumXp - cur.cumXp);
+            }
+            return level * 50;
+        }
+        while (c.exp >= levelCost(c.level)) {
+            c.exp -= levelCost(c.level);
             c.level += 1;
             leveledUp += 1;
-            // PB：进入新等阶 +1（Lv5/9/13/17；1-4:+2, 5-8:+3, 9-12:+4, 13-16:+5, 17-20:+6）
-            if (c.level === 5 || c.level === 9 || c.level === 13 || c.level === 17) c.proficiencyBonus += 1;
-            // 每级最大生命 +10（§73：HP 上限 = 100 + 10×(等级−1)）
-            gd.hp.max += 10;
-            // 属性点：每级 +1，逢 4 级 ASI 额外 +1（存 progress.unspentPoints，玩家在角色面板手动分配）
-            var pts = (c.level % 4 === 0) ? 2 : 1;
+            var row = (PC && PC.levels) ? PC.levels[String(c.level)] : null;
+            // PB：表内按总表行纠偏（自愈旧漂移）；表外每 4 级 +1（Lv13/17/21…）
+            if (row) {
+                c.proficiencyBonus = Math.max(0, 规范化整数(row.pb, c.proficiencyBonus));
+            } else if ((c.level - 1) % 4 === 0) {
+                c.proficiencyBonus += 1;
+            }
+            // 每级最大生命 +10（HP 上限 = 100 + 10×(等级−1)，数值契约「生命」）
+            gd.hp.max += hpPerLevel;
+            // 属性点：表内按总表行（含 Lv4/8 ASI）；表外每级 +1、逢 4 级额外 +1（面板手动分配）
+            var pts = row ? 规范化整数(row.attrPoints, 1) : ((c.level % 4 === 0) ? 2 : 1);
             gd.progress = gd.progress || {};
             gd.progress.unspentPoints = (gd.progress.unspentPoints || 0) + pts;
             pointsGained += pts;
         }
-        c.expToNextLevel = c.level * 50;   // 派生显示值（同步纠偏旧存档）
+        c.expToNextLevel = levelCost(c.level);   // 派生显示值（同步纠偏旧存档）
         if (leveledUp > 0) {
-            // 升级回复：与新生命上限同步 +10/级（相对生命比例不变，设计中性）
-            gd.hp.current = Math.min(gd.hp.max, gd.hp.current + leveledUp * 10);
+            // 升级回复：与新生命上限同步 +hpPerLevel/级（相对生命比例不变，设计中性）
+            gd.hp.current = Math.min(gd.hp.max, gd.hp.current + leveledUp * hpPerLevel);
             log('升级 ×' + leveledUp + '，当前等级 ' + c.level + '，属性点 +' + pointsGained + '（待面板分配）');
         }
         return leveledUp;
@@ -331,9 +360,9 @@ var commandProcessor = (function () {
         gd.hp.current = 取区间(gd.hp.current, 0, gd.hp.max, gd.hp.max);
         if (hpBefore !== gd.hp.current) corrections.push('hp.current 钳制 ' + hpBefore + ' -> ' + gd.hp.current);
 
-        // 命运点（结算协议：上限 3；「身份时刻」经身份体系结算增加）
+        // 命运点（上限走数值契约「命运点.上限」；「身份时刻」经身份体系结算增加）
         var fpBefore = gd.fatePoints.current;
-        gd.fatePoints.max = Math.max(0, 规范化整数(gd.fatePoints.max, 3));
+        gd.fatePoints.max = Math.max(0, 规范化整数(gd.fatePoints.max, 契约值('命运点.上限', 3)));
         gd.fatePoints.current = 取区间(gd.fatePoints.current, 0, gd.fatePoints.max, gd.fatePoints.max);
         if (fpBefore !== gd.fatePoints.current) corrections.push('fatePoints 钳制');
 
@@ -361,7 +390,7 @@ var commandProcessor = (function () {
         // 属性区间
         Object.keys(gd.attributes).forEach(function (key) {
             var before = gd.attributes[key];
-            gd.attributes[key] = 取区间(gd.attributes[key], 1, 30, 10);
+            gd.attributes[key] = 取区间(gd.attributes[key], 契约值('属性.下限', 3), 契约值('属性.上限', 20), 契约值('属性.默认值', 10));
             if (before !== gd.attributes[key]) corrections.push('attributes.' + key + ' 钳制 ' + before + ' -> ' + gd.attributes[key]);
         });
 
@@ -369,12 +398,17 @@ var commandProcessor = (function () {
         gd.character.exp = Math.max(0, 规范化数值(gd.character.exp, 0));
         syncLevel(gd);
 
+        // 升级新得属性点同样受存储上限收口（属性系统·属性点分配：攒存 ≤10）
+        if (gd.progress) {
+            gd.progress.unspentPoints = Math.min(契约值('属性点.存储上限', 10), Math.max(0, 规范化整数(gd.progress.unspentPoints, 0)));
+        }
+
         // AC 重算（10 + 敏捷调整值，装备加成由 equipment-system 叠加）
         // 这里只保证下限，装备 AC 由战斗系统在用时计算
         gd.character.ac = Math.max(0, 规范化整数(gd.character.ac, 10));
 
-        // MP 钳制：上限 = 智力 × 5（与 spell-system.calculateMPMax 同公式）
-        var mpMaxCap = Math.max(0, (gd.attributes['智力'] || 10) * 5);
+        // MP 钳制：上限 = 智力 × 每点智力（数值契约「法力」，与 spell-system.calculateMPMax 同源）
+        var mpMaxCap = Math.max(0, (gd.attributes['智力'] || 10) * 契约值('法力.每点智力', 5));
         var mpBefore = gd.character.mp;
         gd.character.mp = Math.max(0, Math.min(mpMaxCap, Number(gd.character.mp) || 0));
         if (mpBefore !== gd.character.mp) corrections.push('character.mp 钳制');
@@ -382,18 +416,18 @@ var commandProcessor = (function () {
         // 时间规范化
         gd.gameTime = normalizeGameTime(gd.gameTime);
 
-        // 好感值钳制 [-100, 100]；人情值钳制 [0, 100]（关系系统双轴）
+        // 好感值/人情值钳制（关系系统双轴，界限走数值契约）
         if (gd.relationships && typeof gd.relationships === 'object') {
             Object.keys(gd.relationships).forEach(function (name) {
                 var rel = gd.relationships[name];
                 if (rel && typeof rel === 'object' && Number.isFinite(Number(rel.好感度))) {
                     var before = rel.好感度;
-                    rel.好感度 = Math.max(-100, Math.min(100, Number(rel.好感度)));
+                    rel.好感度 = Math.max(契约值('好感度.最低', -100), Math.min(契约值('好感度.最高', 100), Number(rel.好感度)));
                     if (before !== rel.好感度) corrections.push('relationships.' + name + '.好感度 钳制');
                 }
                 if (rel && typeof rel === 'object' && Number.isFinite(Number(rel.人情值))) {
                     var fqBefore = rel.人情值;
-                    rel.人情值 = Math.max(0, Math.min(100, Number(rel.人情值)));
+                    rel.人情值 = Math.max(契约值('人情值.最低', 0), Math.min(契约值('人情值.最高', 100), Number(rel.人情值)));
                     if (fqBefore !== rel.人情值) corrections.push('relationships.' + name + '.人情值 钳制');
                 }
             });

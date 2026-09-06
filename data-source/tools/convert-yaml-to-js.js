@@ -441,6 +441,203 @@ if (typeof window !== 'undefined') { window.statusContract = statusContract; }
   console.log(`   ✓ status-contract.js（状态 ${count} 条）→ ${outputPath}`);
 };
 
+// ==================== 契约生成：数值常量 ====================
+
+// 解析 data-source/契约/数值常量.yaml（点路径行：`生命.基础上限: 100`）→ 嵌套对象
+YAMLConverter.prototype.generateNumericContract = function () {
+  const srcPath = path.join(__dirname, '..', '契约', '数值常量.yaml');
+  if (!fs.existsSync(srcPath)) {
+    console.log('   ⚠ 未找到 契约/数值常量.yaml，跳过数值契约生成');
+    return;
+  }
+  const nested = {};
+  let count = 0;
+  for (const raw of fs.readFileSync(srcPath, 'utf8').split('\n')) {
+    const line = raw.replace(/\r/, '').trim();
+    if (!line || line.indexOf('#') === 0) continue;
+    const m = line.match(/^([^\s:#][^:：]*)[：:]\s*(-?\d+(?:\.\d+)?)\s*(?:#.*)?$/);
+    if (!m) continue;
+    const keys = m[1].trim().split('.');
+    let cur = nested;
+    for (let i = 0; i < keys.length - 1; i++) {
+      cur[keys[i]] = cur[keys[i]] || {};
+      cur = cur[keys[i]];
+    }
+    cur[keys[keys.length - 1]] = Number(m[2]);
+    count++;
+  }
+  if (!count) {
+    console.log('   ⚠ 数值契约解析为空，跳过生成');
+    return;
+  }
+  const timestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
+  const content = `/**
+ * 灾厄之后·重制版 - 数值契约（自动生成，勿手动编辑）
+ * 生成时间: ${timestamp}
+ * 来源: data-source/契约/数值常量.yaml（引擎数值唯一权威源）
+ *
+ * 引擎钳制上限与公式系数单源消费此契约（command-processor / spell-system /
+ * opening-system / game-state）；修改数值请编辑源 YAML 后重跑转换器。
+ */
+var numericContract = ${JSON.stringify(nested, null, 2)};
+
+if (typeof window !== 'undefined') { window.numericContract = numericContract; }
+`;
+  const outputPath = path.join(CONFIG.outputDir, 'numeric-contract.js');
+  fs.writeFileSync(outputPath, content, 'utf8');
+  console.log(`   ✓ numeric-contract.js（数值 ${count} 项）→ ${outputPath}`);
+};
+
+// ==================== 契约生成：升级进度表 ====================
+
+// 解析《经验与成长》§4 等级进度总表 → progressionContract
+YAMLConverter.prototype.generateProgressionContract = function () {
+  const sys = this.flat['系统'] || {};
+  const text = sys['系统/经验与成长'] || sys['经验与成长'] || '';
+  if (!text) {
+    console.log('   ⚠ 未找到 系统/经验与成长，跳过进度契约生成');
+    return;
+  }
+  // 截取 §4 小节（至下一个 ## 标题）
+  const sec = text.split(/^##\s/m).find(s => s.indexOf('§4') === 0) || '';
+  const levels = {};
+  let lastCum = 0;
+  let warned = 0;
+  for (const line of sec.split('\n')) {
+    const m = line.match(/^\|\s*(\d+)\s*\|\s*([^|]*)\|\s*([^|]*)\|\s*([^|]*)\|\s*\+?(\d+)\s*\|\s*([^|]+)\|/);
+    if (!m) continue;
+    const lv = Number(m[1]);
+    const cumXp = /—/.test(m[2]) ? 0 : Number((m[2].match(/\d+/) || [0])[0]);
+    const attrPts = /—/.test(m[3]) ? 0 : (m[3].match(/\+1/g) || []).length;
+    const pb = Number(m[5]);
+    // 表内自洽校验：本级消耗 = 累计差应等于 (等级−1)×50（§4 公式行）
+    if (lv >= 2 && cumXp - lastCum !== (lv - 1) * 50) {
+      console.log(`   ⚠ 进度表漂移：Lv${lv} 累计 XP ${cumXp} 与公式 ${(lv - 1) * 50} 不符，请核查《经验与成长》§4`);
+      warned++;
+    }
+    levels[String(lv)] = { cumXp: cumXp, attrPoints: attrPts, pb: pb, rank: m[6].trim() };
+    lastCum = cumXp;
+  }
+  const count = Object.keys(levels).length;
+  if (count < 2) {
+    console.log('   ⚠ 进度表解析行数不足，跳过进度契约生成');
+    return;
+  }
+  const timestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
+  const content = `/**
+ * 灾厄之后·重制版 - 升级进度契约（自动生成，勿手动编辑）
+ * 生成时间: ${timestamp}
+ * 来源: data-source/世界书/系统/经验与成长.yaml §4 等级进度总表
+ *
+ * command-processor.syncLevel 单源消费此契约（表内查行，表外按 beyond 公式延续）；
+ * 调整成长曲线请编辑源 YAML 后重跑转换器。表内自洽校验警告数: ${warned}
+ */
+var progressionContract = {
+  generatedAt: ${JSON.stringify(timestamp)},
+  source: 'data-source/世界书/系统/经验与成长.yaml',
+  levels: ${JSON.stringify(levels, null, 2)},
+  beyond: { xpFactorPerLevel: 50, attrPointsBase: 1, asiEveryLevels: 4, pbFirstAt: 5, pbStepLevels: 4 }
+};
+
+if (typeof window !== 'undefined') { window.progressionContract = progressionContract; }
+`;
+  const outputPath = path.join(CONFIG.outputDir, 'progression-contract.js');
+  fs.writeFileSync(outputPath, content, 'utf8');
+  console.log(`   ✓ progression-contract.js（等级 ${count} 行）→ ${outputPath}`);
+};
+
+// ==================== 契约生成：装备模板 ====================
+
+// 解析 装备/武器|护甲/*.yaml 的「基础数值」段 + 契约/装备映射.yaml → equipmentContract
+YAMLConverter.prototype.generateEquipmentContract = function () {
+  function parseItem(text) {
+    const out = {};
+    for (const line of text.split('\n')) {
+      let m;
+      if ((m = line.match(/伤害骰[：:]\s*1d(\d+)（?([^）]*)/))) { out.die = Number(m[1]); out.damageType = (m[2] || '').trim(); }
+      else if ((m = line.match(/^-\s*攻速[：:]\s*(\S+)/))) out.speed = m[1];
+      else if ((m = line.match(/^-\s*槽位[：:]\s*(\S+)/))) out.slotText = m[1];
+      else if ((m = line.match(/^-\s*AC\s*加成[：:]\s*\+?(\d+)/))) out.acBonus = Number(m[1]);
+      else if ((m = line.match(/^-\s*重量[：:]\s*(轻|中|重)/))) out.weightClass = m[1];
+      else if ((m = line.match(/耐久上限[：:]\s*(\d+)/))) out.durabilityMax = Number(m[1]);
+      else if ((m = line.match(/基准价格[：:]\s*(\d+)/))) out.basePrice = Number(m[1]);
+    }
+    return out;
+  }
+
+  function parseMapping(text) {
+    const result = { 武器: {}, 护甲: {}, 注册武器: {}, 注册护甲: {}, 不注册: [] };
+    let section = null;
+    for (const raw of text.split('\n')) {
+      const line = raw.replace(/\r/, '');
+      const indented = /^\s/.test(line);
+      const t = line.trim();
+      if (!t || t.indexOf('#') === 0) continue;
+      let m;
+      if (!indented && (m = t.match(/^(武器|护甲|注册武器|注册护甲|不注册)[：:]$/))) { section = m[1]; continue; }
+      if (section === '不注册') {
+        if ((m = t.match(/^-\s*(.+)$/))) result.不注册.push(m[1].trim());
+      } else if (section && (m = t.match(/^(\S+)[：:]\s*(\S+)\s*(?:#.*)?$/))) {
+        result[section][m[1]] = m[2];
+      }
+    }
+    return result;
+  }
+
+  const mapPath = path.join(__dirname, '..', '契约', '装备映射.yaml');
+  const map = fs.existsSync(mapPath)
+    ? parseMapping(fs.readFileSync(mapPath, 'utf8'))
+    : { 武器: {}, 护甲: {}, 注册武器: {}, 注册护甲: {}, 不注册: [] };
+
+  const weapons = {};
+  Object.keys(this.flat['武器'] || {}).forEach(key => {
+    const name = key.split('/')[1];
+    if (name) weapons[name] = parseItem(this.flat['武器'][key]);
+  });
+  const armors = {};
+  Object.keys(this.flat['护甲'] || {}).forEach(key => {
+    const name = key.split('/')[1];
+    if (name) armors[name] = parseItem(this.flat['护甲'][key]);
+  });
+
+  // 映射指向校验（对账第一道：映射写错名立刻报警）
+  let broken = 0;
+  Object.keys(map.武器).forEach(en => { if (!weapons[map.武器[en]]) { console.log(`   ⚠ 装备映射失效：武器「${map.武器[en]}」在世界书不存在`); broken++; } });
+  Object.keys(map.护甲).forEach(en => { if (!armors[map.护甲[en]]) { console.log(`   ⚠ 装备映射失效：护甲「${map.护甲[en]}」在世界书不存在`); broken++; } });
+  Object.keys(map.注册武器).forEach(n => { if (!weapons[n]) { console.log(`   ⚠ 注册项失效：武器「${n}」在世界书不存在`); broken++; } });
+  Object.keys(map.注册护甲).forEach(n => { if (!armors[n]) { console.log(`   ⚠ 注册项失效：护甲「${n}」在世界书不存在`); broken++; } });
+  if (broken > 0 && !process.env.ALLOW_BROKEN_MAPPING) {
+    throw new Error(`装备映射存在 ${broken} 处失效指向，请修正 契约/装备映射.yaml`);
+  }
+
+  const timestamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
+  const content = `/**
+ * 灾厄之后·重制版 - 装备契约（自动生成，勿手动编辑）
+ * 生成时间: ${timestamp}
+ * 来源: data-source/世界书/装备/武器|护甲/*.yaml + data-source/契约/装备映射.yaml
+ *
+ * equipment-system 启动时按 mapping 用世界书数值覆盖引擎模板（数值单源），
+ * 并按 registered 把世界书独有条目注册为新模板；skipped 仅解析不落地。
+ */
+var equipmentContract = {
+  generatedAt: ${JSON.stringify(timestamp)},
+  source: 'data-source/世界书/装备',
+  weapons: ${JSON.stringify(weapons, null, 2)},
+  armors: ${JSON.stringify(armors, null, 2)},
+  mapping: ${JSON.stringify({ weapons: map.武器, armors: map.护甲 }, null, 2)},
+  registered: ${JSON.stringify({ weapons: map.注册武器, armors: map.注册护甲 }, null, 2)},
+  skipped: ${JSON.stringify(map.不注册)}
+};
+
+if (typeof window !== 'undefined') { window.equipmentContract = equipmentContract; }
+`;
+  const outputPath = path.join(CONFIG.outputDir, 'equipment-contract.js');
+  fs.writeFileSync(outputPath, content, 'utf8');
+  const mw = Object.keys(map.武器).length + Object.keys(map.护甲).length;
+  const reg = Object.keys(map.注册武器).length + Object.keys(map.注册护甲).length;
+  console.log(`   ✓ equipment-contract.js（武器 ${Object.keys(weapons).length} / 护甲 ${Object.keys(armors).length}，映射 ${mw}，注册 ${reg}）→ ${outputPath}`);
+};
+
 // ==================== 报告生成器 ====================
 class ReportGenerator {
   constructor(checker, converter) {
@@ -634,6 +831,15 @@ async function main() {
 
     // 生成状态契约（世界书 → 引擎 单源同步）
     converter.generateStatusContract();
+
+    // 生成数值契约（契约/数值常量.yaml → 引擎钳制与公式系数）
+    converter.generateNumericContract();
+
+    // 生成升级进度契约（经验与成长 §4 → syncLevel）
+    converter.generateProgressionContract();
+
+    // 生成装备契约（装备 yaml + 映射 → equipment-system 模板数值）
+    converter.generateEquipmentContract();
 
     // 生成报告
     const reporter = new ReportGenerator(checker, converter);
