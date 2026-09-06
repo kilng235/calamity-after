@@ -122,6 +122,9 @@
 
 ## 🔄 更新日志
 
+### 2026-09-06（晚·叙事区持久化）
+- narrative-display DOM 不持久化 → F5 后楼层消失但撤销按钮还在（localStorage/IDB 独立）。修复：displayNarrative 累加原文到 calamity-narrative-log（最多 200），initGame 优先按序重渲染，undoLastTurn 同步裁剪。tools-test-narrative-persist.js 8 项 exit=0
+
 ### 2026-09-06（晚·开局任务重复修复）
 - applyQuests 同名去重（三态比对 + duplicated 报告）+ 开局数据块/输出格式双提示；quest-block 测试补 3 项 exit=0
 

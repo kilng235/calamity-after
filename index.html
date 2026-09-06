@@ -3569,12 +3569,22 @@ function clearSTPreset() {
     // 首次进入：优先渲染「启程」开局叙事（与登记册第ⅲ页同源），无开局数据时退回欢迎语
     const nd = document.getElementById('narrative-display');
     if (nd && nd.childElementCount === 0) {
-      let openingData = null;
-      try { openingData = JSON.parse(localStorage.getItem('calamityOpening') || 'null'); } catch (e) {}
-      if (openingData && typeof window.buildOpeningIntro === 'function') {
-        displayNarrative(window.buildOpeningIntro(openingData));
+      // 刷新路径：先按持久化叙事日志按序重渲染所有楼层（DOM 不持久化是 F5 后楼层消失的根因）
+      const log = loadNarrativeLog();
+      if (log && log.length > 0) {
+        // 一次性创建文档片段，避免多次 layout 重排
+        const frag = document.createDocumentFragment();
+        log.forEach(function (t) { frag.appendChild(renderNarrativePage(t)); });
+        nd.appendChild(frag);
       } else {
-        displayNarrative(generateWelcomeMessage(gd));
+        // 真·首次进入：渲染开局/欢迎
+        let openingData = null;
+        try { openingData = JSON.parse(localStorage.getItem('calamityOpening') || 'null'); } catch (e) {}
+        if (openingData && typeof window.buildOpeningIntro === 'function') {
+          displayNarrative(window.buildOpeningIntro(openingData));
+        } else {
+          displayNarrative(generateWelcomeMessage(gd));
+        }
       }
     }
     applyDisplaySettings();
@@ -4003,8 +4013,32 @@ function clearSTPreset() {
     const display = document.getElementById('narrative-display');
     if (!display) return;
     display.appendChild(renderNarrativePage(text));
+    appendNarrativeLog(text);   // 持久化：刷新后能按序重渲染各层正文/战斗卡/检定卡
     mountUndoBar(display);
     display.scrollTop = display.scrollHeight;
+  }
+
+  // ── 叙事页持久化：每次 displayNarrative 累加一份原文到 localStorage，刷新时按序重渲染 ──
+  // 撤销/重算时同步移除/裁剪对应条目；撤销栈自然承载状态回滚，叙事日志只承载“DOM 在刷新后回来”
+  const NARRATIVE_KEY = 'calamity-narrative-log';
+  const NARRATIVE_MAX = 200;   // 最多保留 200 条/≈100 层，防止 localStorage 爆掉
+  function loadNarrativeLog() {
+    try { return JSON.parse(localStorage.getItem(NARRATIVE_KEY) || '[]'); } catch (e) { return []; }
+  }
+  function saveNarrativeLog(list) {
+    try { localStorage.setItem(NARRATIVE_KEY, JSON.stringify(list)); } catch (e) { console.warn('叙事日志持久化失败:', e && e.message || e); }
+  }
+  function appendNarrativeLog(text) {
+    const list = loadNarrativeLog();
+    list.push(String(text || ''));
+    while (list.length > NARRATIVE_MAX) list.shift();
+    saveNarrativeLog(list);
+  }
+  // 撤销时从日志尾部移除 N 条（与 displayNarrative 1:1 对应）；若需重新重渲染则由调用方逐条 render
+  function trimNarrativeLog(n) {
+    const list = loadNarrativeLog();
+    for (let i = 0; i < n && list.length > 0; i++) list.pop();
+    saveNarrativeLog(list);
   }
 
   // ── 对话上下文（多轮记忆，滚动窗口存 localStorage） ──
@@ -4063,6 +4097,7 @@ function clearSTPreset() {
         const target = snap.narrativeCount || 0;
         const bar = document.getElementById('undo-turn-bar');
         const barIn = bar && bar.parentNode === nd ? 1 : 0;
+        const before = nd.childElementCount - barIn;
         let pages = nd.childElementCount - barIn;
         while (pages > target) {
           const last = nd.lastElementChild;
@@ -4071,6 +4106,9 @@ function clearSTPreset() {
           nd.removeChild(node);
           pages--;
         }
+        // 叙事日志同步裁剪（本帧移除的 turn-page 数 = before - target）
+        const removed = before - target;
+        if (removed > 0) trimNarrativeLog(removed);
       }
       refreshGameUI();
       // 同步撤销记忆系统：常驻线/编年史/纪要/向量按快照差量回滚
