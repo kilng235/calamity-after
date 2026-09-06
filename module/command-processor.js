@@ -48,6 +48,7 @@ var commandProcessor = (function () {
     var STATUS_WHITELIST = {
         '目盲': 0, '耳聋': 0, '失明': 0, '失能': 0, '昏迷': 0, '麻痹': 0, '震慑': 0, '石化': 0, '中毒': 0, '恐慌': 0, '魅惑': 0,
         '受擒': 0, '束缚': 0, '倒地': 0, '力竭': 0, '燃烧': 0, '残废': 0, '失衡': 0, '减速': 0, '侵蚀': 0, '寒冷': 0, '感电': 0,
+        '出血': 0,
         '隐形': 1, '加速': 1, '耀眼': 1, '灵巧': 1, '专注': 1, '护体': 1,
         '超重': 0   // 引擎派生状态：总重 > 负重上限时自动落地/解除（命令后校准），AI 不经命令维护
     };
@@ -142,7 +143,8 @@ var commandProcessor = (function () {
         c.age = 取区间(c.age, 1, 999, 25);
         c.level = Math.max(1, 规范化整数(c.level, 1));
         c.exp = Math.max(0, 规范化数值(c.exp, 0));
-        c.expToNextLevel = Math.max(1, 规范化数值(c.expToNextLevel, 100));
+        // expToNextLevel 为派生值（=等级×50，《经验与成长》§4）；AI 写入会被 syncLevel 纠偏
+        c.expToNextLevel = Math.max(1, 规范化数值(c.expToNextLevel, 50));
         c.proficiencyBonus = Math.max(0, 规范化整数(c.proficiencyBonus, 2));
         c.ac = Math.max(0, 规范化整数(c.ac, 10));
         // MP：法术/炼金系统读写 character.mp；迁移旧存档误写的大写 character.MP 垃圾键
@@ -205,6 +207,8 @@ var commandProcessor = (function () {
         progress.currentPlace = 规范化文本(progress.currentPlace || '', '');
         if (!Array.isArray(progress.completedQuests)) progress.completedQuests = [];
         if (!Array.isArray(progress.unlockedLocations)) progress.unlockedLocations = ['锈钉镇'];
+        // 未分配属性点：引擎派生（升级获得，面板分配），钳制非负防 AI 误写
+        progress.unspentPoints = Math.max(0, 规范化整数(progress.unspentPoints, 0));
 
         // 主角状态规范化（白名单 + 层级钳制）
         规范条件(gd);
@@ -275,17 +279,27 @@ var commandProcessor = (function () {
     function syncLevel(gd) {
         var c = gd.character;
         var leveledUp = 0;
-        while (c.exp >= c.expToNextLevel) {
-            c.exp -= c.expToNextLevel;
-            c.expToNextLevel = Math.floor(c.expToNextLevel * 1.5);
+        var pointsGained = 0;
+        // 升级所需经验 = 等级 × 50（《经验与成长》§4 线性表；expToNextLevel 为引擎派生值，AI 写入无效）
+        while (c.exp >= c.level * 50) {
+            c.exp -= c.level * 50;
             c.level += 1;
             leveledUp += 1;
-            if (c.level % 4 === 0) c.proficiencyBonus += 1;
-            gd.hp.max += 5;
+            // PB：进入新等阶 +1（Lv5/9/13/17；1-4:+2, 5-8:+3, 9-12:+4, 13-16:+5, 17-20:+6）
+            if (c.level === 5 || c.level === 9 || c.level === 13 || c.level === 17) c.proficiencyBonus += 1;
+            // 每级最大生命 +10（§73：HP 上限 = 100 + 10×(等级−1)）
+            gd.hp.max += 10;
+            // 属性点：每级 +1，逢 4 级 ASI 额外 +1（存 progress.unspentPoints，玩家在角色面板手动分配）
+            var pts = (c.level % 4 === 0) ? 2 : 1;
+            gd.progress = gd.progress || {};
+            gd.progress.unspentPoints = (gd.progress.unspentPoints || 0) + pts;
+            pointsGained += pts;
         }
+        c.expToNextLevel = c.level * 50;   // 派生显示值（同步纠偏旧存档）
         if (leveledUp > 0) {
-            gd.hp.current = Math.min(gd.hp.max, gd.hp.current + leveledUp * 5);
-            log('升级 ×' + leveledUp + '，当前等级 ' + c.level);
+            // 升级回复：与新生命上限同步 +10/级（相对生命比例不变，设计中性）
+            gd.hp.current = Math.min(gd.hp.max, gd.hp.current + leveledUp * 10);
+            log('升级 ×' + leveledUp + '，当前等级 ' + c.level + '，属性点 +' + pointsGained + '（待面板分配）');
         }
         return leveledUp;
     }
@@ -352,7 +366,7 @@ var commandProcessor = (function () {
         // 时间规范化
         gd.gameTime = normalizeGameTime(gd.gameTime);
 
-        // 好感值钳制 [-100, 100]
+        // 好感值钳制 [-100, 100]；人情值钳制 [0, 100]（关系系统双轴）
         if (gd.relationships && typeof gd.relationships === 'object') {
             Object.keys(gd.relationships).forEach(function (name) {
                 var rel = gd.relationships[name];
@@ -360,6 +374,11 @@ var commandProcessor = (function () {
                     var before = rel.好感度;
                     rel.好感度 = Math.max(-100, Math.min(100, Number(rel.好感度)));
                     if (before !== rel.好感度) corrections.push('relationships.' + name + '.好感度 钳制');
+                }
+                if (rel && typeof rel === 'object' && Number.isFinite(Number(rel.人情值))) {
+                    var fqBefore = rel.人情值;
+                    rel.人情值 = Math.max(0, Math.min(100, Number(rel.人情值)));
+                    if (fqBefore !== rel.人情值) corrections.push('relationships.' + name + '.人情值 钳制');
                 }
             });
         }

@@ -181,5 +181,35 @@ let gd18 = base();
 r = processor.applyCommands(gd18, [{ action: 'set', key: '状态.超重', value: true }]);
 check('18. 未超重时命令写的超重被引擎解除', r.gameData.conditions['超重'] === undefined);
 
+// ==================== 升级公式对齐（《经验与成长》§4）+ 属性点记账 ====================
+// 19. Lv1→2：经验 60 → 升 1 级，余 10；线性曲线 expToNext = 等级×50；HP +10；属性点 +1
+r = processor.applyCommands(base(), [{ action: 'add', key: '经验', value: 60 }]);
+check('19. 升 Lv2：exp 余 10 / expToNext=100 / hp.max=110 / unspentPoints=1 / PB=2',
+  r.gameData.character.level === 2 && r.gameData.character.exp === 10
+  && r.gameData.character.expToNextLevel === 100 && r.gameData.hp.max === 110
+  && r.gameData.progress.unspentPoints === 1 && r.gameData.character.proficiencyBonus === 2);
+
+// 20. 一口气到 Lv5：累计 510 经验 → Lv5 余 10；属性点 1+1+2+1=5；PB 在 Lv5 进入新等阶 +1→3；hp.max=100+10×(5−1)=140
+r = processor.applyCommands(base(), [{ action: 'add', key: '经验', value: 510 }]);
+check('20. 升 Lv5：exp 余 10 / unspent=5 / PB=3 / hp.max=140',
+  r.gameData.character.level === 5 && r.gameData.character.exp === 10
+  && r.gameData.progress.unspentPoints === 5 && r.gameData.character.proficiencyBonus === 3
+  && r.gameData.hp.max === 140);
+
+// 21. expToNextLevel 为引擎派生值：AI 写 9999 会被纠偏为 等级×50
+r = processor.applyCommands(base(), [{ action: 'set', key: '升级经验', value: 9999 }]);
+check('21. AI 写升级经验被派生纠偏（Lv1 → 50）', r.gameData.character.expToNextLevel === 50);
+
+// 22. 出血状态（此前白名单缺名被拒）
+r = processor.applyCommands(base(), [{ action: 'set', key: '状态.出血', value: { 来源: '锋锐刃' } }]);
+check('22. set 状态.出血 落地（白名单已补）', r.gameData.conditions['出血'] && r.gameData.conditions['出血'].来源 === '锋锐刃');
+
+// 23. 人情值钳制 [0,100]（关系系统双轴）
+r = processor.applyCommands(base(), [
+  { action: 'set', key: '关系.莉娅.人情值', value: 150 },
+  { action: 'set', key: '关系.莉娅.好感度', value: -200 }
+]);
+check('23. 人情值钳到 100 / 好感度钳到 -100', r.gameData.relationships['莉娅'].人情值 === 100 && r.gameData.relationships['莉娅'].好感度 === -100);
+
 console.log('\n' + (fail === 0 ? '✅ 全部通过（' + pass + ' 项）' : '❌ 失败 ' + fail + ' 项 / 通过 ' + pass + ' 项'));
 process.exit(fail ? 1 : 0);

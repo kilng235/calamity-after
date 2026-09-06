@@ -2504,6 +2504,21 @@
     /* 叙事区：小屏收紧内边距 */
     #view-game .narrative-display{padding:12px 12px 20px}
 
+    /* 属性点分配（B 方案）：未分配徽章 + 六维行 + 按钮 */
+    #view-game .attr-unspent{
+      font-size:12px;color:var(--gold-bright);
+      background:rgba(184,148,42,.12);border:1px dashed var(--gold);border-radius:2px;
+      padding:5px 8px;margin-bottom:2px;width:100%;
+    }
+    #view-game .attr-plus{
+      width:30px;height:30px;min-width:30px;margin-left:6px;
+      border:1px solid var(--gold);border-radius:2px;
+      background:linear-gradient(180deg,rgba(184,148,42,.25) 0%,rgba(184,148,42,.1) 100%);
+      color:var(--gold-bright);font-size:16px;font-weight:700;line-height:1;
+      cursor:pointer;-webkit-tap-highlight-color:transparent;
+    }
+    .attr-plus:active{background:rgba(184,148,42,.4)}
+
     /* 信息条在窄屏仍保留并滚动；防御性隐藏装饰条 */
     #view-game .info-bar{padding:0 12px;gap:14px}
   }
@@ -3778,20 +3793,46 @@ function clearSTPreset() {
 
   const ATTR_EN = { '力量': 'STR', '敏捷': 'DEX', '体质': 'CON', '感知': 'WIS', '智力': 'INT', '魅力': 'CHA' };
 
-  function updateAttributes(attributes) {
+  function updateAttributes(attributes, unspentPoints) {
     const list = document.getElementById('attr-list');
     if (!list) return;
     list.innerHTML = '';
+    // 未分配属性点徽章（升级获得，点属性旁 + 分配）
+    if (unspentPoints > 0) {
+      const tip = document.createElement('div');
+      tip.className = 'attr-unspent';
+      tip.textContent = '◈ 未分配属性点 ×' + unspentPoints + '（点属性旁 + 分配）';
+      list.appendChild(tip);
+    }
     Object.entries(attributes || {}).forEach(([name, value]) => {
       const item = document.createElement('div');
       item.className = 'attr-item';
+      const plus = (unspentPoints > 0)
+        ? '<button type="button" class="attr-plus" title="分配 1 点到' + name + '" onclick="allocateAttrPoint(\'' + name + '\')">+</button>'
+        : '';
       item.innerHTML =
         '<span class="attr-name">' + name + '<i class="attr-en">' + (ATTR_EN[name] || '') + '</i></span>' +
         '<span class="attr-fill"></span>' +
-        '<span class="attr-value">' + value + '</span>';
+        '<span class="attr-value">' + value + '</span>' + plus;
       list.appendChild(item);
     });
   }
+
+  // 玩家手动分配属性点（引擎侧直接落地，不经 AI；撤销快照天然覆盖）
+  window.allocateAttrPoint = function(name) {
+    const gd = gameState.getGameData();
+    const pts = (gd.progress && gd.progress.unspentPoints) || 0;
+    if (pts <= 0) return;
+    const val = Number(gd.attributes && gd.attributes[name]) || 10;
+    if (val >= 30) {
+      displayNarrative('\n⚠️ ' + name + ' 已达上限 30\n');
+      return;
+    }
+    gd.attributes[name] = val + 1;
+    gd.progress.unspentPoints = pts - 1;
+    gameState.importGameData(gd);
+    refreshGameUI();
+  };
 
   function qpEsc(s) {
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -4830,7 +4871,7 @@ function clearSTPreset() {
       }
     }
     updateHPBar(gd.hp.current, gd.hp.max);
-    updateAttributes(gd.attributes);
+    updateAttributes(gd.attributes, (gd.progress && gd.progress.unspentPoints) || 0);
     updateEquipment(gd.equipment);
     updateInventory(gd.inventory);
     updateQuests(gd.quests);
