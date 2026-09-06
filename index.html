@@ -561,17 +561,20 @@
   }
   #view-game .game-exit:hover{background:rgba(184,148,42,0.25);box-shadow:0 0 10px var(--gold-glow)}
 
-  .game-container{
+  /* 主游戏视图栅格：顶栏+核心资源+抽屉按钮 / 次要信息条 / 叙事 / 输入栏
+     仅用 ID 选择器避免与 narrative-r级 .game-container 副本冲突；
+     行高按桌面默认 60+32+1fr+80；窄屏媒体查询（≤900px）覆盖 */
+  #view-game .game-container{
     display:grid;
-    grid-template-columns:280px 1fr 280px;
-    grid-template-rows:60px minmax(0,1fr) 80px;
+    grid-template-columns:280px minmax(0,1fr) 280px;
+    grid-template-rows:60px 32px minmax(0,1fr) 80px;
     height:100vh;
     min-height:100vh;
     gap:0;position:relative;
     overflow:hidden;
   }
   .top-bar{
-    grid-column:1/4;
+    grid-column:1/-1;grid-row:1/2;
     background:linear-gradient(135deg,var(--leather-light) 0%,var(--leather) 30%,var(--leather-dark) 70%,var(--leather) 100%);
     border-bottom:2px solid var(--gold);
     display:flex;justify-content:space-between;align-items:center;
@@ -603,7 +606,7 @@
   #time-text{font-size:13px;letter-spacing:1px;color:var(--parchment);text-shadow:0 1px 0 rgba(0,0,0,0.4);white-space:nowrap}
   .hp-bar{width:130px;height:20px;background:url('img/ui/ui-hp-frame.png') center/100% 100% no-repeat;border-radius:7px;overflow:hidden;box-shadow:inset 0 1px 3px rgba(0,0,0,0.5),0 0 6px rgba(0,0,0,0.4);position:relative;padding:4px 7px}
   .hp-fill{height:100%;background:linear-gradient(90deg,#4caf50,#8bc34a);transition:width 0.3s;box-shadow:0 0 6px rgba(76,175,80,0.5);position:relative;overflow:hidden}
-  .left-panel{background:var(--parchment-dark);border-right:2px solid var(--leather);overflow-y:auto;padding:15px}
+  .left-panel{grid-column:1/2;grid-row:1/4;background:var(--parchment-dark);border-right:2px solid var(--leather);overflow-y:auto;padding:15px}
   .panel-section{margin-bottom:20px;background:var(--parchment);
     background-image:radial-gradient(ellipse 80px 60px at 15% 20%,rgba(140,100,50,0.10) 0%,transparent 70%),
       radial-gradient(ellipse 60px 80px at 85% 35%,rgba(120,80,40,0.08) 0%,transparent 65%),
@@ -617,7 +620,7 @@
   .panel-latin{float:right;font-family:"Cinzel",serif;font-size:0.62em;font-weight:400;color:var(--ink-faded);letter-spacing:2px;font-style:italic;margin-top:4px;opacity:0.9}
   #equipment-list,#inventory-list{font-size:13px}
   #equipment-list div,#inventory-list div{margin-bottom:5px;padding:4px 8px;background:rgba(180,160,120,0.08);border-left:2px solid var(--gold);font-family:"Cinzel","Noto Serif SC",serif}
-  .center-area{background:var(--parchment);
+  .center-area{grid-column:2/3;grid-row:3/4;background:var(--parchment);
     background-image:radial-gradient(ellipse 80px 60px at 15% 20%,rgba(140,100,50,0.10) 0%,transparent 70%),
       radial-gradient(ellipse 60px 80px at 85% 35%,rgba(120,80,40,0.08) 0%,transparent 65%),
       radial-gradient(ellipse 100px 50px at 70% 75%,rgba(140,100,50,0.07) 0%,transparent 60%),
@@ -627,10 +630,10 @@
   .narrative-display{flex:1;overflow-y:auto;padding:20px;font-size:15px;line-height:1.8;position:relative;z-index:3}
   .narrative-display p{color:var(--ink);margin-bottom:10px;text-indent:2em}
   .narrative-display .narrative-header{text-align:center;color:var(--gold-bright);font-size:18px;margin-bottom:20px;font-family:"Cinzel Decorative","Noto Serif SC",serif;letter-spacing:4px;text-shadow:0 1px 0 rgba(0,0,0,0.1),0 0 8px var(--gold-glow)}
-  .right-panel{background:var(--parchment-dark);border-left:2px solid var(--leather);overflow-y:auto;padding:15px}
+  .right-panel{grid-column:3/4;grid-row:1/4;background:var(--parchment-dark);border-left:2px solid var(--leather);overflow-y:auto;padding:15px}
   .action-btn{display:block;width:100%;border:1px solid var(--gold);border-radius:2px;padding:11px 16px;margin-bottom:10px;font-size:14px;font-family:"Cinzel","Noto Serif SC",serif;cursor:pointer;letter-spacing:2px;background:linear-gradient(180deg,rgba(184,148,42,0.12) 0%,rgba(184,148,42,0.04) 100%);color:var(--ink-light);text-shadow:0 1px 0 rgba(255,255,255,0.3);box-shadow:0 1px 3px rgba(0,0,0,0.1);transition:all .2s;position:relative;overflow:hidden;text-align:center}
   .action-btn:hover{background:linear-gradient(180deg,rgba(184,148,42,0.2) 0%,rgba(184,148,42,0.08) 100%);border-color:var(--gold-bright);box-shadow:0 1px 3px rgba(0,0,0,0.1),0 0 10px var(--gold-glow);color:var(--gold)}
-  .bottom-bar{grid-column:1/4;background:linear-gradient(135deg,var(--leather-light) 0%,var(--leather) 30%,var(--leather-dark) 70%,var(--leather) 100%);border-top:2px solid var(--gold);padding:15px 20px;display:flex;gap:10px;align-items:center;position:relative}
+  .bottom-bar{grid-column:1/-1;grid-row:4/5;background:linear-gradient(135deg,var(--leather-light) 0%,var(--leather) 30%,var(--leather-dark) 70%,var(--leather) 100%);border-top:2px solid var(--gold);padding:15px 20px;display:flex;gap:10px;align-items:center;position:relative}
   .bottom-bar::before{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:repeating-conic-gradient(rgba(0,0,0,0.02) 0% 25%,transparent 0% 50%) 0 0/4px 4px;pointer-events:none}
   .input-box{flex:1;padding:12px;background:rgba(255,250,240,0.5);border:none;border-bottom:1px solid var(--parchment-dark);font-family:"Noto Serif SC",serif;font-size:14px;color:var(--ink);position:relative;z-index:1}
   .input-box:focus{outline:none;border-bottom-color:var(--gold);box-shadow:0 1px 0 var(--gold-glow)}
@@ -1254,28 +1257,16 @@
   #ember-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9998;opacity:0.5}
 
   /* 主容器 */
-  .game-container{
-    display:grid;
-    grid-template-columns:280px 1fr 280px;
-    grid-template-rows:60px minmax(0,1fr) 80px;
-    height:100vh;
-    min-height:100vh;
-    gap:0;
-    position:relative;
-    z-index:1;
-    overflow:hidden;
-  }
-
-  /* 顶部状态栏 - 皮革书脊风格 */
+/* 游戏视图栅格副本：与主样式一致（此处不重定义以避免 .game-container 多份定义冲突；
+     实际生效来自 564 行的 #view-game .game-container 与 ≤900px 媒体查询） */
+  /* 顶部信息栏 - 皮革书脊风格；自适应：玩家名/资源/按钮自然排，空间不足时按 DOM 顺序截断 */
   .top-bar{
-    grid-column:1/4;
     background:
       linear-gradient(135deg,var(--leather-light) 0%,var(--leather) 30%,var(--leather-dark) 70%,var(--leather) 100%);
     border-bottom:2px solid var(--gold);
     display:flex;
-    justify-content:space-between;
-    align-items:center;
-    padding:0 20px;
+    gap:14px;
+    padding:0 16px;
     color:var(--gold-bright);
     font-family:"Cinzel","Noto Serif SC",serif;
     box-shadow:
@@ -1283,6 +1274,7 @@
       inset 0 1px 0 rgba(255,255,255,0.05),
       inset 0 -1px 0 rgba(0,0,0,0.3);
     position:relative;
+    overflow:hidden;min-width:0;
   }
 
   /* 顶部栏皮革纹理 */
@@ -1305,7 +1297,7 @@
   .bar-ornament.left{left:6px}
   .bar-ornament.right{right:6px}
 
-  .player-name{
+.player-name{
     font-size:20px;
     font-weight:700;
     letter-spacing:3px;
@@ -1315,7 +1307,34 @@
     display:flex;
     align-items:center;
     gap:10px;
+    min-width:0;
+    flex-shrink:1;
   }
+  .player-name>span{max-width:8em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  /* 顶栏核心资源区（HP + 命运点，宽屏与顶栏同行，窄屏滑入信息条） */
+  .core-items{
+    display:flex;align-items:center;gap:18px;
+    flex-shrink:1;min-width:0;position:relative;z-index:1;
+  }
+  .core-items .status-item{min-width:0;flex-shrink:1}
+
+  /* 抽屉按钮区（自适应：窄屏显示，宽屏自动隐藏；顺序由 DOM 顺序决定位置） */
+  #mobile-drawer-btns{
+    display:flex;gap:6px;align-items:center;
+    flex-shrink:0;position:relative;z-index:1;
+  }
+
+  /* 次要信息条：游戏内时间 / 金币（窄屏常驻，宽屏可与顶栏共享） */
+  .info-bar{
+    grid-column:1/-1;grid-row:2/3;
+    display:flex;align-items:center;gap:18px;
+    padding:0 20px;background:var(--leather-dark);color:var(--gold-bright);
+    border-bottom:1px solid var(--gold);
+    font-size:12px;font-family:"Cinzel","Noto Serif SC",serif;
+    overflow-x:auto;white-space:nowrap;
+  }
+  .info-bar .status-item{flex-shrink:0}
 
   .rank-badge{
     width:30px;height:30px;object-fit:contain;
@@ -1659,7 +1678,7 @@
 
   /* 底部输入栏 - 皮革书底 */
   .bottom-bar{
-    grid-column:1/4;
+    grid-column:1/-1;
     background:
       linear-gradient(135deg,var(--leather-light) 0%,var(--leather) 30%,var(--leather-dark) 70%,var(--leather) 100%);
     border-top:2px solid var(--gold);
@@ -1993,7 +2012,7 @@
 
 
 <div class="game-container">
-  <!-- 顶部状态栏 -->
+<!-- 顶部信息栏（自适应：玩家名+核心资源+抽屉按钮永远同层，剩余次要信息下移到独立状态条） -->
   <div class="top-bar">
     <img src="img/ui/ui-ornament-left.png" class="bar-ornament left" alt="" onerror="this.style.display='none'">
     <img src="img/ui/ui-ornament-right.png" class="bar-ornament right" alt="" onerror="this.style.display='none'">
@@ -2001,31 +2020,34 @@
       <img src="img/ui/ui-rank.png" class="rank-badge" alt="等级" onerror="this.style.display='none'">
       <span>冒险者</span>
     </div>
-    <div class="status-items">
-      <div class="status-item" title="游戏内时间">
-        <span class="ui-glyph">✦</span>
-        <span id="time-text">—</span>
-      </div>
-      <div class="status-item">
+    <!-- 核心资源：HP / 命运点（任何宽度都显示） -->
+    <div class="core-items">
+      <div class="status-item hp-item">
         <img src="img/ui/ui-hp.png" class="ui-icon" alt="HP" onerror="this.style.display='none'">
-        <div class="hp-bar">
-          <div class="hp-fill" id="hp-fill" style="width: 100%;"></div>
-        </div>
+        <div class="hp-bar"><div class="hp-fill" id="hp-fill" style="width: 100%;"></div></div>
         <span id="hp-text">30/30</span>
-      </div>
-      <div class="status-item">
-        <img src="img/ui/ui-gold.png" class="ui-icon" alt="金币" onerror="this.style.display='none'">
-        <span id="gold-text">50</span>
       </div>
       <div class="status-item">
         <img src="img/ui/ui-fate.png" class="ui-icon" alt="命运点" onerror="this.style.display='none'">
         <span id="fate-points">3/3</span>
       </div>
     </div>
-    <!-- 移动端抽屉切换（≤900px 显示） -->
+    <!-- 抽屉按钮（桌面隐藏，移动端显示） -->
     <div id="mobile-drawer-btns">
       <button type="button" class="drawer-btn" onclick="toggleDrawer('left')">📜 角色</button>
       <button type="button" class="drawer-btn" onclick="toggleDrawer('right')">📋 任务</button>
+    </div>
+  </div>
+
+  <!-- 次要信息条：游戏内时间 / 金币（窄屏始终显示，宽屏与顶栏并列；独立名字避免与登记册 .status-bar 冲突） -->
+  <div class="info-bar">
+    <div class="status-item" title="游戏内时间">
+      <span class="ui-glyph">✦</span>
+      <span id="time-text">—</span>
+    </div>
+    <div class="status-item">
+      <img src="img/ui/ui-gold.png" class="ui-icon" alt="金币" onerror="this.style.display='none'">
+      <span id="gold-text">50</span>
     </div>
   </div>
 
@@ -2382,18 +2404,23 @@
 </style>
 
 <style id="mobile-adaptive-style">
-  /* ── 手机适配（≤900px）：单列布局 + 左右滑出抽屉（方案与断点经作者确认） ── */
+  /* ── 自适应：抽屉按钮默认隐藏（绝对定位不被空间计算），窄屏（≤900px）放回顶栏 flex 流 ── */
+  /* 装饰图与冗余次要元素：空间足够才显示（通过 :has 与 max-width 双向控制见下） */
   #mobile-drawer-btns{display:none}
   .panel-backdrop{display:none}
 
   @media (max-width:900px){
-    /* 单列布局：顶栏 / 叙事(1fr) / 输入(auto)；高度跟随可视视口（软键盘/工具栏自适应） */
+    /* 窄屏放弃 grid（grid 在单列+多子节点 auto-place 易分裂）改为 flex 流 */
     #view-game .game-container{
-      grid-template-columns:1fr;
-      grid-template-rows:60px minmax(0,1fr) auto;
-      height:var(--app-height,100vh);
-      min-height:var(--app-height,100vh);
+      display:flex;flex-direction:column;
+      height:var(--app-height,100vh);min-height:var(--app-height,100vh);
+      position:relative;
     }
+    /* 行高按内容自然撑开：顶栏 60 / 信息条 32 / 叙事 1fr / 输入 auto */
+    #view-game .top-bar{flex:0 0 60px;height:60px}
+    #view-game .info-bar{flex:0 0 32px;height:32px}
+    #view-game .center-area{flex:1 1 auto;min-height:0;overflow:hidden}
+    #view-game .bottom-bar{flex:0 0 auto}
     /* 左右面板 → 固定定位滑出抽屉 */
     #view-game .left-panel,#view-game .right-panel{
       position:fixed;top:60px;bottom:0;width:min(86vw,320px);z-index:60;
@@ -2410,8 +2437,11 @@
     }
     .panel-backdrop.show{opacity:1;pointer-events:auto}
 
-    /* 顶栏抽屉切换按钮 + 精简（装饰图占宽，小屏隐藏） */
-    #mobile-drawer-btns{display:flex;gap:6px;position:absolute;right:8px;top:11px;z-index:65}
+    /* 抽屉按钮回归顶栏 flex 流（关键修复：之前用 absolute 强行占位，按钮宽度被忽略，导致与状态项重叠） */
+    #mobile-drawer-btns{
+      display:flex;gap:6px;align-items:center;
+      position:static;margin-left:auto;z-index:1;
+    }
     .drawer-btn{
       min-width:44px;min-height:36px;padding:4px 10px;border:1px solid var(--gold);border-radius:2px;
       background:linear-gradient(180deg,rgba(60,42,18,.92) 0%,rgba(38,26,12,.92) 100%);
@@ -2420,8 +2450,12 @@
     }
     .drawer-btn:active{background:linear-gradient(180deg,rgba(184,148,42,.45) 0%,rgba(120,90,30,.45) 100%)}
     #view-game .bar-ornament{display:none}
-    #view-game .status-items{gap:8px;flex-wrap:wrap;padding-right:158px}
-    #view-game .player-name span{max-width:5em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block}
+    /* core-items（HP + 命运点）在窄屏自动收缩；不再用绝对定位让位 flex 流后自然靠右 */
+    #view-game .core-items{gap:10px}
+    #view-game .core-items .hp-bar{max-width:60px}
+    #view-game .player-name{font-size:14px;letter-spacing:1px}
+    #view-game .player-name .rank-badge{width:22px;height:22px}
+    #view-game .player-name>span{max-width:6em}
 
     /* 输入区：触摸友好 + 安全区 + 16px 防 iOS 聚焦自动放大 */
     #view-game .input-box{font-size:16px;padding:11px 12px;min-height:44px}
@@ -2433,6 +2467,9 @@
 
     /* 叙事区：小屏收紧内边距 */
     #view-game .narrative-display{padding:12px 12px 20px}
+
+    /* 信息条在窄屏仍保留并滚动；防御性隐藏装饰条 */
+    #view-game .info-bar{padding:0 12px;gap:14px}
   }
 
   /* 触摸设备通用：去掉点按高亮闪块 */
