@@ -4260,7 +4260,10 @@ function clearSTPreset() {
         empty(kw ? '◈ 无匹配记录' : '◈ 编年史为空（升级前楼层无编年史记录，属正常现象）');
       }
       lines.forEach(r => {
-        addEntry(r.text, '第' + r.floor + '层 ｜ ' + (r.time || '') + (r.location ? '·' + r.location : ''));
+        // 编年史是 40 字索引，详情看「纪要」页签——以等宽淡色显示，并在元数据提示差异
+        const truncated = r.text && r.text.length >= 40;
+        addEntry(r.text, '第' + r.floor + '层 ｜ ' + (r.time || '') + (r.location ? '·' + r.location : '')
+          + (truncated ? ' ｜ ⚠ 40字索引，详情见【纪要】页签' : ' ｜ 完整摘要'));
       });
     } else if (_vecTab === 'ledger') {
       const recs = memoryStore.allLedger()
