@@ -2027,11 +2027,14 @@
   <!-- 左侧面板 -->
   <div class="left-panel">
       <div class="panel-section">
-        <div class="panel-title">◈ 角色信息</div>
+<div class="panel-title">◈ 角色信息</div>
         <div style="font-size: 13px; margin-bottom: 10px;">
           <div><strong>种族：</strong><span id="char-race">人类</span></div>
           <div><strong>等级：</strong><span id="char-level">1</span></div>
-          <div><strong>经验：</strong><span id="char-exp">0</span></div>
+          <div><strong>经验：</strong><span id="char-exp">0/100</span></div>
+          <div><strong>HP：</strong><span id="char-hp" style="color:var(--gold)">—</span></div>
+          <div><strong>MP：</strong><span id="char-mp" style="color:var(--gold)">—</span></div>
+          <div><strong>AC：</strong><span id="char-ac" style="color:var(--gold)">—</span></div>
           <div><strong>位置：</strong><span id="char-location" style="color:var(--gold)">未知</span></div>
           <div><strong>负重：</strong><span id="char-burden" style="color:var(--gold)">—</span></div>
           <div id="char-conditions" style="margin-top:6px"></div>
@@ -4578,6 +4581,17 @@ function clearSTPreset() {
   function refreshGameUI() {    const gd = gameState.getGameData();
     document.getElementById('char-level').textContent = gd.character.level;
     document.getElementById('char-exp').textContent = gd.character.exp + '/' + gd.character.expToNextLevel;
+    // 角色信息面板：HP/MP/AC（顶部进度条更新与此处独立）
+    const hpEl = document.getElementById('char-hp');
+    if (hpEl) hpEl.textContent = (gd.hp ? (gd.hp.current + '/' + gd.hp.max) : '—');
+    const mpEl = document.getElementById('char-mp');
+    if (mpEl) {
+      const cur = (gd.character && Number.isFinite(Number(gd.character.mp))) ? Number(gd.character.mp) : 0;
+      const max = (gd.attributes && Number(gd.attributes['智力'])) ? Number(gd.attributes['智力']) * 5 : 50;
+      mpEl.textContent = cur + '/' + max;
+    }
+    const acEl = document.getElementById('char-ac');
+    if (acEl) acEl.textContent = (gd.character && Number.isFinite(Number(gd.character.ac))) ? Number(gd.character.ac) : '—';
     document.getElementById('gold-text').textContent = gd.currency.gold;
     document.getElementById('fate-points').textContent = gd.fatePoints.current + '/' + gd.fatePoints.max;
     // 顶栏时间（随命令引擎的 gameTime 同步）；位置在角色信息面板（据点 + 具体场所）
