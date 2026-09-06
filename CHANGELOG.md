@@ -94,6 +94,14 @@
 - 协议注入：「输出格式」新增「记忆账本块」章节（常驻）+「数据同步协议」边界条款（账本块不属于命令白名单，防与命令引擎冲突）；转换器重跑（128 文件 / 完整度 90/100 不变）
 - 测试：tools-test-story-engine.js 21→38 项全过；既有四套测试回归通过
 
+### 封面视觉批：全屏卷宗 + 断剑模糊背景 + 高对比功能键（2026-09-06）
+
+- **设置页快照残留修复**：移除 h1 与 api-feedback 上浏览器快照导出的内联几何（width:616px 等）——消除手机端标题偏右与文档横向溢出（scrollWidth 688→≤视口）；新增 `<meta name="color-scheme" content="only light">` + `:root{color-scheme:only light}`，阻止移动浏览器"强制深色"改写羊皮纸配色
+- **封面全屏铺满**：新增 fullbleed-cover-style 补丁——body 去 20px 内边距，book-cover 去 720px 上限改 `min-height:var(--app-height,100vh)` + flex 拉伸羊皮纸；首页内容垂直居中；页脚说明（ALPHA 行）从封面外移入羊皮纸底部（深底浅字改纸面墨字）；登记册嵌套封面 `min-height:0` 防双重滚动；游戏视图不受影响（#view-game 为 position:fixed + ID 级 display 规则，flex 覆盖对其无效）
+- **断剑插画模糊背景**：#view-home 新增 cover-bg 层（absolute inset:0 + overflow:hidden 裁剪），::before 超尺寸（inset:-16px）铺 `img/ui/cover-02-broken-sword.png`（center/cover）+ `blur(2px)`，层 opacity 0.4；防模糊边缘透明渗边；标题/按钮浮于其上（层级 0 < 烛光/边框 2 < 角饰 3 < 内容 5）
+- **首页功能键高对比**：`#view-home .btn` 深皮底金字（配色对齐游戏内抽屉按钮），primary 金调皮革 + 金色光晕，hover 亮金边框 + 辉光，禁用态 opacity 0.4 保留；作用域限首页，设置/指南等页按钮维持原羊皮纸风格
+- **验证（浏览器真实重载断言，390×844 / 477×862 / 1280×900）**：封面与视口 1:1 铺满、无横向溢出、路由显隐无泄漏、游戏视图 fixed 隔离（active 时仍 block+fixed 全屏）、背景层计算样式与图片加载、四键计算样式（深皮底/金字/禁用透明度）
+
 ---
 
 ## ✅ v2.0.0-alpha - 记忆系统 2.0 + 身份体系 + 体验批（2026-09-05）

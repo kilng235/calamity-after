@@ -2,11 +2,13 @@
 <html lang="zh-CN"><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="color-scheme" content="only light">
 <title>灾厄之后·重制版</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Cinzel+Decorative:wght@400;700&family=Noto+Serif+SC:wght@400;700&display=swap');
 
   :root{
+    color-scheme:only light; /* 声明仅支持浅色主题，阻止移动浏览器"强制深色"改写羊皮纸配色 */
     --parchment:#d8c8a0;
     --parchment-dark:#c4b088;
     --parchment-light:#e8dcc0;
@@ -1855,6 +1857,7 @@
 
   <!-- ═══ 页面：封面（首页） ═══ -->
   <section id="view-home" class="page">
+    <div class="cover-bg"></div>
     <div class="candle-glow"></div>
     <div class="manuscript-border"></div>
     <div class="corner-ornament tl">✦</div><div class="corner-ornament tr">✦</div>
@@ -1877,6 +1880,7 @@
         <a href="#" class="btn" data-route="help" data-ripple-bound="1">? 冒险指南</a>
       </div>
     </div>
+    <div class="footer-note">灾厄之后 · 重制版独立项目 · ALPHA</div>
   </section>
 
 <!-- ═══ 视图：登记册（内嵌 register.html，含 Page 1-3） ═══ -->
@@ -2402,6 +2406,39 @@
   }
 </style>
 
+<style id="cover-bg-style">
+/* ── 封面背景：断剑插画模糊化铺底，标题/按钮浮于其上 ──
+   外层裁剪 + 内层负 inset 超尺寸，防止模糊在羊皮纸边缘露出透明边 */
+.cover-bg{
+  position:absolute;inset:0;overflow:hidden;z-index:0;
+  pointer-events:none;opacity:0.4;
+}
+.cover-bg::before{
+  content:'';position:absolute;inset:-16px;
+  background:url('img/ui/cover-02-broken-sword.png') center/cover no-repeat;
+  filter:blur(2px);
+}
+/* ── 首页功能键：深皮底金字，与背景插画拉开对比（配色对齐游戏内抽屉按钮）── */
+#view-home .btn{
+  background:linear-gradient(180deg,rgba(60,42,18,0.85) 0%,rgba(38,26,12,0.9) 100%);
+  color:#f0e0c0;
+  text-shadow:0 1px 2px rgba(0,0,0,0.65);
+  box-shadow:0 2px 10px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,220,150,0.18);
+}
+#view-home .btn:hover{
+  background:linear-gradient(180deg,rgba(82,59,27,0.92) 0%,rgba(54,37,17,0.95) 100%);
+  color:var(--gold-light);
+  border-color:var(--gold-bright);
+  box-shadow:0 2px 14px rgba(0,0,0,0.55),0 0 12px var(--gold-glow),inset 0 1px 0 rgba(255,220,150,0.22);
+}
+#view-home .btn.primary{
+  border-color:var(--gold-bright);
+  color:var(--gold-light);
+  background:linear-gradient(180deg,rgba(122,90,28,0.9) 0%,rgba(84,60,18,0.94) 100%);
+  box-shadow:0 2px 12px rgba(0,0,0,0.5),0 0 14px rgba(184,148,42,0.35),inset 0 1px 0 rgba(255,220,150,0.25);
+}
+</style>
+
 <style id="mobile-adaptive-style">
   /* ── 自适应：抽屉按钮默认隐藏（绝对定位不被空间计算），窄屏（≤900px）放回顶栏 flex 流 ── */
   /* 装饰图与冗余次要元素：空间足够才显示（通过 :has 与 max-width 双向控制见下） */
@@ -2477,6 +2514,31 @@
   }
 </style>
 
+<style id="fullbleed-cover-style">
+/* ═══ 全页卷宗布局：封面铺满视口、页脚并入羊皮纸 ═══
+   游戏视图不受影响：#view-game 为 position:fixed + ID 特异性 display 规则，
+   本块的类级 flex/display 覆盖对其无效。 */
+body{padding:0}
+.book-cover{
+  max-width:none;width:100%;margin:0;border-radius:0;
+  min-height:var(--app-height,100vh);
+  display:flex;flex-direction:column;
+}
+.book-cover .book-cover{min-height:0} /* 嵌套封面（登记册）不再自带视口高，避免双重滚动 */
+.book-cover > .page{flex:1 0 auto}
+.book-cover > .view.active{display:flex;flex-direction:column}
+.book-cover > .view.active > .page{flex:1 0 auto}
+.book-cover > .view.active > .book-cover{flex:1 0 auto;display:flex;flex-direction:column}
+.book-cover > .view.active > .book-cover > .page{flex:1 0 auto}
+/* 首页：羊皮纸撑满后内容垂直居中 */
+#view-home.page.active{display:flex;flex-direction:column;justify-content:center}
+/* 页脚说明：从封面外移入羊皮纸底部（深底浅字改为纸面墨字） */
+#view-home .footer-note{
+  position:absolute;left:0;right:0;bottom:12px;
+  margin:0;color:rgba(74,56,32,0.5);z-index:5;
+}
+</style>
+
 <!-- 用 <script> 同步加载 IIFE 模块（不依赖 ES module 上下文） -->
 
 
@@ -2525,7 +2587,7 @@
       <div class="corner-ornament bl">✦</div><div class="corner-ornament br">✦</div>
       <div style="position:relative;z-index:5;">
         <div class="deco-line">─── ✦ ───</div>
-        <h1 style="width: 616px; height: 37.7969px;">⚙ 卷宗设置</h1><div class="subtitle" style="">—— Arcanum Configuratum ——</div>
+        <h1>⚙ 卷宗设置</h1><div class="subtitle" style="">—— Arcanum Configuratum ——</div>
         
         <hr class="divider" style="">
 
@@ -2563,7 +2625,7 @@
         <button type="button" class="inline-btn" onclick="testConnection()" style="">⚡ 测试连接</button>
         <button type="button" class="inline-btn" onclick="togglePreset()" style="">⌘ 切换设置</button>
         <div id="preset-container" style="display:none"></div>
-        <div class="feedback" id="api-feedback" style="width: 616px; height: 20px; transform: matrix(1, 0, 0, 1, 0, -1.1875);"></div>
+        <div class="feedback" id="api-feedback"></div>
 
         
         <button type="button" class="inline-btn" onclick="sendTestMsg()" style="">📨 发送测试消息</button><div class="feedback" id="test-result" style="min-height: 2.6em;"></div>
@@ -2727,8 +2789,6 @@
     </div>
   </section>
 </div>
-
-<div class="footer-note">灾厄之后 · 重制版独立项目 · ALPHA</div>
 
 <script>
 'use strict';
