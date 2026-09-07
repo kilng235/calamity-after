@@ -111,7 +111,7 @@ export const ALCHEMY_RECIPES = {
     tier: 1,
     category: '恢复',
     dc: 10,
-    basePrice: 2,
+    basePrice: 3,
     baseEffect: '治疗 20 HP',
     materials: { '草药': 2, '净化苔藓': 1 },
     note: '弱 10 / 强 40 或附再生',
@@ -124,7 +124,7 @@ export const ALCHEMY_RECIPES = {
     tier: 2,
     category: '恢复',
     dc: 15,
-    basePrice: 25,
+    basePrice: 35.2,
     baseEffect: '治疗 40 HP',
     materials: { '草药': 5, '魔力精华': 1, '清水': 1 },
     note: '二阶',
@@ -137,7 +137,7 @@ export const ALCHEMY_RECIPES = {
     tier: 3,
     category: '恢复',
     dc: 20,
-    basePrice: 80,
+    basePrice: 140,
     baseEffect: '治疗 100 HP',
     materials: { '稀有草药': 3, '魔力结晶': 2, '圣水': 1 },
     note: '三阶，决战备药',
@@ -150,7 +150,7 @@ export const ALCHEMY_RECIPES = {
     tier: 1,
     category: '恢复',
     dc: 10,
-    basePrice: 1,
+    basePrice: 2,
     baseEffect: '解除中毒·瘴气',
     materials: { '蛇胆': 1, '解毒药草': 1 },
     note: '强可提前免疫短暂',
@@ -163,7 +163,7 @@ export const ALCHEMY_RECIPES = {
     tier: 1,
     category: '恢复',
     dc: 10,
-    basePrice: 1.5,
+    basePrice: 3,
     baseEffect: '短时免除疲劳劣势',
     materials: { '力量草': 1, '兽骨萃取': 1 },
     note: '完美可延时效',
@@ -178,7 +178,7 @@ export const ALCHEMY_RECIPES = {
     tier: 1,
     category: '法力',
     dc: 10,
-    basePrice: 5,
+    basePrice: 50,
     baseEffect: '恢复 5 法力值',
     materials: { '魔力结晶': 1 },
     note: '一阶，日常应急',
@@ -191,7 +191,7 @@ export const ALCHEMY_RECIPES = {
     tier: 2,
     category: '法力',
     dc: 15,
-    basePrice: 25,
+    basePrice: 51,
     baseEffect: '恢复 15 法力值',
     materials: { '魔力结晶': 1, '草药': 1 },
     note: '二阶，战前准备',
@@ -204,7 +204,7 @@ export const ALCHEMY_RECIPES = {
     tier: 2,
     category: '法力',
     dc: 15,
-    basePrice: 80,
+    basePrice: 100,
     baseEffect: '恢复 30 法力值',
     materials: { '能量矿石': 1 },
     note: '二阶高，战役级',
@@ -217,7 +217,7 @@ export const ALCHEMY_RECIPES = {
     tier: 3,
     category: '法力',
     dc: 20,
-    basePrice: 200,
+    basePrice: 830,
     baseEffect: '恢复全部法力值',
     materials: { '能量晶簇': 2, '魔力精华': 1 },
     note: '三阶，决战/剧情高潮',
@@ -232,7 +232,7 @@ export const ALCHEMY_RECIPES = {
     tier: 1,
     category: '增益',
     dc: 10,
-    basePrice: 5,
+    basePrice: 2,
     baseEffect: '力量相关检定获优势（有限时）',
     materials: { '力量草': 1, '兽骨': 1 },
     note: '',
@@ -245,7 +245,7 @@ export const ALCHEMY_RECIPES = {
     tier: 2,
     category: '增益',
     dc: 15,
-    basePrice: 5,
+    basePrice: 10,
     baseEffect: '疗伤 + 4~6 小时体力回复',
     materials: { '银叶': 1 },
     note: '精灵工艺代表',
@@ -258,7 +258,7 @@ export const ALCHEMY_RECIPES = {
     tier: 1,
     category: '增益',
     dc: 10,
-    basePrice: 3,
+    basePrice: 2,
     baseEffect: '暗视 4 小时',
     materials: { '荧光苔藓': 1, '暗视草药': 1 },
     note: '深坑探索标配',
@@ -271,7 +271,7 @@ export const ALCHEMY_RECIPES = {
     tier: 2,
     category: '增益',
     dc: 12,
-    basePrice: 3.5,
+    basePrice: 1.6,
     baseEffect: '敏捷相关检定获优势（有限时）',
     materials: { '灵藤': 1, '鸟羽': 1 },
     note: '',
@@ -286,7 +286,7 @@ export const ALCHEMY_RECIPES = {
     tier: 1,
     category: '战斗',
     dc: 10,
-    basePrice: 3,
+    basePrice: 6,
     baseEffect: '命中即时 1d4 燃烧 / 范围爆燃',
     materials: { '硫磺矿': 1 },
     note: '掷投，中断附「燃烧」',
@@ -299,7 +299,7 @@ export const ALCHEMY_RECIPES = {
     tier: 1,
     category: '战斗',
     dc: 10,
-    basePrice: 2,
+    basePrice: 6,
     baseEffect: '遮蔽视线 / 脱战',
     materials: { '硫磺矿': 1 },
     note: '',
@@ -312,7 +312,7 @@ export const ALCHEMY_RECIPES = {
     tier: 2,
     category: '战斗',
     dc: 15,
-    basePrice: 4,
+    basePrice: 32,
     baseEffect: '命中挂「麻痹」状态',
     materials: { '晶壳蝎毒液': 1, '石蜈蚣毒腺': 1 },
     note: '',
@@ -338,7 +338,7 @@ export const ALCHEMY_RECIPES = {
     tier: 1,
     category: '战斗',
     dc: 12,
-    basePrice: 3,
+    basePrice: 1.6,
     baseEffect: '淬毒：命中附加中毒 DoT',
     materials: { '毒液': 1, '油脂': 1 },
     note: '',
@@ -353,7 +353,7 @@ export const ALCHEMY_RECIPES = {
     tier: 2,
     category: '介质',
     dc: 15,
-    basePrice: 8,
+    basePrice: 66,
     baseEffect: '卷轴书写 / 施法媒介',
     materials: { '魔力结晶': 1, '晶壳蝎毒液': 1 },
     note: '',
@@ -366,10 +366,10 @@ export const ALCHEMY_RECIPES = {
     tier: 1,
     category: '介质',
     dc: 10,
-    basePrice: 0.3,                     // 3 银币 = 0.3 金（1 金 = 10 银）
+    basePrice: 31,
     baseEffect: '照明 / 信号',
     materials: { '荧光苔藓': 1, '磷光菌核': 1 },
-    note: '经济条目已有价',
+    note: '含磷光菌核成本',
     rare: false,
     commissionNPC: null,
     commissionFaction: null,
@@ -379,7 +379,7 @@ export const ALCHEMY_RECIPES = {
     tier: 1,
     category: '介质',
     dc: 10,
-    basePrice: 1.5,
+    basePrice: 1,
     baseEffect: '净水 / 去毒',
     materials: { '净化苔藓': 1 },
     note: '',
@@ -600,22 +600,14 @@ class AlchemySystem {
       return { success: false, error: '材料不足' };
     }
 
-    // 计算双口径材料成本
-    //   materialCost  = 材料真实价之和（来自 materialSystem.calculateRealMaterialCost）
-    //   referenceCost = 成品基准价 ÷ 2（旧规则口径，保留作参考）
-    const costBreakdown = materialSystem.calculateRealMaterialCost(recipe.materials);
-    const materialCost = costBreakdown.cost;
-    const referenceCost = this.calculateMaterialCost(recipe.basePrice);
+    // 自炼成本按世界书规则：成品基准价 ÷ 2（与「炼金规则.yaml」一致）
+    // 注：calculateRealMaterialCost 仍存在，作为诊断工具与 NPC 经济计算用；
+    //     但 brewPotion 的玩家扣费口径遵循世界书规则，不按材料价推导
+    const materialCost = this.calculateMaterialCost(recipe.basePrice);
 
-    // 检查金币（按真实成本，更严格）
+    // 检查金币
     if ((character.gold || 0) < materialCost) {
-      return {
-        success: false,
-        error: '金币不足',
-        required: materialCost,
-        referenceCost,
-        costSource: materialCost > 0 ? 'real' : 'reference'
-      };
+      return { success: false, error: '金币不足', required: materialCost };
     }
 
     // 执行炼金检定
@@ -633,8 +625,6 @@ class AlchemySystem {
         checkResult,
         result: ALCHEMY_RESULT.CRITICAL_FAILURE,
         materialCost,
-        referenceCost,
-        costSource: 'real',
         accidentItem: {
           name: `事故物·${recipeName}`,
           flaw: flaw.name,
@@ -653,8 +643,6 @@ class AlchemySystem {
         checkResult,
         result: ALCHEMY_RESULT.FAILURE,
         materialCost,
-        referenceCost,
-        costSource: 'real',
         message: '炼制失败，材料全损，无产出'
       };
     }
@@ -673,8 +661,6 @@ class AlchemySystem {
       strength: strengthResult,
       grade: checkResult.grade,
       materialCost,
-      referenceCost,
-      costSource: 'real',
       message: `炼制成功！品质：${checkResult.grade}，药效：${strengthResult.finalStrength}`
     };
   }
