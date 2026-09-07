@@ -21,6 +21,8 @@ import {
   START_LOCATION
 } from './travel-tables.js';
 
+import { rollEncounter } from './encounter-system.js';
+
 export { START_LOCATION };
 
 /**
@@ -122,24 +124,34 @@ export function travelTo(destination, character) {
     progress.unlockedLocations.push(destination);
   }
 
+  // 路途遭遇判定（第一期纯叙事：概率→抽怪→偷袭轻惩罚）
+  const encounter = rollEncounter(route, effectiveDanger, nightTravel, character);
+
   return {
     success: true,
     route,
     effectiveDanger,
     nightTravel,
     arrivedAt,
-    encounterHint: buildEncounterHint(route, effectiveDanger, nightTravel),
+    encounter,
+    encounterHint: buildEncounterHint(route, effectiveDanger, nightTravel, encounter),
     newLocation: destination
   };
 }
 
 /**
- * 构造叙事提示（供 prompt-builder 注入；遭遇系统落地前为纯文本）
+ * 构造叙事提示（供 prompt-builder 注入）
+ * 有遭遇时以遭遇描述为主体；无遭遇时为纯赶路提示
  */
-function buildEncounterHint(route, effectiveDanger, nightTravel) {
+function buildEncounterHint(route, effectiveDanger, nightTravel, encounter) {
   const parts = [`路线：${route.from} → ${route.to}（约 ${route.hours} 小时）`,
-                 `危险等级：${effectiveDanger}`,
-                 route.note];
+                 `危险等级：${effectiveDanger}`];
+  if (encounter) {
+    parts.push(encounter.narrative);
+  } else {
+    parts.push(route.note);
+    parts.push('本段路途无遭遇，写赶路叙事（风景/气氛/路标），不强行插入战斗');
+  }
   if (nightTravel) parts.push('⚠️ 夜间赶路，危险上升，叙事应体现紧张感与视野受限');
   return parts.join('；');
 }

@@ -645,6 +645,101 @@ const attrSysYaml = fs.readFileSync(path.join(ROOT, 'data-source/世界书/系�
   check('8k. advanceGameTime 跨年进位：300/12/30 23:30 +60min → 301/1/1 00:30',
     gt.year === 301 && gt.month === 1 && gt.day === 1 && gt.hour === 0 && gt.minute === 30);
 
+  // ============ 路途遭遇系统（encounter-pools + encounter-system） ============
+  const encPools = await import('./module/encounter-pools.js');
+  const encSys = await import('./module/encounter-system.js');
+
+  // 8l. 池结构契约：锈钉镇空池 / 剧情级生物不进池 / 31 生物中 ≥26 进池 / 池条目字段完整
+  const allPoolEntries = Object.values(encPools.ENCOUNTER_POOLS).flat();
+  const poolCreatures = new Set(allPoolEntries.map(e => e.creature));
+  const storyAbsent = encPools.STORY_ONLY_CREATURES.every(c => !poolCreatures.has(c));
+  const entriesValid = allPoolEntries.every(e =>
+    e.creature && e.weight > 0 && e.count && e.threat);
+  check('8l. 遭遇池：锈钉镇空池 + 剧情级（深空行者/灾厄龙蜥）不进池 + ' + allPoolEntries.length + ' 条目字段完整',
+    encPools.ENCOUNTER_POOLS['锈钉镇'].length === 0 &&
+    storyAbsent && entriesValid && allPoolEntries.length >= 26);
+
+  // 8m. 概率分布：极高 danger 1000 次 → 遭遇率 ≈70%±15；无遭遇时返回 null
+  let occurredCount = 0;
+  const abyssRoute = travelTables.findRoute('锈钉镇', '深渊裂隙');
+  for (let i = 0; i < 1000; i++) {
+    if (encSys.rollEncounter(abyssRoute, '极高', false, tChar) !== null) occurredCount++;
+  }
+  check('8m. 极高 danger 1000 次：遭遇率 ' + occurredCount / 10 + '%（期望 70±15）',
+    Math.abs(occurredCount - 700) < 150);
+
+  // 8n. 低 danger 1000 次：遭遇率 ≈10%±8
+  let lowCount = 0;
+  const ashRoute = travelTables.findRoute('锈钉镇', '灰烬森林');
+  for (let i = 0; i < 1000; i++) {
+    if (encSys.rollEncounter(ashRoute, '低', false, tChar) !== null) lowCount++;
+  }
+  check('8n. 低 danger 1000 次：遭遇率 ' + lowCount / 10 + '%（期望 10±8）',
+    Math.abs(lowCount - 100) < 80);
+
+  // 8o. 灰烬森林池 1000 次抽样：灰烬狼 ≈30% 且全部是世界书生物名
+  let wolfCount = 0, invalidCreature = 0;
+  const ashPool = encPools.ENCOUNTER_POOLS['灰烬森林'];
+  const ashNames = new Set(ashPool.map(e => e.creature));
+  for (let i = 0; i < 1000; i++) {
+    const e = encSys.rollOneEncounter(ashPool);
+    if (e.creature === '灰烬狼') wolfCount++;
+    if (!ashNames.has(e.creature)) invalidCreature++;
+  }
+  check('8o. 灰烬森林池 1000 次：灰烬狼 ' + wolfCount / 10 + '%（期望 30±12）+ 0 池外生物',
+    Math.abs(wolfCount - 300) < 120 && invalidCreature === 0);
+
+  // 8p. 数量表达式：灰烬狼 '2d3' ∈ [2,6]；独行生物 '1' = 1
+  let wolfRangeOk = true;
+  for (let i = 0; i < 100; i++) {
+    const c = encSys.parseCount('2d3');
+    if (c < 2 || c > 6) { wolfRangeOk = false; break; }
+  }
+  check('8p. 数量表达式：\'2d3\' ∈ [2,6]（100 次采样）+ \'1\' = 1',
+    wolfRangeOk && encSys.parseCount('1') === 1);
+
+  // 8q. 偷袭检定：100 次结果在合法范围；夜路 DC10 比白天 DC12 更容易通过
+  let stealthLegal = true, dayPass = 0, nightPass = 0;
+  for (let i = 0; i < 200; i++) {
+    const s = encSys.rollStealthCheck({ attributes: { '敏捷': 10 } }, false);
+    if (s.roll < 1 || s.roll > 20 || s.dc !== 12) stealthLegal = false;
+    if (s.success) dayPass++;
+    const sn = encSys.rollStealthCheck({ attributes: { '敏捷': 10 } }, true);
+    if (sn.dc !== 10) stealthLegal = false;
+    if (sn.success) nightPass++;
+  }
+  check('8q. 偷袭检定：字段合法 + 夜路 DC10 通过率(' + nightPass + ') > 白天 DC12 通过率(' + dayPass + ')（敏捷10）',
+    stealthLegal && nightPass > dayPass);
+
+  // 8r. travelTo 集成：encounter 字段存在（null 或完整对象）+ hint 含遭遇/无遭遇语义
+  const tCharE = base();
+  tCharE.gameTime = { year: 300, month: 11, day: 12, hour: 7, minute: 10 };
+  tCharE.progress = { currentLocation: '锈钉镇', unlockedLocations: ['锈钉镇'] };
+  let encShapeOk = true, encSeen = false, noEncSeen = false;
+  for (let i = 0; i < 50 && !(encSeen && noEncSeen); i++) {
+    tCharE.progress.currentLocation = '锈钉镇';   // 重置位置反复旅行
+    tCharE.progress.unlockedLocations = ['锈钉镇'];
+    const r = travelSys.travelTo('灰烬森林', tCharE);
+    if (r.encounter === null) {
+      noEncSeen = true;
+      if (!/无遭遇/.test(r.encounterHint)) encShapeOk = false;
+    } else if (r.encounter && r.encounter.occurred) {
+      encSeen = true;
+      if (!/路途遭遇/.test(r.encounterHint) || !r.encounter.creature) encShapeOk = false;
+    }
+  }
+  check('8r. travelTo 集成：encounter 形状完整 + hint 双语义（遭遇/无遭遇）都出现过',
+    encShapeOk && encSeen && noEncSeen);
+
+  // 8s. extraPool 生效：锈钉镇→深渊裂隙 200 次命中后，裂隙犬（extraPool）应出现
+  let riftHoundSeen = false;
+  for (let i = 0; i < 200 && !riftHoundSeen; i++) {
+    const e = encSys.rollEncounter(abyssRoute, '极高', false, tChar);
+    if (e && e.creature === '裂隙犬') riftHoundSeen = true;
+  }
+  check('8s. extraPool 生效：锈钉镇→深渊裂隙 200 次内出现裂隙犬（extraPool 注入成功）',
+    riftHoundSeen);
+
   console.log('\n' + (fail === 0 ? '✅ 全部通过（' + pass + ' 项）' : '❌ 失败 ' + fail + ' 项 / 通过 ' + pass + ' 项'));
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error('测试执行异常:', e); process.exit(1); });

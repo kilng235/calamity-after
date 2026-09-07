@@ -35,16 +35,22 @@ export const TRAVEL_ROUTES = [
   { from: '锈钉镇',     to: '龙骨山脉',   hours: 8,  danger: '中',   note: '北上矿道，自由佣兵联盟采矿队路线' },
   { from: '锈钉镇',     to: '旧王城废墟', hours: 10, danger: '中高', note: '东南官道，临近废墟迷雾渐浓，建议雇佣向导' },
   { from: '锈钉镇',     to: '迷雾沼泽',   hours: 6,  danger: '中',   note: '南下小径，需备浸药面罩遮挡瘴气' },
-  { from: '锈钉镇',     to: '深渊裂隙',   hours: 12, danger: '高',   note: '北山险道，穿越龙骨山脉北部，建议考察队引路' },
+  { from: '锈钉镇',     to: '深渊裂隙',   hours: 12, danger: '高',   note: '北山险道，穿越龙骨山脉北部，建议考察队引路',
+    extraPool: ['裂隙犬', '雪豹', '石甲虫'] },
 
   // ── 区域间连接（世界书明确关联）──
-  { from: '灰烬森林',   to: '魔法荒原',   hours: 4,  danger: '中高', note: '森林南接荒原，能量异常渐显，结晶反光可见' },
-  { from: '旧王城废墟', to: '魔法荒原',   hours: 3,  danger: '高',   note: '废墟以西即荒原，能量流与迷雾交界地带' },
-  { from: '旧王城废墟', to: '沉没之城',   hours: 12, danger: '中高', note: '经排水渠下潜，半日路程；需绳索与照明', requires: ['旧王城废墟'] },
+  { from: '灰烬森林',   to: '魔法荒原',   hours: 4,  danger: '中高', note: '森林南接荒原，能量异常渐显，结晶反光可见',
+    extraPool: ['废土掠夺者'] },
+  { from: '旧王城废墟', to: '魔法荒原',   hours: 3,  danger: '高',   note: '废墟以西即荒原，能量流与迷雾交界地带',
+    extraPool: ['废土掠夺者', '废土暴徒'] },
+  { from: '旧王城废墟', to: '沉没之城',   hours: 12, danger: '中高', note: '经排水渠下潜，半日路程；需绳索与照明', requires: ['旧王城废墟'],
+    extraPool: ['灰蛞蝓', '石蝠'] },
   { from: '龙骨山脉',   to: '遗忘修道院', hours: 2,  danger: '低',   note: '南麓石阶山路蜿蜒两公里' },
-  { from: '龙骨山脉',   to: '深渊裂隙',   hours: 6,  danger: '高',   note: '山脉北部向神陨之地过渡，变异生物出没' },
+  { from: '龙骨山脉',   to: '深渊裂隙',   hours: 6,  danger: '高',   note: '山脉北部向神陨之地过渡，变异生物出没',
+    extraPool: ['裂隙犬'] },
   { from: '深渊裂隙',   to: '地下裂谷',   hours: 1,  danger: '极高', note: '裂隙南缘地下通道入口，磷光菌核微光指路', requires: ['深渊裂隙'] },
-  { from: '迷雾沼泽',   to: '旧王城废墟', hours: 8,  danger: '中高', note: '暗流河通道，地下河汇入旧王城地下水系，需浮具' },
+  { from: '迷雾沼泽',   to: '旧王城废墟', hours: 8,  danger: '中高', note: '暗流河通道，地下河汇入旧王城地下水系，需浮具',
+    extraPool: ['瘴蚊', '灰蛞蝓'] },
 ];
 
 /**
