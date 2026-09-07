@@ -443,6 +443,57 @@ const attrSysYaml = fs.readFileSync(path.join(ROOT, 'data-source/世界书/系�
   check('7s. 自炼正收益：21 条非稀有配方 basePrice - ceil(bp/2) > materialSum（自炼赚钱）',
     negativeProfit.length === 0);
 
+  // ============ T4：采集接口 ============
+  const { GATHERING_TABLES, listGatheringLocations } = await import('./module/gathering-tables.js');
+
+  // 7t. parseAmount 骰子表达式：'1d3' ∈ [1,3] / '1' = 1 / '2d6' ∈ [2,12]
+  let parseOk = true;
+  for (let i = 0; i < 100; i++) {
+    const v = mSys.parseAmount('1d3');
+    if (v < 1 || v > 3) { parseOk = false; break; }
+  }
+  let parseOk2 = true;
+  for (let i = 0; i < 100; i++) {
+    const v = mSys.parseAmount('2d6');
+    if (v < 2 || v > 12) { parseOk2 = false; break; }
+  }
+  check('7t. parseAmount 骰子表达式：\'1d3\' ∈ [1,3] / \'2d6\' ∈ [2,12] / \'1\' = 1',
+    parseOk && parseOk2 && mSys.parseAmount('1') === 1);
+
+  // 7u. 1000 次灰烬森林模拟：草药 ~40% / 祖母绿 ~1% / 全部在 MATERIALS
+  let herbCount = 0, emeraldCount = 0, invalidCount = 0;
+  const forestTable = GATHERING_TABLES['地理/灰烬森林'];
+  for (let i = 0; i < 1000; i++) {
+    const { entry } = mSys.rollOneGather(forestTable.materials);
+    if (entry.name === '草药') herbCount++;
+    if (entry.name === '祖母绿') emeraldCount++;
+    if (!MATERIALS[entry.name]) invalidCount++;
+  }
+  check('7u. 1000 次模拟：草药 ~40% (期望 400±100) + 祖母绿 ~1% (期望 10±10) + 0 无效材料',
+    Math.abs(herbCount - 400) < 100 &&
+    Math.abs(emeraldCount - 10) < 10 &&
+    invalidCount === 0);
+
+  // 7v. 采集 + 冷却：首次成功 + 立即二次调用失败 + cooldownRemaining > 0
+  const gatherChar = base();
+  gatherChar.gameTime = { year: 300, month: 11, day: 12, hour: 7, minute: 10 };
+  gatherChar.inventory = [];
+  const g1 = mSys.gatherMaterials('地理/灰烬森林', gatherChar);
+  const g2 = mSys.gatherMaterials('地理/灰烬森林', gatherChar);  // 立即再调用
+  check('7v. 采集冷却：首次成功 + 立即二次调用失败 + cooldownRemaining > 0 + 背包有材料',
+    g1.success === true && g1.materials.length > 0 &&
+    g2.success === false && g2.cooldownRemaining > 0 &&
+    gatherChar.inventory.length > 0);
+
+  // 7w. 未知采集点 → error
+  check('7w. gatherMaterials 未知采集点 → success: false + error',
+    mSys.gatherMaterials('地理/不存在的地点', gatherChar).success === false);
+
+  // 7x. listGatheringLocations 至少 1 个（灰烬森林）
+  check('7x. listGatheringLocations 返回 ≥1 个注册采集点',
+    listGatheringLocations().length >= 1 &&
+    listGatheringLocations().includes('地理/灰烬森林'));
+
   // 7r. 经济平衡断言：所有非稀有配方的 basePrice ≥ materialSum（自炼不亏本）
   //     容忍 1 金以内的舍入误差；稀有配方不校验（commissionNPC 议价）
   const balanceImbalanced = [];

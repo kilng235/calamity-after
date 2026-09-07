@@ -1,13 +1,15 @@
 /**
  * 矿物与材料系统 - 灾厄之后独立版
  * 基于世界书矿物与材料总纲.yaml
- * 
+ *
  * 核心功能：
  * - 31种材料定义（价格/单位/档位/作用）
  * - 材料分类（矿石/宝石/燃料/魔法介质/灾厄材料）
  * - 材料获取/消耗/交易接口
  * - 与锻造/炼金/词缀系统集成
  */
+
+import { GATHERING_TABLES } from './gathering-tables.js';
 
 // ============== 材料档位 ==============
 
@@ -756,6 +758,165 @@ class MaterialSystem {
   isRestricted(materialName) {
     const material = MATERIALS[materialName];
     return material?.restricted || false;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // 采集接口（T4：gatherMaterials）
+  // ═══════════════════════════════════════════════════════════
+
+  /**
+   * 解析骰子表达式（如 '1d3' / '2d4' / '1'）→ 整数
+   * @param {string|number} expr
+   * @returns {number}
+   */
+  parseAmount(expr) {
+    if (typeof expr === 'number') return expr;
+    if (typeof expr !== 'string') return 1;
+    const m = expr.match(/^(\d+)d(\d+)$/i);
+    if (m) {
+      const count = parseInt(m[1], 10);
+      const sides = parseInt(m[2], 10);
+      return this.rollAmount(count, sides);
+    }
+    const n = parseInt(expr, 10);
+    return isNaN(n) ? 1 : n;
+  }
+
+  /**
+   * 掷骰（封装，便于测试覆盖）
+   * @param {number} count - 骰子数
+   * @param {number} sides - 面数
+   * @returns {number} 总和
+   */
+  rollAmount(count, sides) {
+    let total = 0;
+    for (let i = 0; i < count; i++) {
+      total += Math.floor(Math.random() * sides) + 1;
+    }
+    return total;
+  }
+
+  /**
+   * 按权重从材料表中抽取一种
+   * @param {Array<{name, weight, amount}>} entries
+   * @returns {{name, amount, entry}}
+   */
+  rollOneGather(entries) {
+    const totalWeight = entries.reduce((s, e) => s + e.weight, 0);
+    let r = Math.random() * totalWeight;
+    for (const e of entries) {
+      r -= e.weight;
+      if (r <= 0) {
+        return { entry: e, amount: this.parseAmount(e.amount) };
+      }
+    }
+    // 浮点兜底（极小概率）
+    const fallback = entries[entries.length - 1];
+    return { entry: fallback, amount: this.parseAmount(fallback.amount) };
+  }
+
+  /**
+   * 检查采集点是否在冷却中
+   * @param {Object} character
+   * @param {string} locationKey
+   * @param {number} cooldownMinutes - 冷却分钟数（游戏内时间）
+   * @returns {boolean}
+   *
+   * 冷却存于 character.gatherCooldowns[locationKey] = lastGatherAt（游戏内分钟数）
+   * 调用方需在 gameTime 推进时同步当前分钟数
+   */
+  isGatherOnCooldown(character, locationKey, cooldownMinutes) {
+    const cooldowns = character.gatherCooldowns || {};
+    const lastGatherAt = cooldowns[locationKey];
+    if (lastGatherAt === undefined) return false;
+    const currentMinute = this._currentGameMinute(character);
+    return (currentMinute - lastGatherAt) < cooldownMinutes;
+  }
+
+  /**
+   * 记录采集时间
+   */
+  recordGather(character, locationKey) {
+    if (!character.gatherCooldowns) character.gatherCooldowns = {};
+    character.gatherCooldowns[locationKey] = this._currentGameMinute(character);
+  }
+
+  /**
+   * 计算当前游戏时间分钟数（用于冷却比较）
+   * @private
+   */
+  _currentGameMinute(character) {
+    const t = character.gameTime || character;
+    if (typeof t.year !== 'number') return 0;
+    // 简化：按 60×24×30×12 进位（与 narrative-system.js 一致）
+    // 不依赖完整日历，仅用于相对冷却计算
+    const minutes = (t.year * 12 * 30 * 24 * 60)
+                  + ((t.month - 1) * 30 * 24 * 60)
+                  + ((t.day - 1) * 24 * 60)
+                  + (t.hour || 0) * 60
+                  + (t.minute || 0);
+    return minutes;
+  }
+
+  /**
+   * 采集材料
+   * @param {string} locationKey - '地理/灰烬森林' 等
+   * @param {Object} character - 角色（含 gameTime 字段）
+   * @param {Object} [options] - { rolls?: number } 一次采集掷几次（默认 1）
+   * @returns {{ success, materials?: [{name, amount}], error?, cooldownRemaining? }}
+   *
+   * 流程：
+   *   1. 查 GATHERING_TABLES
+   *   2. 冷却检查
+   *   3. 按 options.rolls 次数掷骰，每次 rollOneGather 选一种材料
+   *   4. 合并同名材料的数量
+   *   5. addMaterials 进背包
+   *   6. recordGather 记录冷却
+   */
+  gatherMaterials(locationKey, character, options = {}) {
+    const table = GATHERING_TABLES[locationKey];
+    if (!table) {
+      return { success: false, error: '未知采集点', locationKey };
+    }
+
+    // 冷却检查
+    if (this.isGatherOnCooldown(character, locationKey, table.cooldownMinutes)) {
+      const lastAt = character.gatherCooldowns?.[locationKey];
+      const currentMin = this._currentGameMinute(character);
+      const remaining = table.cooldownMinutes - (currentMin - lastAt);
+      return {
+        success: false,
+        error: '采集点尚未刷新',
+        cooldownRemaining: remaining,
+        locationKey
+      };
+    }
+
+    // 按权重掷 N 次
+    const rolls = options.rolls || 1;
+    const merged = {};      // { materialName: amount } for addMaterials
+    for (let i = 0; i < rolls; i++) {
+      const { entry, amount } = this.rollOneGather(table.materials);
+      merged[entry.name] = (merged[entry.name] || 0) + amount;
+    }
+
+    // 加入背包（addMaterials 接对象 {name: amount}）
+    this.addMaterials(character, merged);
+
+    // 转数组格式用于返回
+    const materials = Object.entries(merged).map(([name, amount]) => ({ name, amount }));
+
+    // 记录冷却
+    this.recordGather(character, locationKey);
+
+    return {
+      success: true,
+      materials,
+      location: locationKey,
+      locationKey,
+      rolls,
+      cooldownMinutes: table.cooldownMinutes
+    };
   }
 
   /**
