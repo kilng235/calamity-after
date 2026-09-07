@@ -315,19 +315,19 @@ const attrSysYaml = fs.readFileSync(path.join(ROOT, 'data-source/世界书/系�
     mpOk && effectNum(R['低阶法力药水'].baseEffect) === 5 && effectNum(R['高阶法力药水'].baseEffect) === 30);
 
   const legendWb = wbAlch('传奇法力药水');
-  check('7b. 传奇法力药水两侧都有（DC20/830金/全满，引擎旧缺已补）',
-    !!R['传奇法力药水'] && !!legendWb && R['传奇法力药水'].dc === 20 && R['传奇法力药水'].basePrice === 830
+  check('7b. 传奇法力药水两侧都有（DC20/1660金/全满，引擎旧缺已补）',
+    !!R['传奇法力药水'] && !!legendWb && R['传奇法力药水'].dc === 20 && R['传奇法力药水'].basePrice === 1660
     && /全部|全满/.test(R['传奇法力药水'].baseEffect) && /全满/.test(legendWb.effect));
 
   const strongWb = wbAlch('强效治疗药水');
-  check('7c. 强效治疗药水 40 HP 对齐（DC15/35.2金，校准到 2×materialSum）',
-    effectNum(R['强效治疗药水'].baseEffect) === 40 && !!strongWb && strongWb.dc === 15 && strongWb.price === 35.2
+  check('7c. 强效治疗药水 40 HP 对齐（DC15/71金，校准到 4×materialSum 保证正收益）',
+    effectNum(R['强效治疗药水'].baseEffect) === 40 && !!strongWb && strongWb.dc === 15 && strongWb.price === 71
     && effectNum(strongWb.effect) === 40);
 
   const superWb = wbAlch('超级治疗药水');
-  check('7d. 超级治疗药水两侧都有（100 HP/DC20/140金，校准到 2×materialSum）',
+  check('7d. 超级治疗药水两侧都有（100 HP/DC20/280金，校准到 4×materialSum 保证正收益）',
     !!R['超级治疗药水'] && !!superWb && R['超级治疗药水'].dc === 20
-    && R['超级治疗药水'].basePrice === 140 && effectNum(superWb.effect) === 100);
+    && R['超级治疗药水'].basePrice === 280 && effectNum(superWb.effect) === 100);
 
   // 7f. 类别字段已统一为世界书 6 类（旧「治疗/毒药/实用」已废弃命名不可残留）
   const expectedCategories = new Set(['恢复', '法力', '增益', '战斗', '介质', '稀有禁术']);
@@ -409,7 +409,7 @@ const attrSysYaml = fs.readFileSync(path.join(ROOT, 'data-source/世界书/系�
     hasMissing.missing[0] === '虚构材料');
 
   // 7q. brewPotion 按世界书规则扣费：materialCost = Math.ceil(basePrice/2)
-  //     治疗药水 basePrice=3 → Math.ceil(1.5) = 2，金币扣除按 2
+  //     治疗药水 basePrice=6 → cost = 3，金币扣除按 3
   const brewChar = base();
   brewChar.hp = { current: 100, max: 100 };
   brewChar.attributes['智力'] = 20;
@@ -421,10 +421,27 @@ const attrSysYaml = fs.readFileSync(path.join(ROOT, 'data-source/世界书/系�
   ];
   brewChar.gold = 5;
   const brewRes = alchMod.alchemySystem.brewPotion(brewChar, '治疗药水');
-  check('7q. brewPotion 按世界书规则：materialCost = Math.ceil(basePrice/2) = 2 + 金币扣除按 2',
+  check('7q. brewPotion 按世界书规则：materialCost = Math.ceil(basePrice/2) = 3 + 金币扣除按 3',
     brewRes.success === true &&
-    brewRes.materialCost === 2 &&
-    brewChar.gold === 5 - 2);  // 5 - 2 = 3
+    brewRes.materialCost === 3 &&
+    brewChar.gold === 5 - 3);  // 5 - 3 = 2
+
+  // 7s. 自炼正收益断言：每个非稀有配方，basePrice - ceil(basePrice/2) > materialSum
+  //     即"卖成品 - 自炼成本 - 买材料成本 > 0"，确保自炼是赚钱的
+  const negativeProfit = [];
+  for (const [name, r] of Object.entries(R)) {
+    if (r.rare) continue;
+    if (r.basePrice === null) continue;
+    const matSum = Object.entries(r.materials).reduce((s, [m, n]) =>
+      s + (MATERIALS[m]?.price || 0) * n, 0);
+    const cost = Math.ceil(r.basePrice / 2);
+    const profit = r.basePrice - cost - matSum;
+    if (profit <= 0) {
+      negativeProfit.push(`${name}: profit=${profit.toFixed(2)}`);
+    }
+  }
+  check('7s. 自炼正收益：21 条非稀有配方 basePrice - ceil(bp/2) > materialSum（自炼赚钱）',
+    negativeProfit.length === 0);
 
   // 7r. 经济平衡断言：所有非稀有配方的 basePrice ≥ materialSum（自炼不亏本）
   //     容忍 1 金以内的舍入误差；稀有配方不校验（commissionNPC 议价）
