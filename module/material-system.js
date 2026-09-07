@@ -110,6 +110,15 @@ export const MATERIALS = {
     narrative: '灰烬森林的遗骸',
     theme: '朴素'
   },
+  '扭曲木': {
+    price: 15,
+    unit: '段',
+    tier: MATERIAL_TIER.TIER_2_MID,
+    category: MATERIAL_CATEGORY.WOOD,
+    effect: '法杖杖身原料；结构异常坚韧，法杖用（叙事）',
+    narrative: '魔法荒原扭曲林的螺旋古木',
+    theme: '灵光'
+  },
 
   // ===== 二阶材料 =====
   '银矿石': {
@@ -217,7 +226,7 @@ export const MATERIALS = {
     tier: MATERIAL_TIER.TIER_2_MID,
     category: MATERIAL_CATEGORY.MAGICAL,
     effect: '法力药水基础原料（4 档法力药水配方共享）；法杖附魔 +1；施法媒介',
-    narrative: '浓缩的魔法能量晶体，魔法荒原特产',
+    narrative: '浓缩的魔法能量晶体',
     theme: '星辉'
   },
   '清水': {

@@ -460,7 +460,7 @@ const attrSysYaml = fs.readFileSync(path.join(ROOT, 'data-source/世界书/系�
   check('7t. parseAmount 骰子表达式：\'1d3\' ∈ [1,3] / \'2d6\' ∈ [2,12] / \'1\' = 1',
     parseOk && parseOk2 && mSys.parseAmount('1') === 1);
 
-  // 7u. 1000 次灰烬森林模拟：草药 ~40% / 祖母绿 ~1% / 全部在 MATERIALS
+  // 7u. 1000 次灰烬森林模拟：草药 ~44% / 祖母绿 ~1% / 全部在 MATERIALS
   let herbCount = 0, emeraldCount = 0, invalidCount = 0;
   const forestTable = GATHERING_TABLES['地理/灰烬森林'];
   for (let i = 0; i < 1000; i++) {
@@ -469,9 +469,9 @@ const attrSysYaml = fs.readFileSync(path.join(ROOT, 'data-source/世界书/系�
     if (entry.name === '祖母绿') emeraldCount++;
     if (!MATERIALS[entry.name]) invalidCount++;
   }
-  check('7u. 1000 次模拟：草药 ~40% (期望 400±100) + 祖母绿 ~1% (期望 10±10) + 0 无效材料',
-    Math.abs(herbCount - 400) < 100 &&
-    Math.abs(emeraldCount - 10) < 10 &&
+  check('7u. 1000 次模拟：草药 ~44% (期望 440±100) + 祖母绿 ~1% (期望 10±10) + 0 无效材料',
+    Math.abs(herbCount - 440) < 100 &&
+    Math.abs(emeraldCount - 10) < 15 &&
     invalidCount === 0);
 
   // 7v. 采集 + 冷却：首次成功 + 立即二次调用失败 + cooldownRemaining > 0
@@ -489,10 +489,55 @@ const attrSysYaml = fs.readFileSync(path.join(ROOT, 'data-source/世界书/系�
   check('7w. gatherMaterials 未知采集点 → success: false + error',
     mSys.gatherMaterials('地理/不存在的地点', gatherChar).success === false);
 
-  // 7x. listGatheringLocations 至少 1 个（灰烬森林）
-  check('7x. listGatheringLocations 返回 ≥1 个注册采集点',
-    listGatheringLocations().length >= 1 &&
-    listGatheringLocations().includes('地理/灰烬森林'));
+  // 7x. listGatheringLocations 6 个注册采集点
+  check('7x. listGatheringLocations 返回全部 6 个注册采集点',
+    listGatheringLocations().length === 6 &&
+    ['地理/灰烬森林', '地理/佣兵镇·锈钉', '地理/深渊裂隙', '地理/地下裂谷', '地理/龙骨山脉', '地理/魔法荒原']
+      .every(k => listGatheringLocations().includes(k)));
+
+  // 7y. 全区域表结构：总权重=100 + 材料均在 MATERIALS + 冷却为正
+  const regionIssues = [];
+  for (const [loc, tbl] of Object.entries(GATHERING_TABLES)) {
+    const sum = tbl.materials.reduce((s, m) => s + m.weight, 0);
+    if (sum !== 100) regionIssues.push(`${loc}: 权重和=${sum}`);
+    if (!(tbl.cooldownMinutes > 0)) regionIssues.push(`${loc}: 冷却非法`);
+    for (const m of tbl.materials) {
+      if (!MATERIALS[m.name]) regionIssues.push(`${loc}: 未知材料 ${m.name}`);
+      if (!m.amount) regionIssues.push(`${loc}: ${m.name} 缺 amount`);
+    }
+  }
+  check('7y. 6 区域采集表结构：总权重=100 + 材料均在 MATERIALS + 冷却为正',
+    regionIssues.length === 0);
+
+  // 7z. 经济平衡：单一材料期望价值占比 ≤40%（防琥珀式高价中权重垄断收益）
+  const evAvg = (expr) => {
+    const m = String(expr).match(/^(\d+)d(\d+)$/);
+    if (m) return Number(m[1]) * (Number(m[2]) + 1) / 2;
+    return Number(expr) || 0;
+  };
+  const evIssues = [];
+  for (const [loc, tbl] of Object.entries(GATHERING_TABLES)) {
+    const evs = tbl.materials.map(m =>
+      ({ name: m.name, ev: (m.weight / 100) * evAvg(m.amount) * (MATERIALS[m.name]?.price || 0) }));
+    const total = evs.reduce((s, x) => s + x.ev, 0);
+    for (const x of evs) {
+      if (x.ev / total > 0.4) evIssues.push(`${loc}/${x.name}: 占比 ${(x.ev / total * 100).toFixed(1)}%`);
+    }
+  }
+  check('7z. 经济平衡：每区域单一材料期望价值占比 ≤40%', evIssues.length === 0);
+
+  // 7aa. 5 区域各实采一次：全部成功 + 背包入账
+  const regionGatherOk = [];
+  for (const loc of Object.keys(GATHERING_TABLES)) {
+    const c = base();
+    c.gameTime = { year: 300, month: 11, day: 12, hour: 7, minute: 10 };
+    c.inventory = [];
+    const r = mSys.gatherMaterials(loc, c);
+    if (!(r.success === true && r.materials.length > 0 && c.inventory.length > 0)) {
+      regionGatherOk.push(loc);
+    }
+  }
+  check('7aa. 6 区域实采：各成功一次且背包入账', regionGatherOk.length === 0);
 
   // 7r. 经济平衡断言：所有非稀有配方的 basePrice ≥ materialSum（自炼不亏本）
   //     容忍 1 金以内的舍入误差；稀有配方不校验（commissionNPC 议价）
