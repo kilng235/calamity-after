@@ -369,6 +369,31 @@ const attrSysYaml = fs.readFileSync(path.join(ROOT, 'data-source/世界书/系�
   check('7k. 稀有禁术 ' + rareRecipesTier.length + ' 条：commissionNPC 已指 + 含 ≥ 2 阶材料',
     rareOk2 && rareRecipesTier.length === 3);
 
+  // ============ T2：收购价接口 ============
+  const { materialSystem } = await import('./module/material-system.js');
+  const mSys = materialSystem;
+
+  // 7l. 基础收购价：草药 0.5 金 × 0.5(公会收购) = 0.25 金
+  check('7l. getSellPrice 基础：草药 (0.5×0.5) = 0.25',
+    mSys.getSellPrice('草药') === 0.25);
+
+  // 7m. 偏远修饰：0.25 × 1.35 = 0.3375 → 0.34
+  check('7m. getSellPrice 偏远：草药 (0.25×1.35) = 0.34',
+    mSys.getSellPrice('草药', { remote: true }) === 0.34);
+
+  // 7n. 好感度修饰：冷淡×1.20 / 友好×1.0 / 信任×0.95 / 亲密×0.90
+  check('7n. getSellPrice 好感度 4 档（冷淡 0.30 / 友好 0.25 / 信任 0.24 / 亲密 0.23）',
+    mSys.getSellPrice('草药', { relationship: '冷淡' }) === 0.30 &&
+    mSys.getSellPrice('草药', { relationship: '友好' }) === 0.25 &&
+    mSys.getSellPrice('草药', { relationship: '信任' }) === 0.24 &&
+    mSys.getSellPrice('草药', { relationship: '亲密' }) === 0.23);
+
+  // 7o. 边界条件：未知材料 / restricted / amount 参数
+  check('7o. getSellPrice 边界：未知材料 → 0；灾厄金属 (restricted) → 0；草药 amount=5 → 1.25',
+    mSys.getSellPrice('不存在的材料') === 0 &&
+    mSys.getSellPrice('灾厄金属') === 0 &&
+    mSys.getSellPrice('草药', { amount: 5 }) === 1.25);
+
   const healed = alchMod.alchemySystem.usePotion(
     { mp: 10, maxMp: 50 },
     { brewed: true, name: '传奇法力药水', effect: '恢复全部法力值', category: '法力', effectValue: 10 }

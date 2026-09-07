@@ -425,7 +425,8 @@ export const MATERIALS = {
     category: MATERIAL_CATEGORY.CALAMITY,
     effect: '禁忌药剂配方原料；禁用于普通玩家锻造，需势力授权 / 杜兰代工',
     narrative: '灾厄深渊凝结的金属碎片，触碰有灼热感',
-    theme: '深渊'
+    theme: '深渊',
+    restricted: true
   },
   '禁忌材料': {
     price: 100,
@@ -434,7 +435,8 @@ export const MATERIALS = {
     category: MATERIAL_CATEGORY.CALAMITY,
     effect: '禁忌药剂配方原料；黑市流通',
     narrative: '来源不明的灾厄相关物质，需炼金师鉴定',
-    theme: '深渊'
+    theme: '深渊',
+    restricted: true
   },
 
   // ===== 三阶材料 =====
@@ -666,12 +668,41 @@ class MaterialSystem {
   }
 
   /**
-   * 获取收购价（卖给公会/商人）
+   * 获取收购价（玩家卖给公会/商人）
+   * @param {string} materialName - 材料名
+   * @param {Object} [options] - { amount?: number, remote?: bool, relationship?: '冷淡'|'友好'|'信任'|'亲密' }
+   * @returns {number} 卖价（金）
+   *
+   * 定价公式：
+   *   base = material.price × amount
+   *   buyback = base × guildBuy(0.5)        // 公会收购按零售 50%
+   *   if remote:        buyback × 1.35      // 偏远聚落上浮 35%
+   *   if relationship:  buyback × relationship[rel] // 冷淡 ×1.20 / 友好 ×1.0 / 信任 ×0.95 / 亲密 ×0.90
+   *   四舍五入到 0.01 金
+   *
+   * 边界条件：
+   *   - 材料名不在 MATERIALS 中 → 返回 0
+   *   - restricted: true（灾厄金属等）→ 返回 0（公会不收）
+   *   - 0 价材料（清水等）→ 返回 0
    */
-  getSellPrice(materialName, amount = 1) {
+  getSellPrice(materialName, options = {}) {
     const material = MATERIALS[materialName];
     if (!material) return 0;
-    return Math.ceil(material.price * this.priceModifiers.guildBuy * amount * 100) / 100;
+    if (material.restricted) return 0;
+    if (material.price <= 0) return 0;
+
+    const amount = options.amount ?? 1;
+    let price = material.price * amount * this.priceModifiers.guildBuy;
+
+    if (options.remote) {
+      price *= this.priceModifiers.remote;
+    }
+
+    if (options.relationship && this.priceModifiers.relationship[options.relationship]) {
+      price *= this.priceModifiers.relationship[options.relationship];
+    }
+
+    return Math.ceil(price * 100) / 100;
   }
 
   /**
