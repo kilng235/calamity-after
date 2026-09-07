@@ -38,7 +38,7 @@ export const MATERIAL_THEME = {
   '红宝石': { theme: '火焰', mainStatus: '燃烧', pool: 'fire' },
   '祖母绿': { theme: '毒素', mainStatus: '中毒', pool: 'poison' },
   '银（纯）': { theme: '星辉', mainStatus: '加速', pool: 'star' },
-  '魔法结晶': { theme: '星辉', mainStatus: '加速', pool: 'star' },
+  '魔力结晶': { theme: '星辉', mainStatus: '加速', pool: 'star' },
   '龙骨化石': { theme: '深渊', mainStatus: '恐慌', pool: 'abyss' },
   '黑曜铁': { theme: '深渊', mainStatus: '恐慌', pool: 'abyss' },
   '能量矿石': { theme: '星辉', mainStatus: '加速', pool: 'star' },

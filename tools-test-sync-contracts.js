@@ -303,18 +303,16 @@ const attrSysYaml = fs.readFileSync(path.join(ROOT, 'data-source/世界书/系�
   };
   const effectNum = (s) => { const m = String(s).match(/\d+/); return m ? Number(m[0]) : null; };
 
-  const mpPairs = [
-    ['法力药水（小）', '低阶法力药水'],
-    ['法力药水（中）', '中阶法力药水'],
-    ['法力药水（大）', '高阶法力药水']
-  ];
-  const mpOk = mpPairs.every(([eng, wb]) => {
-    const row = wbAlch(wb); const rec = R[eng];
+  // 第 7 层：2026-09-05 重写后，引擎命名已对齐世界书（低/中/高阶法力药水）。
+  // 引擎与 YAML 同一名称即可直接对齐，无须配对。
+  const mpNames = ['低阶法力药水', '中阶法力药水', '高阶法力药水'];
+  const mpOk = mpNames.every(name => {
+    const row = wbAlch(name); const rec = R[name];
     return row && rec && rec.dc === row.dc && rec.basePrice === row.price
       && effectNum(rec.baseEffect) === effectNum(row.effect);
   });
-  check('7a. 法力三档对齐：引擎 5/15/30 MP = 世界书低/中/高阶（DC 与价格同验）',
-    mpOk && effectNum(R['法力药水（小）'].baseEffect) === 5 && effectNum(R['法力药水（大）'].baseEffect) === 30);
+  check('7a. 法力三档对齐：引擎「低/中/高阶法力药水」与 YAML 同名条目（DC、价格、药效同验）',
+    mpOk && effectNum(R['低阶法力药水'].baseEffect) === 5 && effectNum(R['高阶法力药水'].baseEffect) === 30);
 
   const legendWb = wbAlch('传奇法力药水');
   check('7b. 传奇法力药水两侧都有（DC20/200金/全满，引擎旧缺已补）',
@@ -330,6 +328,22 @@ const attrSysYaml = fs.readFileSync(path.join(ROOT, 'data-source/世界书/系�
   check('7d. 超级治疗药水两侧都有（100 HP/DC20/80金，世界书旧缺已补行）',
     !!R['超级治疗药水'] && !!superWb && R['超级治疗药水'].dc === 20
     && R['超级治疗药水'].basePrice === 80 && effectNum(superWb.effect) === 100);
+
+  // 7f. 类别字段已统一为世界书 6 类（旧「治疗/毒药/实用」已废弃命名不可残留）
+  const expectedCategories = new Set(['恢复', '法力', '增益', '战斗', '介质', '稀有禁术']);
+  const allCats = new Set(Object.values(R).map(r => r.category));
+  const hasOnlyNewCats = [...allCats].every(c => expectedCategories.has(c));
+  check('7f. 类别字段全部为新 6 类（恢复/法力/增益/战斗/介质/稀有禁术，无旧治疗/毒药/实用残留）',
+    hasOnlyNewCats && allCats.size === 6);
+
+  // 7g. 稀有禁术 3 条全部存在且 commissionNPC 指向杜兰·碎星
+  const rareRecipes = ['禁忌药剂', '灾厄金属精炼', '符文药剂'];
+  const rareOk = rareRecipes.every(n => R[n] && R[n].rare === true && R[n].commissionNPC === '杜兰·碎星');
+  check('7g. 稀有禁术 3 条存在（rare=true，commissionNPC=杜兰·碎星）', rareOk);
+
+  // 7h. 配方总数对齐：世界书 24 条
+  const recipeCount = Object.keys(R).length;
+  check('7h. ALCHEMY_RECIPES 总数 = 24（与世界书·炼金配方表逐行对齐）', recipeCount === 24);
 
   const healed = alchMod.alchemySystem.usePotion(
     { mp: 10, maxMp: 50 },

@@ -83,152 +83,351 @@ export const ALchemists = {
 };
 
 // ============== 炼金配方模板 ==============
+//
+// 数据权威源：`data-source/世界书/装备/炼金配方表.yaml`（24 条）+ `data-source/世界书/系统/炼金规则.yaml`
+// 字段说明：
+//   tier          1=一阶(DC10) / 2=二阶(DC15) / 3=三阶(DC20)
+//   category      6 类：恢复 / 法力 / 增益 / 战斗 / 介质 / 稀有禁术
+//   dc            检定 DC（一阶10/二阶15/三阶20，权威源在 YAML 每行）
+//   basePrice     零售基准价（金）；稀有议价为 null（见 priceRange）
+//   baseEffect    标准强度档基线药效
+//   materials     配方原料（与 YAML「原料」列对齐，物质名遵循世界书）
+//   note          强度档影响 / 补充说明（与 YAML「备注」列对齐）
+//   rare          true = 稀有禁术（需代工/授权，AI 与玩家不能自炼）
+//   commissionNPC 代工炼金师（null=可自炼；稀有禁术指向杜兰·碎星等）
+//   commissionFaction 所需势力授权（如 '圣火骑士团'）
+//   priceRange    议价区间 [min, max] 金（稀有禁术用，basePrice=null）
+//
+// 已知遗留问题（不影响当前契约测试）：
+//   - material-system.js 尚未覆盖炼金原料（草药/净化苔藓/圣水 等）；hasMaterials()
+//     调用当前会因材料名缺失而返回 false。需后续在 material-system.js 增加
+//     `ALCHEMY_MATERIALS` 字典与基础价表，本表原料名以世界书为权威源。
+//   - 介质类与稀有禁术类的 usePotion() 行为：介质类不直接作用于角色（用法见
+//     「背包系统·使用」），稀有禁术需先经杜兰·碎星代工才进入 gameData。
 
 export const ALCHEMY_RECIPES = {
-  // 治疗类
+  // ───────── 恢复类（5） ─────────
   '治疗药水': {
     tier: 1,
+    category: '恢复',
     dc: 10,
     basePrice: 2,
-    baseEffect: '恢复 20 生命值',
-    category: '治疗',
-    materials: { '草药': 2, '清水': 1 }
+    baseEffect: '治疗 20 HP',
+    materials: { '草药': 2, '净化苔藓': 1 },
+    note: '弱 10 / 强 40 或附再生',
+    rare: false,
+    commissionNPC: null,
+    commissionFaction: null,
+    priceRange: null
   },
   '强效治疗药水': {
     tier: 2,
+    category: '恢复',
     dc: 15,
     basePrice: 25,
-    baseEffect: '恢复 40 生命值',
-    category: '治疗',
-    materials: { '草药': 5, '魔力精华': 1, '清水': 1 }
+    baseEffect: '治疗 40 HP',
+    materials: { '草药': 5, '魔力精华': 1, '清水': 1 },
+    note: '二阶',
+    rare: false,
+    commissionNPC: null,
+    commissionFaction: null,
+    priceRange: null
   },
   '超级治疗药水': {
     tier: 3,
+    category: '恢复',
     dc: 20,
     basePrice: 80,
-    baseEffect: '恢复 100 生命值',
-    category: '治疗',
-    materials: { '稀有草药': 3, '魔力结晶': 2, '圣水': 1 }
+    baseEffect: '治疗 100 HP',
+    materials: { '稀有草药': 3, '魔力结晶': 2, '圣水': 1 },
+    note: '三阶，决战备药',
+    rare: false,
+    commissionNPC: null,
+    commissionFaction: null,
+    priceRange: null
+  },
+  '解毒剂': {
+    tier: 1,
+    category: '恢复',
+    dc: 10,
+    basePrice: 1,
+    baseEffect: '解除中毒·瘴气',
+    materials: { '蛇胆': 1, '解毒药草': 1 },
+    note: '强可提前免疫短暂',
+    rare: false,
+    commissionNPC: null,
+    commissionFaction: null,
+    priceRange: null
+  },
+  '精力药水': {
+    tier: 1,
+    category: '恢复',
+    dc: 10,
+    basePrice: 1.5,
+    baseEffect: '短时免除疲劳劣势',
+    materials: { '力量草': 1, '兽骨萃取': 1 },
+    note: '完美可延时效',
+    rare: false,
+    commissionNPC: null,
+    commissionFaction: null,
+    priceRange: null
   },
 
-  // 法力类（数值对齐世界书·炼金配方表：低阶+5/中阶+15/高阶+30，传奇全满）
-  '法力药水（小）': {
+  // ───────── 法力类（4）数值对齐世界书：低/中/高阶 5/15/30，传奇全满 ─────────
+  '低阶法力药水': {
     tier: 1,
+    category: '法力',
     dc: 10,
     basePrice: 5,
     baseEffect: '恢复 5 法力值',
-    category: '法力',
-    materials: { '魔力苔藓': 2, '清水': 1 }
+    materials: { '魔力结晶': 1 },
+    note: '一阶，日常应急',
+    rare: false,
+    commissionNPC: null,
+    commissionFaction: null,
+    priceRange: null
   },
-  '法力药水（中）': {
+  '中阶法力药水': {
     tier: 2,
+    category: '法力',
     dc: 15,
     basePrice: 25,
     baseEffect: '恢复 15 法力值',
-    category: '法力',
-    materials: { '魔力苔藓': 5, '能量晶簇': 1, '清水': 1 }
+    materials: { '魔力结晶': 1, '草药': 1 },
+    note: '二阶，战前准备',
+    rare: false,
+    commissionNPC: null,
+    commissionFaction: null,
+    priceRange: null
   },
-  '法力药水（大）': {
+  '高阶法力药水': {
     tier: 2,
+    category: '法力',
     dc: 15,
     basePrice: 80,
     baseEffect: '恢复 30 法力值',
-    category: '法力',
-    materials: { '稀有魔力苔藓': 3, '能量结晶': 2, '蒸馏水': 1 }
+    materials: { '能量矿石': 1 },
+    note: '二阶高，战役级',
+    rare: false,
+    commissionNPC: null,
+    commissionFaction: null,
+    priceRange: null
   },
   '传奇法力药水': {
     tier: 3,
+    category: '法力',
     dc: 20,
     basePrice: 200,
     baseEffect: '恢复全部法力值',
-    category: '法力',
-    materials: { '能量晶簇': 2, '魔力精华': 1 }
+    materials: { '能量晶簇': 2, '魔力精华': 1 },
+    note: '三阶，决战/剧情高潮',
+    rare: false,
+    commissionNPC: null,
+    commissionFaction: null,
+    priceRange: null
   },
 
-  // 增益类
+  // ───────── 增益类（4）情境优势 / 状态池，不引入独立数值加成 ─────────
   '力量药剂': {
     tier: 1,
+    category: '增益',
     dc: 10,
     basePrice: 5,
-    baseEffect: '力量检定获优势，持续 1 小时',
-    category: '增益',
-    materials: { '巨魔之血': 1, '烈酒': 1 }
+    baseEffect: '力量相关检定获优势（有限时）',
+    materials: { '力量草': 1, '兽骨': 1 },
+    note: '',
+    rare: false,
+    commissionNPC: null,
+    commissionFaction: null,
+    priceRange: null
   },
-  '敏捷药剂': {
-    tier: 1,
-    dc: 10,
+  '银叶药剂': {
+    tier: 2,
+    category: '增益',
+    dc: 15,
     basePrice: 5,
-    baseEffect: '敏捷检定获优势，持续 1 小时',
-    category: '增益',
-    materials: { '豹之筋': 1, '清水': 1 }
+    baseEffect: '疗伤 + 4~6 小时体力回复',
+    materials: { '银叶': 1 },
+    note: '精灵工艺代表',
+    rare: false,
+    commissionNPC: null,
+    commissionFaction: null,
+    priceRange: null
   },
-  '智力药剂': {
-    tier: 2,
-    dc: 15,
-    basePrice: 15,
-    baseEffect: '智力检定获优势，持续 1 小时',
-    category: '增益',
-    materials: { '猫头鹰羽毛': 2, '墨水': 1 }
-  },
-  '护体药水': {
-    tier: 2,
-    dc: 15,
-    basePrice: 20,
-    baseEffect: 'AC +2，持续 10 回合',
-    category: '增益',
-    materials: { '铁矿石粉': 3, '树胶': 2 }
-  },
-
-  // 毒药类
-  '基础毒药': {
+  '暗视药剂': {
     tier: 1,
-    dc: 10,
-    basePrice: 8,
-    baseEffect: '涂抹武器，命中附加中毒状态',
-    category: '毒药',
-    materials: { '毒蛇腺': 1, '酒精': 1 }
-  },
-  '麻痹毒素': {
-    tier: 2,
-    dc: 15,
-    basePrice: 25,
-    baseEffect: '涂抹武器，命中可能附加麻痹状态',
-    category: '毒药',
-    materials: { '蜘蛛毒液': 2, '曼陀罗': 1 }
-  },
-  '致命毒药': {
-    tier: 3,
-    dc: 20,
-    basePrice: 100,
-    baseEffect: '摄入即死（体质豁免 DC15 成功则伤害 50）',
-    category: '毒药',
-    materials: { '灾厄精华': 1, '暗影露水': 2 }
-  },
-
-  // 实用类
-  '解毒剂': {
-    tier: 1,
+    category: '增益',
     dc: 10,
     basePrice: 3,
-    baseEffect: '移除一个中毒状态',
-    category: '实用',
-    materials: { '净化苔藓': 2, '清水': 1 }
+    baseEffect: '暗视 4 小时',
+    materials: { '荧光苔藓': 1, '暗视草药': 1 },
+    note: '深坑探索标配',
+    rare: false,
+    commissionNPC: null,
+    commissionFaction: null,
+    priceRange: null
   },
-  '隐形药水': {
+  '灵巧药剂': {
     tier: 2,
-    dc: 15,
-    basePrice: 30,
-    baseEffect: '获得隐形状态，持续 10 回合',
-    category: '实用',
-    materials: { '变色龙鳞片': 2, '月光草': 1 }
+    category: '增益',
+    dc: 12,
+    basePrice: 3.5,
+    baseEffect: '敏捷相关检定获优势（有限时）',
+    materials: { '灵藤': 1, '鸟羽': 1 },
+    note: '',
+    rare: false,
+    commissionNPC: null,
+    commissionFaction: null,
+    priceRange: null
   },
-  '抗火药水': {
+
+  // ───────── 战斗类（5）投掷物 / 淬毒 / 负面状态 ─────────
+  '火焰瓶': {
+    tier: 1,
+    category: '战斗',
+    dc: 10,
+    basePrice: 3,
+    baseEffect: '命中即时 1d4 燃烧 / 范围爆燃',
+    materials: { '硫磺矿': 1 },
+    note: '掷投，中断附「燃烧」',
+    rare: false,
+    commissionNPC: null,
+    commissionFaction: null,
+    priceRange: null
+  },
+  '烟幕弹': {
+    tier: 1,
+    category: '战斗',
+    dc: 10,
+    basePrice: 2,
+    baseEffect: '遮蔽视线 / 脱战',
+    materials: { '硫磺矿': 1 },
+    note: '',
+    rare: false,
+    commissionNPC: null,
+    commissionFaction: null,
+    priceRange: null
+  },
+  '麻痹药剂': {
     tier: 2,
+    category: '战斗',
     dc: 15,
-    basePrice: 20,
-    baseEffect: '火焰抗性，持续 1 小时',
-    category: '实用',
-    materials: { '火蜥蜴血': 2, '冰霜花': 1 }
+    basePrice: 4,
+    baseEffect: '命中挂「麻痹」状态',
+    materials: { '晶壳蝎毒液': 1, '石蜈蚣毒腺': 1 },
+    note: '',
+    rare: false,
+    commissionNPC: null,
+    commissionFaction: null,
+    priceRange: null
+  },
+  '腐蚀药剂': {
+    tier: 2,
+    category: '战斗',
+    dc: 15,
+    basePrice: 4,
+    baseEffect: '蚀甲 /「侵蚀」状态 / 耐久',
+    materials: { '灰蛞蝓黏液': 1 },
+    note: '',
+    rare: false,
+    commissionNPC: null,
+    commissionFaction: null,
+    priceRange: null
+  },
+  '剧毒油': {
+    tier: 1,
+    category: '战斗',
+    dc: 12,
+    basePrice: 3,
+    baseEffect: '淬毒：命中附加中毒 DoT',
+    materials: { '毒液': 1, '油脂': 1 },
+    note: '',
+    rare: false,
+    commissionNPC: null,
+    commissionFaction: null,
+    priceRange: null
+  },
+
+  // ───────── 介质类（3）施法媒介 / 器具 ─────────
+  '魔法墨水': {
+    tier: 2,
+    category: '介质',
+    dc: 15,
+    basePrice: 8,
+    baseEffect: '卷轴书写 / 施法媒介',
+    materials: { '魔力结晶': 1, '晶壳蝎毒液': 1 },
+    note: '',
+    rare: false,
+    commissionNPC: null,
+    commissionFaction: null,
+    priceRange: null
+  },
+  '照明药剂': {
+    tier: 1,
+    category: '介质',
+    dc: 10,
+    basePrice: 0.3,                     // 3 银币 = 0.3 金（1 金 = 10 银）
+    baseEffect: '照明 / 信号',
+    materials: { '荧光苔藓': 1, '磷光菌核': 1 },
+    note: '经济条目已有价',
+    rare: false,
+    commissionNPC: null,
+    commissionFaction: null,
+    priceRange: null
+  },
+  '净化苔藓粉': {
+    tier: 1,
+    category: '介质',
+    dc: 10,
+    basePrice: 1.5,
+    baseEffect: '净水 / 去毒',
+    materials: { '净化苔藓': 1 },
+    note: '',
+    rare: false,
+    commissionNPC: null,
+    commissionFaction: null,
+    priceRange: null
+  },
+
+  // ───────── 稀有禁术类（3）灾厄金属 / 禁忌药剂 ─────────
+  '禁忌药剂': {
+    tier: 3,
+    category: '稀有禁术',
+    dc: 20,
+    basePrice: null,                    // 议价，无基准价
+    baseEffect: '强效但高风险（副作用）',
+    materials: { '灾厄金属': 1, '禁忌材料': 1 },
+    note: '杜兰专精，按议价',
+    rare: true,
+    commissionNPC: '杜兰·碎星',
+    commissionFaction: null,
+    priceRange: [100, 500]
+  },
+  '灾厄金属精炼': {
+    tier: 3,
+    category: '稀有禁术',
+    dc: 20,
+    basePrice: null,                    // 加工价（见矿物总纲）
+    baseEffect: '提纯为三阶材料',
+    materials: { '黑曜铁': 1, '血晶石': 1, '星铁': 1 },
+    note: '需势力授权 / 杜兰代工',
+    rare: true,
+    commissionNPC: '杜兰·碎星',
+    commissionFaction: null,
+    priceRange: null
+  },
+  '符文药剂': {
+    tier: 2,
+    category: '稀有禁术',
+    dc: 15,
+    basePrice: null,                    // 议价
+    baseEffect: '附符文效果（定制）',
+    materials: { '符文材料': 1, '银叶': 1 },
+    note: '精灵符文学派 / 杜兰',
+    rare: true,
+    commissionNPC: '杜兰·碎星',
+    commissionFaction: null,
+    priceRange: [30, 150]
   }
 };
 
@@ -510,6 +709,17 @@ class AlchemySystem {
 
   /**
    * 使用药水
+   *
+   * 类别 → 行为映射（对齐世界书 6 类）：
+   *   恢复     直接补 HP（旧「治疗」类的语义迁移）
+   *   法力     直接补 MP（含「全满」特判，传奇法力药水走该分支）
+   *   增益     挂 statusEffects（已知与 status-system 的 `statuses[]` 字段名错位，
+   *           留待 S8 修复；本类挂载位置保持向下兼容）
+   *   战斗     投掷/淬毒类（火焰瓶/烟幕弹/麻痹药剂/腐蚀药剂/剧毒油）；
+   *           不直接作用于角色，标记为「待应用」由战斗流程消费
+   *   介质     卷轴/照明/净水粉等器具类；不直接作用于角色，标记 specialEffect
+   *   稀有禁术 灾厄金属精炼/禁忌药剂/符文药剂：需先经 commissionNPC 代工，
+   *           直接调用返回错误，由代工流程接管
    */
   usePotion(character, potion) {
     if (!potion.brewed) {
@@ -526,7 +736,7 @@ class AlchemySystem {
 
     // 根据类别应用效果
     switch (potion.category) {
-      case '治疗':
+      case '恢复':
         character.hp = Math.min(
           (character.hp || 0) + potion.effectValue,
           character.maxHp || character.hp
@@ -555,9 +765,37 @@ class AlchemySystem {
         });
         result.buffApplied = true;
         break;
-      case '实用':
-        // 根据具体效果处理
+      case '战斗':
+        // 投掷/淬毒类：标记为「待应用」，由 combat-system 消费
+        // 战斗流程应在攻击 roll 后读取 potion.consumable === 'combat_throw'
+        // 或 potion.consumable === 'weapon_coat' 决定何时触发
+        result.requiresCombatContext = true;
+        result.consumable = /命中|淬毒|涂装/.test(potion.effect || '')
+          ? 'weapon_coat'      // 麻痹药剂/腐蚀药剂/剧毒油 → 武器涂层
+          : 'combat_throw';    // 火焰瓶/烟幕弹 → 投掷
+        result.message = `${potion.name} 需在战斗中使用（${result.consumable}）`;
+        break;
+      case '介质':
+        // 介质类：魔法墨水/照明药剂/净化苔藓粉 → 不直接作用于角色
+        // 卷轴媒介由法术系统消费，照明/净水粉由背包「使用」流程消费
         result.specialEffect = potion.effect;
+        result.requiresEquipmentContext = /卷轴|书写/.test(potion.effect || '')
+          ? 'scroll_medium'
+          : 'utility_item';
+        break;
+      case '稀有禁术':
+        // 灾厄金属精炼/禁忌药剂/符文药剂：必须经 commissionNPC 代工
+        // 直接使用返回错误（与炼金规则.yaml「稀有禁术类」对齐）
+        return {
+          success: false,
+          error: '稀有禁术不可直接使用',
+          requiresNPC: potion.commissionNPC || '杜兰·碎星',
+          hint: '需先在炼金代工处委托'
+        };
+      default:
+        // 未知类别（旧版 '治疗'/'毒药'/'实用' 等已废弃命名）
+        result.specialEffect = potion.effect;
+        result.unknownCategory = potion.category;
         break;
     }
 

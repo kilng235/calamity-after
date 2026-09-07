@@ -206,14 +206,23 @@ export const MATERIALS = {
     narrative: '灾厄催生的发光生命',
     theme: null
   },
-  '魔法结晶': {
-    price: 40,
+  '魔力结晶': {
+    price: 25,
     unit: '颗',
-    tier: MATERIAL_TIER.TIER_2_HIGH,
+    tier: MATERIAL_TIER.TIER_2_MID,
     category: MATERIAL_CATEGORY.MAGICAL,
-    effect: '施法媒介；法杖装备附魔 +1（法术伤害 +1）；4档法力药水配方',
-    narrative: '魔法荒原的馈赠',
+    effect: '法力药水基础原料（4 档法力药水配方共享）；法杖附魔 +1；施法媒介',
+    narrative: '浓缩的魔法能量晶体，魔法荒原特产',
     theme: '星辉'
+  },
+  '清水': {
+    price: 0.1,
+    unit: '瓶',
+    tier: MATERIAL_TIER.TIER_1_LOW,
+    category: MATERIAL_CATEGORY.LIQUID,
+    effect: '炼金通用溶剂；稀释浓缩药剂；野外可零成本采集',
+    narrative: '灾厄后的洁净水源已属稀缺',
+    theme: null
   },
 
   // ===== 三阶材料 =====
@@ -349,7 +358,7 @@ export const MATERIAL_THEME_MAP = {
   '黄玉': '灵光',
   '玛瑙': '灵光',
   '琥珀': '灵光',
-  '魔法结晶': '星辉',
+  '魔力结晶': '星辉',
   '银（纯）': '星辉',
   '龙骨化石': '深渊',
   '红宝石': '火焰',
