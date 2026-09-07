@@ -706,6 +706,35 @@ class MaterialSystem {
   }
 
   /**
+   * 计算真实材料成本（炼金 / 锻造自炼成本口径）
+   * @param {Object} requiredMaterials - { 材料名: 数量 }
+   * @returns {{ cost: number, missing: string[] }}
+   *   cost    材料基础价 × 数量 之和（按 0.01 金四舍五入）
+   *   missing 材料名不在 MATERIALS 中的项（用于诊断）
+   *
+   * 与 calculateAlchemyCost() 的区别：
+   *   calculateAlchemyCost(basePrice)    旧接口，固定按"成品基准价 ÷ 2"算
+   *   calculateRealMaterialCost(mats)    新接口，按材料真实价格之和算
+   * 双口径并行，UI 可同时显示两个值（前者=规则基线，后者=实际成本）
+   */
+  calculateRealMaterialCost(requiredMaterials) {
+    let total = 0;
+    const missing = [];
+    for (const [name, amount] of Object.entries(requiredMaterials)) {
+      const material = MATERIALS[name];
+      if (!material) {
+        missing.push(name);
+        continue;
+      }
+      total += material.price * amount;
+    }
+    return {
+      cost: Math.ceil(total * 100) / 100,
+      missing
+    };
+  }
+
+  /**
    * 获取材料对应的锻造DC
    */
   getForgeDC(materialName) {

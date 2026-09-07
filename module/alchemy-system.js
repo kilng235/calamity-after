@@ -600,12 +600,22 @@ class AlchemySystem {
       return { success: false, error: '材料不足' };
     }
 
-    // 计算材料成本
-    const materialCost = this.calculateMaterialCost(recipe.basePrice);
-    
-    // 检查金币
+    // 计算双口径材料成本
+    //   materialCost  = 材料真实价之和（来自 materialSystem.calculateRealMaterialCost）
+    //   referenceCost = 成品基准价 ÷ 2（旧规则口径，保留作参考）
+    const costBreakdown = materialSystem.calculateRealMaterialCost(recipe.materials);
+    const materialCost = costBreakdown.cost;
+    const referenceCost = this.calculateMaterialCost(recipe.basePrice);
+
+    // 检查金币（按真实成本，更严格）
     if ((character.gold || 0) < materialCost) {
-      return { success: false, error: '金币不足', required: materialCost };
+      return {
+        success: false,
+        error: '金币不足',
+        required: materialCost,
+        referenceCost,
+        costSource: materialCost > 0 ? 'real' : 'reference'
+      };
     }
 
     // 执行炼金检定
@@ -623,6 +633,8 @@ class AlchemySystem {
         checkResult,
         result: ALCHEMY_RESULT.CRITICAL_FAILURE,
         materialCost,
+        referenceCost,
+        costSource: 'real',
         accidentItem: {
           name: `事故物·${recipeName}`,
           flaw: flaw.name,
@@ -641,13 +653,15 @@ class AlchemySystem {
         checkResult,
         result: ALCHEMY_RESULT.FAILURE,
         materialCost,
+        referenceCost,
+        costSource: 'real',
         message: '炼制失败，材料全损，无产出'
       };
     }
 
     // 成功：掷药效强度骰
     const strengthResult = this.rollPotionStrength(checkResult.gradeBonus);
-    
+
     // 创建药水
     const potion = this.createPotion(recipe, checkResult, strengthResult);
 
@@ -659,6 +673,8 @@ class AlchemySystem {
       strength: strengthResult,
       grade: checkResult.grade,
       materialCost,
+      referenceCost,
+      costSource: 'real',
       message: `炼制成功！品质：${checkResult.grade}，药效：${strengthResult.finalStrength}`
     };
   }

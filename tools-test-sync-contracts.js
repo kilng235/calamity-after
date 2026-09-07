@@ -394,6 +394,40 @@ const attrSysYaml = fs.readFileSync(path.join(ROOT, 'data-source/世界书/系�
     mSys.getSellPrice('灾厄金属') === 0 &&
     mSys.getSellPrice('草药', { amount: 5 }) === 1.25);
 
+  // ============ T3：自炼真实成本 ============
+  // 7p. calculateRealMaterialCost：单品/多量/组合/缺失
+  const single = mSys.calculateRealMaterialCost({ '草药': 1 });
+  const multi  = mSys.calculateRealMaterialCost({ '草药': 5 });
+  const combo  = mSys.calculateRealMaterialCost({ '草药': 2, '净化苔藓': 1 });
+  const hasMissing = mSys.calculateRealMaterialCost({ '草药': 1, '虚构材料': 1 });
+  check('7p. calculateRealMaterialCost：草药×1=0.5 / 草药×5=2.5 / 组合(草药×2+净化苔藓×1)=1.5 / 含缺失材料 missing=[虚构材料]',
+    single.cost === 0.5 &&
+    multi.cost === 2.5 &&
+    combo.cost === 1.5 &&
+    hasMissing.cost === 0.5 &&
+    hasMissing.missing.length === 1 &&
+    hasMissing.missing[0] === '虚构材料');
+
+  // 7q. brewPotion 双口径：治疗药水 materialCost (真实成本 1.5) ≠ referenceCost (基准价÷2 = 1)
+  //     同时验证 costSource 标记为 real，且金币扣除按真实成本
+  const brewChar = base();
+  brewChar.hp = { current: 100, max: 100 };
+  brewChar.attributes['智力'] = 20;  // 高智力减少大失败风险
+  brewChar.skills = { '药剂炼制': { level: 1 } };
+  brewChar.hasTool = { '炼金工具': true };
+  brewChar.inventory = [
+    { name: '草药', amount: 5, type: '材料' },
+    { name: '净化苔藓', amount: 5, type: '材料' }
+  ];
+  brewChar.gold = 5;                  // brewPotion 读 character.gold 直接字段
+  const brewRes = alchMod.alchemySystem.brewPotion(brewChar, '治疗药水');
+  check('7q. brewPotion 双口径：materialCost(真实 1.5) + referenceCost(基准 1) + costSource=real + 金币扣除按真实',
+    brewRes.success === true &&
+    brewRes.materialCost === 1.5 &&
+    brewRes.referenceCost === 1 &&
+    brewRes.costSource === 'real' &&
+    brewChar.gold === 5 - 1.5);  // 5 - 1.5 = 3.5
+
   const healed = alchMod.alchemySystem.usePotion(
     { mp: 10, maxMp: 50 },
     { brewed: true, name: '传奇法力药水', effect: '恢复全部法力值', category: '法力', effectValue: 10 }
