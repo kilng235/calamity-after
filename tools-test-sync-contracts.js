@@ -345,6 +345,30 @@ const attrSysYaml = fs.readFileSync(path.join(ROOT, 'data-source/世界书/系�
   const recipeCount = Object.keys(R).length;
   check('7h. ALCHEMY_RECIPES 总数 = 24（与世界书·炼金配方表逐行对齐）', recipeCount === 24);
 
+  // 7i. ALCHEMY_RECIPES 引用的所有材料名都能在 MATERIALS 中找到（hasMaterials 实际可用）
+  const { MATERIALS } = await import('./module/material-system.js');
+  const recipeMats = new Set();
+  Object.values(R).forEach(r => Object.keys(r.materials || {}).forEach(m => recipeMats.add(m)));
+  const missingMats = [...recipeMats].filter(m => !MATERIALS[m]);
+  check('7i. ALCHEMY_RECIPES 引用的所有材料都在 MATERIALS 中（hasMaterials 可用，' + recipeMats.size + ' 种材料 0 缺失）',
+    missingMats.length === 0);
+
+  // 7j. 至少覆盖：恢复/法力/增益/战斗/介质 5 类的非稀有材料均有合法价
+  const nonRareMats = new Set();
+  Object.values(R).forEach(r => { if (!r.rare) Object.keys(r.materials || {}).forEach(m => nonRareMats.add(m)); });
+  const pricedMats = [...nonRareMats].filter(m => MATERIALS[m] && MATERIALS[m].price > 0);
+  check('7j. 非稀有配方原料（非稀有材料 ' + nonRareMats.size + ' 种）全部有合法基准价（' + pricedMats.length + '/' + nonRareMats.size + '）',
+    pricedMats.length === nonRareMats.size);
+
+  // 7k. 稀有禁术 3 类的 commissionNPC + 至少一种材料 ≥ 2 阶（真正的稀有关键材料）
+  const rareRecipesTier = Object.entries(R).filter(([_, r]) => r.rare);
+  const rareOk2 = rareRecipesTier.every(([_, r]) =>
+    r.commissionNPC && r.materials &&
+    Object.keys(r.materials).some(m => MATERIALS[m] && MATERIALS[m].tier.level >= 2)
+  );
+  check('7k. 稀有禁术 ' + rareRecipesTier.length + ' 条：commissionNPC 已指 + 含 ≥ 2 阶材料',
+    rareOk2 && rareRecipesTier.length === 3);
+
   const healed = alchMod.alchemySystem.usePotion(
     { mp: 10, maxMp: 50 },
     { brewed: true, name: '传奇法力药水', effect: '恢复全部法力值', category: '法力', effectValue: 10 }

@@ -35,7 +35,10 @@ export const MATERIAL_CATEGORY = {
   MAGICAL: '魔法介质',
   CALAMITY: '灾厄材料',
   WOOD: '木材',
-  SPECIAL: '特殊材料'
+  SPECIAL: '特殊材料',
+  HERB: '草药',
+  REAGENT: '试剂',
+  LIQUID: '液体'
 };
 
 // ============== 31种材料定义 ==============
@@ -223,6 +226,215 @@ export const MATERIALS = {
     effect: '炼金通用溶剂；稀释浓缩药剂；野外可零成本采集',
     narrative: '灾厄后的洁净水源已属稀缺',
     theme: null
+  },
+
+  // ===== 炼金原料（22 条）=====
+  '草药': {
+    price: 0.5,
+    unit: '把',
+    tier: MATERIAL_TIER.TIER_1_LOW,
+    category: MATERIAL_CATEGORY.HERB,
+    effect: '炼金基础原料；治疗药水 / 中阶法力药水配方',
+    narrative: '灰烬森林边缘最常见的野生药草',
+    theme: '再生'
+  },
+  '净化苔藓': {
+    price: 0.5,
+    unit: '把',
+    tier: MATERIAL_TIER.TIER_1_LOW,
+    category: MATERIAL_CATEGORY.HERB,
+    effect: '解毒 / 净化 / 净水粉配方原料',
+    narrative: '只生长在未被灾厄污染的水源附近',
+    theme: '净化'
+  },
+  '蛇胆': {
+    price: 0.5,
+    unit: '个',
+    tier: MATERIAL_TIER.TIER_1_LOW,
+    category: MATERIAL_CATEGORY.REAGENT,
+    effect: '解毒剂配方原料',
+    narrative: '石缝蛇的胆囊，干燥后入药',
+    theme: '毒素'
+  },
+  '解毒药草': {
+    price: 0.5,
+    unit: '把',
+    tier: MATERIAL_TIER.TIER_1_LOW,
+    category: MATERIAL_CATEGORY.HERB,
+    effect: '解毒剂配方原料；解除多数蛇毒与瘴气',
+    narrative: '迷雾沼泽特产，叶片散发辛辣气味',
+    theme: '净化'
+  },
+  '力量草': {
+    price: 0.5,
+    unit: '把',
+    tier: MATERIAL_TIER.TIER_1_LOW,
+    category: MATERIAL_CATEGORY.HERB,
+    effect: '力量药剂 / 精力药水配方原料',
+    narrative: '叶片厚实，咀嚼有微苦回甘',
+    theme: '力量'
+  },
+  '兽骨': {
+    price: 0.5,
+    unit: '根',
+    tier: MATERIAL_TIER.TIER_1_LOW,
+    category: MATERIAL_CATEGORY.REAGENT,
+    effect: '力量药剂配方原料',
+    narrative: '废弃猎物骨骼，磨粉入药',
+    theme: '力量'
+  },
+  '荧光苔藓': {
+    price: 0.5,
+    unit: '把',
+    tier: MATERIAL_TIER.TIER_1_LOW,
+    category: MATERIAL_CATEGORY.HERB,
+    effect: '暗视 / 照明药剂配方原料',
+    narrative: '夜间散发青绿幽光，迷雾沼泽特多',
+    theme: '灵光'
+  },
+  '暗视草药': {
+    price: 0.5,
+    unit: '把',
+    tier: MATERIAL_TIER.TIER_1_LOW,
+    category: MATERIAL_CATEGORY.HERB,
+    effect: '暗视药剂配方原料',
+    narrative: '深坑边缘常见，猫头鹰栖息地共生',
+    theme: '灵光'
+  },
+  '灵藤': {
+    price: 0.5,
+    unit: '段',
+    tier: MATERIAL_TIER.TIER_1_LOW,
+    category: MATERIAL_CATEGORY.HERB,
+    effect: '灵巧药剂配方原料',
+    narrative: '古木攀援的藤条，柔韧如筋',
+    theme: '精准'
+  },
+  '鸟羽': {
+    price: 0.3,
+    unit: '根',
+    tier: MATERIAL_TIER.TIER_1_LOW,
+    category: MATERIAL_CATEGORY.REAGENT,
+    effect: '灵巧药剂配方原料',
+    narrative: '轻盈飞羽，拾荒者常顺手收集',
+    theme: '精准'
+  },
+  '毒液': {
+    price: 0.5,
+    unit: '滴',
+    tier: MATERIAL_TIER.TIER_1_LOW,
+    category: MATERIAL_CATEGORY.REAGENT,
+    effect: '剧毒油配方原料',
+    narrative: '石缝蛇毒腺挤出液',
+    theme: '毒素'
+  },
+  '油脂': {
+    price: 0.3,
+    unit: '瓶',
+    tier: MATERIAL_TIER.TIER_1_LOW,
+    category: MATERIAL_CATEGORY.LIQUID,
+    effect: '剧毒油配方原料；火把燃料',
+    narrative: '灾厄兽皮下脂肪炼制',
+    theme: null
+  },
+  '兽骨萃取': {
+    price: 1,
+    unit: '瓶',
+    tier: MATERIAL_TIER.TIER_1,
+    category: MATERIAL_CATEGORY.REAGENT,
+    effect: '精力药水配方原料',
+    narrative: '兽骨经三昼夜熬煮浓缩',
+    theme: '力量'
+  },
+  '灰蛞蝓黏液': {
+    price: 2,
+    unit: '瓶',
+    tier: MATERIAL_TIER.TIER_1,
+    category: MATERIAL_CATEGORY.REAGENT,
+    effect: '腐蚀药剂配方原料；蚀甲 / 侵蚀状态',
+    narrative: '灰蛞蝓爬行留下腐蚀性黏液',
+    theme: '毒素'
+  },
+  '稀有草药': {
+    price: 5,
+    unit: '把',
+    tier: MATERIAL_TIER.TIER_1_HIGH,
+    category: MATERIAL_CATEGORY.HERB,
+    effect: '超级治疗药水配方原料',
+    narrative: '银叶营地专精培育，灰烬森林罕见',
+    theme: '再生'
+  },
+  '圣水': {
+    price: 5,
+    unit: '瓶',
+    tier: MATERIAL_TIER.TIER_1_HIGH,
+    category: MATERIAL_CATEGORY.LIQUID,
+    effect: '超级治疗药水配方原料；净化仪式用品',
+    narrative: '遗忘修道院地下室封存，灾厄后已极为稀少',
+    theme: '净化'
+  },
+  '银叶': {
+    price: 5,
+    unit: '片',
+    tier: MATERIAL_TIER.TIER_1_HIGH,
+    category: MATERIAL_CATEGORY.HERB,
+    effect: '银叶药剂 / 符文药剂配方原料；精灵工艺代表',
+    narrative: '银叶精灵营地特产，疗伤加速',
+    theme: '净化'
+  },
+  '晶壳蝎毒液': {
+    price: 8,
+    unit: '瓶',
+    tier: MATERIAL_TIER.TIER_2_LOW,
+    category: MATERIAL_CATEGORY.REAGENT,
+    effect: '麻痹药剂 / 魔法墨水配方原料',
+    narrative: '晶壳蝎尾刺挤出液，伴微弱电击麻痹',
+    theme: '毒素'
+  },
+  '石蜈蚣毒腺': {
+    price: 8,
+    unit: '个',
+    tier: MATERIAL_TIER.TIER_2_LOW,
+    category: MATERIAL_CATEGORY.REAGENT,
+    effect: '麻痹药剂配方原料',
+    narrative: '石蜈蚣躯干节间毒腺，干燥备用',
+    theme: '毒素'
+  },
+  '符文材料': {
+    price: 8,
+    unit: '份',
+    tier: MATERIAL_TIER.TIER_2_LOW,
+    category: MATERIAL_CATEGORY.SPECIAL,
+    effect: '符文药剂配方原料；精灵符文学派专用',
+    narrative: '刻有远古符文的载体片，附魔未激活',
+    theme: '灵光'
+  },
+  '魔力精华': {
+    price: 15,
+    unit: '瓶',
+    tier: MATERIAL_TIER.TIER_2_MID,
+    category: MATERIAL_CATEGORY.MAGICAL,
+    effect: '强效治疗药水 / 传奇法力药水配方原料',
+    narrative: '魔法结晶蒸馏提纯的液态精华',
+    theme: '星辉'
+  },
+  '灾厄金属': {
+    price: 80,
+    unit: '块',
+    tier: MATERIAL_TIER.TIER_3,
+    category: MATERIAL_CATEGORY.CALAMITY,
+    effect: '禁忌药剂配方原料；禁用于普通玩家锻造，需势力授权 / 杜兰代工',
+    narrative: '灾厄深渊凝结的金属碎片，触碰有灼热感',
+    theme: '深渊'
+  },
+  '禁忌材料': {
+    price: 100,
+    unit: '份',
+    tier: MATERIAL_TIER.TIER_3,
+    category: MATERIAL_CATEGORY.CALAMITY,
+    effect: '禁忌药剂配方原料；黑市流通',
+    narrative: '来源不明的灾厄相关物质，需炼金师鉴定',
+    theme: '深渊'
   },
 
   // ===== 三阶材料 =====
