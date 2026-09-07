@@ -562,6 +562,89 @@ const attrSysYaml = fs.readFileSync(path.join(ROOT, 'data-source/世界书/系�
   check('7e. 传奇法力药水行为：MP 10 → 补满至 50（全满特判）',
     healed.success === true && healed.restored === 40 && healed.success && healed.restored === 40);
 
+  // ============ 旅行路网（travel-tables + travel-system） ============
+  const travelTables = await import('./module/travel-tables.js');
+  const travelSys = await import('./module/travel-system.js');
+
+  // 8a. 路网基本契约：12 条边 / 全部双向可查 / 区域名与世界书一致
+  const regionNames = ['锈钉镇', '灰烬森林', '龙骨山脉', '遗忘修道院', '旧王城废墟',
+                       '魔法荒原', '沉没之城', '迷雾沼泽', '深渊裂隙', '地下裂谷'];
+  const allRoutesValid = travelTables.TRAVEL_ROUTES.every(r =>
+    regionNames.includes(r.from) && regionNames.includes(r.to) &&
+    r.hours > 0 && ['低', '中', '中高', '高', '极高'].includes(r.danger));
+  check('8a. 路网 ' + travelTables.TRAVEL_ROUTES.length + ' 条边：区域名合法 + hours>0 + danger 五档',
+    travelTables.TRAVEL_ROUTES.length === 12 && allRoutesValid);
+
+  // 8b. 连通性：锈钉镇（枢纽）直达 5 区域；findRoute 无向匹配
+  const hubRoutes = travelTables.listRoutesFrom('锈钉镇');
+  check('8b. 锈钉镇枢纽直达 5 区域 + findRoute 无向（反向查同一路线）',
+    hubRoutes.length === 5 &&
+    travelTables.findRoute('灰烬森林', '锈钉镇') !== null &&
+    travelTables.findRoute('灰烬森林', '锈钉镇').from === '灰烬森林');
+
+  // 8c. 世界书约束路线存在：灰烬森林↔魔法荒原 / 废墟↔沉没之城(12h 半日) / 深渊裂隙↔地下裂谷(1h)
+  check('8c. 世界书约束：森林↔荒原直连 / 废墟→沉没之城 12h(半日路程) / 裂隙→地下裂谷 1h',
+    travelTables.findRoute('灰烬森林', '魔法荒原')?.hours === 4 &&
+    travelTables.findRoute('旧王城废墟', '沉没之城')?.hours === 12 &&
+    travelTables.findRoute('深渊裂隙', '地下裂谷')?.hours === 1);
+
+  // 8d. travelTo 正常旅行：耗时推进 + 位置更新 + 解锁追加
+  const tChar = base();
+  tChar.gameTime = { year: 300, month: 11, day: 12, hour: 7, minute: 10 };
+  tChar.progress = { currentLocation: '锈钉镇', unlockedLocations: ['锈钉镇'] };
+  const t1 = travelSys.travelTo('灰烬森林', tChar);
+  check('8d. travelTo 锈钉镇→灰烬森林：success + 耗时 2h (07:10→09:10) + currentLocation 更新 + unlocked 追加',
+    t1.success === true &&
+    tChar.gameTime.hour === 9 && tChar.gameTime.minute === 10 &&
+    tChar.progress.currentLocation === '灰烬森林' &&
+    tChar.progress.unlockedLocations.includes('灰烬森林'));
+
+  // 8e. 不相邻区域拒绝：灰烬森林→沉没之城 无直达
+  const t2 = travelSys.travelTo('沉没之城', tChar);
+  check('8e. 灰烬森林→沉没之城 无直达路线 → success: false + error',
+    t2.success === false && t2.error === '没有直达路线');
+
+  // 8f. 链式旅行：森林→荒原(4h)→废墟(3h)，unlocked 累计
+  const t3 = travelSys.travelTo('魔法荒原', tChar);
+  const t4 = travelSys.travelTo('旧王城废墟', tChar);
+  check('8f. 链式旅行 森林→荒原→废墟：全部成功 + unlocked 累计',
+    t3.success === true && t4.success === true &&
+    tChar.progress.unlockedLocations.includes('魔法荒原') &&
+    tChar.progress.unlockedLocations.includes('旧王城废墟'));
+
+  // 8g. requires 已解锁：废墟→沉没之城 成功（12h）
+  const t5 = travelSys.travelTo('沉没之城', tChar);
+  check('8g. 废墟→沉没之城：requires=旧王城废墟 已解锁 → 成功',
+    t5.success === true && t5.route.hours === 12);
+
+  // 8h. 原地旅行拒绝
+  const t6 = travelSys.travelTo('沉没之城', tChar);
+  check('8h. 原地旅行（已在沉没之城）→ success: false + error=已在该区域',
+    t6.success === false && t6.error === '已在该区域');
+
+  // 8i. 无直达拒绝：龙骨山脉→地下裂谷（requires 深渊裂隙 且无路）
+  const tChar3 = base();
+  tChar3.gameTime = { year: 300, month: 11, day: 12, hour: 7, minute: 10 };
+  tChar3.progress = { currentLocation: '龙骨山脉', unlockedLocations: ['锈钉镇', '龙骨山脉'] };
+  const t7 = travelSys.travelTo('地下裂谷', tChar3);
+  check('8i. 龙骨山脉→地下裂谷 无直达 → success: false',
+    t7.success === false);
+
+  // 8j. 夜路升档：23:00 出发 锈钉镇→灰烬森林（低→中）
+  const tChar4 = base();
+  tChar4.gameTime = { year: 300, month: 11, day: 12, hour: 23, minute: 0 };
+  tChar4.progress = { currentLocation: '锈钉镇', unlockedLocations: ['锈钉镇'] };
+  const t8 = travelSys.travelTo('灰烬森林', tChar4);
+  check('8j. 夜路 23:00 出发：effectiveDanger 低→中 + nightTravel=true + 提示含夜间字样',
+    t8.success === true && t8.nightTravel === true &&
+    t8.effectiveDanger === '中' && /夜间/.test(t8.encounterHint));
+
+  // 8k. advanceGameTime 进位链：分钟→时→天→月→年
+  const gt = travelSys.advanceGameTime(
+    { year: 300, month: 12, day: 30, hour: 23, minute: 30 }, 60);
+  check('8k. advanceGameTime 跨年进位：300/12/30 23:30 +60min → 301/1/1 00:30',
+    gt.year === 301 && gt.month === 1 && gt.day === 1 && gt.hour === 0 && gt.minute === 30);
+
   console.log('\n' + (fail === 0 ? '✅ 全部通过（' + pass + ' 项）' : '❌ 失败 ' + fail + ' 项 / 通过 ' + pass + ' 项'));
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error('测试执行异常:', e); process.exit(1); });
