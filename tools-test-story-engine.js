@@ -316,6 +316,65 @@ function check(name, cond) {
   check('50. 旧积压队列自愈：仅 1 次压缩 + 1 次提取（旧版为 3×2 次调用）',
     apiCalls.filter(c => c.kind === 'compress').length === 1 && apiCalls.filter(c => c.kind === 'extract').length === 1);
 
+  // ==================== 典章注入窗口（keep3）+ 降级典章召回补注（v2.1.2） ====================
+
+  // 干净重置（预置楼层号 2000：让第 50 层的命中不落入"近 10 层排除窗"）
+  await memoryStore.clearAll();
+  localStorage.removeItem('calamity-memory-floor');
+  localStorage.removeItem('calamity-memory-pending');
+  await storyEngine.init();
+  localStorage.setItem('calamity-memory-floor', '2000');
+
+  // 直写 5 篇典章（每篇覆盖 300 层）+ 第 50 层编年史行/纪要（召回命中用）
+  for (let i = 0; i < 5; i++) {
+    const from = 1 + i * 300, to = 300 + i * 300;
+    await memoryStore.put('story', {
+      id: 'st_l3_t' + i, level: 3, from: from, to: to,
+      text: '【第' + from + '~' + to + '层·典章】纪元' + (i + 1) + '：灰烬森林剧情弧线收束。',
+      absorbedBy: null, createdAt: Date.now()
+    });
+  }
+  await memoryStore.put('chronicle', { floor: 50, time: '300年11月12日 09:00', location: '灰烬森林', text: '第50层剧情：灰烬森林遭遇战', createdAt: Date.now() });
+  await memoryStore.put('summary', { floor: 50, text: '第50层剧情：主角在灰烬森林遭遇灰烬狼群，初遇莉娅', time: '300年11月12日 09:00', location: '灰烬森林', createdAt: Date.now() });
+
+  // 51. 注入窗口：5 篇典章只注入最新 2 篇（keep3 默认 2）
+  const blocks4 = await storyEngine.buildInjectBlocks('随便看看', gd);
+  const joined4 = blocks4.join('\n---\n');
+  check('51. 典章窗口：仅最新 2 篇注入（901~1200/1201~1500），老 3 篇不注入',
+    joined4.indexOf('第1201~1500层·典章') >= 0 && joined4.indexOf('第901~1200层·典章') >= 0
+    && joined4.indexOf('第601~900层·典章') === -1 && joined4.indexOf('第1~300层·典章') === -1);
+
+  // 52. injected() 单条判定：窗口内 true / 降级 false
+  const all3 = memoryStore.allStory().filter(r => r.level === 3).sort((a, b) => a.from - b.from);
+  check('52. injected() 判定：窗口内 true / 降级 false',
+    storyEngine.injected(all3[4]) === true && storyEngine.injected(all3[3]) === true
+    && storyEngine.injected(all3[2]) === false && storyEngine.injected(all3[0]) === false);
+
+  // 53. keep3 配置覆盖
+  localStorage.setItem('calamity-memory-keep3', '4');
+  const joined5 = (await storyEngine.buildInjectBlocks('随便看看', gd)).join('\n---\n');
+  check('53. keep3=4 时注入 4 篇（第1~300 层仍不在窗）',
+    joined5.indexOf('第601~900层·典章') >= 0 && joined5.indexOf('第1~300层·典章') === -1);
+  localStorage.removeItem('calamity-memory-keep3');
+
+  // 54. 降级典章召回补注：命中楼层（第50层∈[1,300]）→ 老典章文本随召回注入
+  const gd2 = { relationships: { 莉娅: { 好感度: 10 } }, tasks: [], inventory: [{ name: '灰烬森林地图' }], progress: { currentLocation: '灰烬森林' }, gameTime: { year: 300, month: 11, day: 12, hour: 7, minute: 10 } };
+  const blocks6 = await storyEngine.buildInjectBlocks('灰烬森林发生过什么', gd2);
+  const joined6 = blocks6.join('\n---\n');
+  check('54. 召回补注：命中降级典章区间 → 其文本随【相关记忆召回】注入',
+    joined6.indexOf('【相关记忆召回】') >= 0 && joined6.indexOf('第1~300层·典章') >= 0 && joined6.indexOf('纪元1') >= 0);
+
+  // 55. 常驻窗口内的典章不重复进召回块
+  const recallBlock6 = blocks6.find(b => b.indexOf('【相关记忆召回】') >= 0) || '';
+  check('55. 常驻窗口内的典章不进召回块（无重复注入）',
+    recallBlock6.indexOf('第1201~1500层') === -1 && recallBlock6.indexOf('第901~1200层') === -1);
+
+  // 56. 边界：keep3=5 → 5 篇全注入
+  localStorage.setItem('calamity-memory-keep3', '5');
+  const joined7 = (await storyEngine.buildInjectBlocks('随便看看', gd)).join('\n---\n');
+  check('56. keep3=5 时 5 篇全注入', joined7.indexOf('第1~300层·典章') >= 0);
+  localStorage.removeItem('calamity-memory-keep3');
+
   console.log('\n' + (fail === 0 ? '✅ 全部通过（' + pass + ' 项）' : '❌ 失败 ' + fail + ' 项 / 通过 ' + pass + ' 项'));
   process.exit(fail === 0 ? 0 : 1);
 })().catch(e => { console.error('测试执行异常:', e); process.exit(1); });

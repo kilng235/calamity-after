@@ -3,7 +3,7 @@
  *
  * 架构（见 docs/记忆系统2.0-工程蓝图.md）：
  *   核心（常启）：每层纪要 → 编年史一行 → 滚动合并（纪事20层→卷宗100层→典章300层）
- *                 注入 = 典章/卷宗/纪事(常驻) + 编年史尾窗(常驻) + 词法命中展开(按需)
+ *                 注入 = 典章(仅最近 keep3 篇)/卷宗/纪事(常驻，有界) + 编年史尾窗(常驻) + 词法/向量命中展开(按需，含降级典章补注)
  *                 大缺口补压分批执行（≤80 层/批、空洞断批、已覆盖批跳过）+ 失败队列 L1 区间归并（防恢复风暴）
  *   向量模块（可选，calamity-memory-vec）：摘要向量化，召回与词法按楼层去重合并
  *   P1 账本套件：实体台账（[实体更新] 块维护）+ 悬念簿（[悬念]/[悬念核销]）+ 主观记忆
@@ -52,6 +52,9 @@ var storyEngine = (function() {
     function every() { return Math.max(5, lsNum('calamity-memory-every', 20)); }
     function keep1() { return Math.max(2, lsNum('calamity-memory-keep1', 5)); }
     function keep2() { return Math.max(2, lsNum('calamity-memory-keep2', 3)); }
+    function keep3() { return Math.max(1, lsNum('calamity-memory-keep3', 2)); }
+    // keep3=典章注入篇数上限：默认 2 → 常驻保证窗口 ≈ 2×300+3×100+5×20 = 1000 层（对齐"千层不混淆"目标）。
+    // 更早的典章不删除，退出常驻线、降级为仅召回可达（召回命中其覆盖楼层时随行附注，见 buildRecallBlock）
 
     // ---------- 初始化 ----------
     async function init() {
@@ -334,6 +337,20 @@ var storyEngine = (function() {
             .sort((a, b) => a.from - b.from);
     }
 
+    /**
+     * 单条 story 记录是否处于当前注入窗口内（查看器/测试共用事实源）。
+     * absorbed 恒 false；未吸收记录按层取 "from 升序尾 keepN 篇"，与 buildInjectBlocks 的切窗一致。
+     * 注意：传入的 r 须为 memoryStore 镜像中的同一引用（indexOf 按引用匹配）。
+     */
+    function isRecordInjected(r) {
+        if (!r || r.absorbedBy) return false;
+        const all = unabsorbed(r.level);
+        const idx = all.indexOf(r);
+        if (idx === -1) return false;
+        const keep = r.level === 1 ? keep1() : (r.level === 2 ? keep2() : keep3());
+        return idx >= all.length - keep;
+    }
+
     // ---------- L1 分批压缩（大缺口断档恢复：分批 + 幂等 + 队列归并） ----------
     /**
      * 计划 L1 压缩分批：区间内实际有纪要的楼层按 ≤MAX_COMPRESS_INPUTS 连续层打包；
@@ -561,7 +578,7 @@ var storyEngine = (function() {
         }).join('\n');
     }
 
-    async function buildRecallBlock(userMessage, gd) {
+    async function buildRecallBlock(userMessage, gd, demotedL3) {
         const items = [];
         const seen = {};
         // 词法命中 → 展开该层纪要全文
@@ -587,6 +604,18 @@ var storyEngine = (function() {
             } catch (e) {
                 console.warn('[StoryEngine] 向量召回失败（词法结果兜底）:', e && e.message || e);
             }
+        }
+        // 降级典章补注：命中楼层落在超出常驻窗口（keep3）的典章覆盖区间内时，附上其合成因果——
+        // "降级只降常驻、不降可达"：典章文本不删，召回命中其区间即随行注入（r.text 自带【第X~Y层·典章】头）
+        if (Array.isArray(demotedL3) && demotedL3.length) {
+            const attached = [];
+            Object.keys(seen).forEach(function (k) {
+                const floor = Number(k);
+                for (const r of demotedL3) {
+                    if (floor >= r.from && floor <= r.to && attached.indexOf(r) === -1) attached.push(r);
+                }
+            });
+            attached.forEach(r => items.push(r.text));
         }
         if (!items.length) return '';
         return '【相关记忆召回】以下是历史楼层的剧情详情，仅供保持剧情连贯参考（非当前对话内容）：\n'
@@ -697,7 +726,9 @@ var storyEngine = (function() {
     async function buildInjectBlocks(userMessage, gd) {
         if (!enabled()) return [];
         const blocks = [];
-        const l3 = unabsorbed(3);
+        const l3All = unabsorbed(3);
+        const l3 = l3All.slice(-keep3());   // 典章仅注入最近 keep3 篇（常驻有界；更早的降级为仅召回可达）
+        const l3Demoted = l3All.slice(0, Math.max(0, l3All.length - keep3()));
         const l2 = unabsorbed(2).slice(-keep2());
         const l1 = unabsorbed(1).slice(-keep1());
         if (l3.length) {
@@ -713,7 +744,7 @@ var storyEngine = (function() {
         if (tail.length) {
             blocks.push('【剧情编年史】（逐层索引：第N行=第N层发生的事）\n' + renderChronicleLines(tail));
         }
-        const recall = await buildRecallBlock(userMessage, gd);
+        const recall = await buildRecallBlock(userMessage, gd, l3Demoted);
         if (recall) blocks.push(recall);
         // P1 账本套件注入（顺序对齐设计方案管线：检索 → 悬念 → 人物记忆 → 实体台账）
         const suspenseBlock = buildSuspenseBlock();
@@ -805,6 +836,7 @@ var storyEngine = (function() {
             summary: memoryStore.allSummaries().length,
             chronicle: memoryStore.allChronicle().length,
             l1: unabsorbed(1).length, l2: unabsorbed(2).length, l3: unabsorbed(3).length,
+            l3Injected: Math.min(unabsorbed(3).length, keep3()),
             nextChronicleAt: memoryStore.allStory().reduce((m, r) => Math.max(m, r.to || 0), 0) + every(),
             ledger: memoryStore.allLedger().length,
             suspenseActive: suspenseAll.filter(r => r.status === 'active').length,
@@ -829,6 +861,7 @@ var storyEngine = (function() {
         stats: stats,
         recompute: recompute,
         lexicalRecall: lexicalRecall,
+        injected: isRecordInjected,
         // 内部暴露（测试用）
         _compressStory: compressStory,
         _compressLevel1: compressLevel1,

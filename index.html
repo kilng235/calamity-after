@@ -4458,7 +4458,7 @@ function clearSTPreset() {
     const match = t => !kw || String(t || '').indexOf(kw) >= 0;
     if (statsEl) {
       statsEl.textContent = '第' + st.floor + '层 ｜ 纪要 ' + st.summary + ' · 编年史 ' + st.chronicle
-        + ' ｜ 纪事 ' + st.l1 + ' · 卷宗 ' + st.l2 + ' · 典章 ' + st.l3
+        + ' ｜ 纪事 ' + st.l1 + ' · 卷宗 ' + st.l2 + ' · 典章 ' + st.l3 + (st.l3 !== st.l3Injected ? '（注入 ' + st.l3Injected + '）' : '')
         + ' ｜ 台账 ' + st.ledger + ' · 悬念 ' + st.suspenseActive + '/' + st.suspenseTotal + ' · 人物记忆 ' + st.subjective
         + ' ｜ 下一纪事：第' + st.nextChronicleAt + '层'
         + ' ｜ 副API：' + (st.apiIndependent ? '独立' : '跟随主API')
@@ -4494,9 +4494,12 @@ function clearSTPreset() {
           .filter(r => r.level === lv && match(r.text))
           .sort((a, b) => b.from - a.from);
         recs.forEach(r => {
+          const inj = storyEngine.injected ? storyEngine.injected(r) : !r.absorbedBy;
           addEntry(r.text,
-            label + ' ｜ 第' + r.from + '~' + r.to + '层' + (r.absorbedBy ? ' ｜ 已并入更高层（不再注入）' : ' ｜ 注入中'),
-            !!r.absorbedBy);
+            label + ' ｜ 第' + r.from + '~' + r.to + '层'
+              + (r.absorbedBy ? ' ｜ 已并入更高层（不再注入）'
+                : (inj ? ' ｜ 注入中' : ' ｜ 已超出常驻窗口（仅召回可达）')),
+            !!r.absorbedBy || !inj);
           shown++;
         });
       });
