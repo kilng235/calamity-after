@@ -24,9 +24,9 @@
  *   - 唯一世界书明示：废墟→沉没之城「半日路程」= 12h
  *   - 其余按各区域「位置」描述的相对方位内插
  *
- * 遭遇系统（TODO，见 docs/缺少系统清单.md）：
- *   当前 danger 仅作叙事提示（encounterHint 注入 prompt）；
- *   未来接生物模板掷骰 + 夜路升档。
+ * 遭遇系统（已实现，见 module/encounter-system.js）：
+ *   travelTo 内按 effectiveDanger 掷骰决定遭遇，经 encounterHint 注入 prompt；
+ *   夜路自动升档（escalateDanger）。
  */
 
 export const TRAVEL_ROUTES = [
@@ -57,6 +57,11 @@ export const TRAVEL_ROUTES = [
  * 起点（新游戏初始位置）
  */
 export const START_LOCATION = '锈钉镇';
+
+/**
+ * 全部已知区域名（路网端点去重；供旅行意图解析的地名词表与 UI）
+ */
+export const TRAVEL_LOCATIONS = Array.from(new Set(TRAVEL_ROUTES.flatMap((r) => [r.from, r.to])));
 
 /**
  * 夜路时段（游戏内小时）：出发或抵达落在此区间 → danger 升一档（叙事提示）

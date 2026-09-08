@@ -5,6 +5,26 @@
 
 ---
 
+## 🧭 旅行/遭遇系统运行时接线 — 自然语言入口（2026-09-07）
+
+### 背景
+
+旅行路网（travel-tables 12 边）、路途遭遇（encounter-system 掷骰/偷袭/夜路升档）于 2026-09-07 建成并被 sync-contracts 覆盖，但 index.html 零引用——**模块层完成、运行时未接**。本轮补上自然语言入口接线。
+
+### 实现
+
+- **新模块 `module/travel-input.js`**（纯函数，可 node 测试）：
+  - `parseTravelIntent`：动词门（前往/出发/回到/返回/回/去 等 15 词）+ 地名门（10 区域全名包含匹配 + 5 个无歧义短别名：废墟/裂隙/沼泽/荒原/山脉，排除当前所在地）+ 唯一性门（0 个不触发、≥2 个判歧义不触发）——保守三重门，宁可不触发不误判
+  - `buildTravelPromptBlock`：travelTo 返回 → 系统块（成功=「旅行结算·系统权威」+ encounterHint + "遭遇内容禁止更改/回避"指示 + 抵达后 update currentPlace 指示；失败=此路不通，叙事体现道路阻断、不得凭空抵达）
+  - `applyTravelSettlement`：克隆结算字段（gameTime/currentLocation/unlockedLocations）合并进 finalGd
+- **index.html 接线三处**：意图解析（prompt 组装前）→ 提示块注入（system 消息，与 recalledBlock 同模式）→ 回合成功后结算合并 + 强制 importGameData + 🧭 结算摘要行（路线/耗时/危险/遭遇/偷袭）
+- **事务式落盘**：travelTo 副作用只落在 gd 克隆上，AI 响应成功后才合并落盘——终止/失败回合结算自然丢弃，对齐"终止不落地"既有语义；结算在 AI 命令之后应用，引擎对区域位置/时间权威
+- **travel-tables.js**：新增 `TRAVEL_LOCATIONS` 导出（路网端点去重词表）；修正头注释过时的"遭遇系统 TODO"
+- 采集系统（gathering-tables）本轮不接——"在某地做什么"的动作意图更适合动作解析/面板按钮，二期再议
+- 测试：新增 tools-test-travel-input.js 19 项（解析器三重门/别名/歧义/提示块三态/travelTo 集成/夜路升档/不可直达/未解锁/结算合并）；全量 14 套件 exit=0
+
+---
+
 ## 🧠 记忆系统增强 — 典章注入窗口化 + 降级典章召回补注（2026-09-07）
 
 ### 问题：常驻注入随楼层数线性增长

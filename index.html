@@ -3617,6 +3617,9 @@ function clearSTPreset() {
   import equipmentData from './module/equipment-system.js';
   import questData from './module/quest-system.js';
   import skillData from './module/skill-system.js';
+  import { parseTravelIntent, buildTravelPromptBlock, applyTravelSettlement } from './module/travel-input.js';
+  import { travelTo } from './module/travel-system.js';
+  import { TRAVEL_LOCATIONS } from './module/travel-tables.js';
 
   // 暴露 gameData 到 window，供 preset-importer.js 的 getvar 宏读取游戏状态
   Object.defineProperty(window, 'gameData', {
@@ -4721,6 +4724,22 @@ function clearSTPreset() {
         prompt.messages.splice(1, 0, { role: 'system', content: recalledBlock });
       }
 
+      // 旅行意图（自然语言入口）：动词+地名+唯一性三重门；命中则在克隆上系统结算并注入提示块
+      let pendingTravel = null;
+      try {
+        const tIntent = parseTravelIntent(message, gd.progress && gd.progress.currentLocation, TRAVEL_LOCATIONS);
+        if (tIntent.intent) {
+          const settledClone = JSON.parse(JSON.stringify(gd));
+          const tResult = travelTo(tIntent.destination, settledClone);   // 副作用只落克隆，事务式落盘
+          const travelBlock = buildTravelPromptBlock(tResult);
+          if (travelBlock) prompt.messages.splice(1, 0, { role: 'system', content: travelBlock });
+          if (tResult && tResult.success) pendingTravel = { result: tResult, settled: settledClone };
+        }
+      } catch (e) {
+        console.warn('[Travel] 旅行结算异常（按普通回合继续）:', e && e.message || e);
+        pendingTravel = null;
+      }
+
       // 调用 AI（修正为 sendMessages(messages[], options)）
       const apiConfig = apiService.getConfig();
       if (!apiConfig || !apiConfig.apiKey) throw new Error('未配置 API Key，请先到「设置」填写');
@@ -4761,9 +4780,21 @@ function clearSTPreset() {
         console.log('任务块已应用:', qResult.report);
         finalGd = qResult.gameData || finalGd;
       }
-      if (finalGd !== gd) {
+      // 旅行结算合并（引擎权威：currentLocation/gameTime 覆盖 AI 命令；无命令也强制落盘）
+      let travelApplied = false;
+      if (pendingTravel) {
+        travelApplied = applyTravelSettlement(finalGd, pendingTravel.settled);
+      }
+      if (finalGd !== gd || travelApplied) {
         gameState.importGameData(finalGd);
         refreshGameUI();
+      }
+      if (travelApplied) {
+        const tr = pendingTravel.result;
+        displayNarrative('\n🧭 旅行结算：' + tr.route.from + ' → ' + tr.route.to
+          + '（约 ' + tr.route.hours + ' 小时｜危险：' + tr.effectiveDanger + (tr.nightTravel ? '｜夜间赶路' : '')
+          + '｜遭遇：' + (tr.encounter ? tr.encounter.creature + ' ×' + tr.encounter.count
+            + (tr.encounter.surprise ? '｜被偷袭' : '｜未被偷袭') : '无') + '）\n');
       }
 
       // 战斗数学校验（P2）：卡面伤害/命中 vs 命令落地差分，不一致时警示一行
