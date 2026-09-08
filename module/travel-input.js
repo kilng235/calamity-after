@@ -20,12 +20,18 @@ const TRAVEL_VERBS = ['前往', '出发去', '动身去', '赶往', '启程', '�
 
 // 地名短别名（无歧义缩写 → 标准区域名；均为标准名的真子串，全名命中时优先跳过别名）
 const LOCATION_ALIASES = {
+  '锈钉': '锈钉镇',
   '废墟': '旧王城废墟',
   '裂隙': '深渊裂隙',
   '沼泽': '迷雾沼泽',
   '荒原': '魔法荒原',
   '山脉': '龙骨山脉'
 };
+
+// 运行时正名 ↔ 路网名：开局存档 progress.currentLocation 用「佣兵镇·锈钉」（世界书地理总纲正名），
+// 路网/遭遇池用「锈钉镇」（地理总纲正文与玩家口语同名）。映射在本模块内双向收敛，其余区域两域同名。
+const CANONICAL_TO_TRAVEL = { '佣兵镇·锈钉': '锈钉镇' };
+const TRAVEL_TO_CANONICAL = { '锈钉镇': '佣兵镇·锈钉' };
 
 /**
  * 解析旅行意图
@@ -42,11 +48,12 @@ export function parseTravelIntent(message, currentLocation, locations) {
   const hasVerb = TRAVEL_VERBS.some((v) => msg.indexOf(v) !== -1);
   if (!hasVerb) return { intent: false, reason: 'no-verb' };
 
-  // ② 地名门：全名包含匹配 + 别名展开，排除当前所在地
+  // ② 地名门：全名包含匹配 + 别名展开，排除当前所在地（当前地先做正名→路网名归一）
+  const curTravel = CANONICAL_TO_TRAVEL[currentLocation] || currentLocation;
   const mentioned = [];
   const names = Array.isArray(locations) ? locations : [];
   for (const name of names) {
-    if (!name || name === currentLocation) continue;
+    if (!name || name === curTravel) continue;
     if (msg.indexOf(name) !== -1) { mentioned.push(name); continue; }
     for (const alias in LOCATION_ALIASES) {
       if (LOCATION_ALIASES[alias] === name && msg.indexOf(alias) !== -1) {
@@ -88,7 +95,8 @@ export function buildTravelPromptBlock(result) {
 }
 
 /**
- * 合并旅行结算进最终 gameData（在 AI 命令应用之后调用，引擎权威覆盖）
+ * 合并旅行结算进最终 gameData（在 AI 命令应用之后调用，引擎权威覆盖）。
+ * 结算里的路网名写回运行时正名（锈钉镇→佣兵镇·锈钉），与开局存档词汇一致。
  * @param {Object} finalGd - 命令应用后的 gameData
  * @param {Object} settledClone - travelTo 完成结算的 gd 克隆（含 gameTime/progress 变更）
  * @returns {boolean} true=有结算需要落盘（调用方应强制 importGameData）
@@ -97,7 +105,8 @@ export function applyTravelSettlement(finalGd, settledClone) {
   if (!finalGd || !settledClone || !settledClone.progress) return false;
   finalGd.gameTime = settledClone.gameTime;
   if (!finalGd.progress) finalGd.progress = {};
-  finalGd.progress.currentLocation = settledClone.progress.currentLocation;
-  finalGd.progress.unlockedLocations = (settledClone.progress.unlockedLocations || []).slice();
+  finalGd.progress.currentLocation = TRAVEL_TO_CANONICAL[settledClone.progress.currentLocation] || settledClone.progress.currentLocation;
+  finalGd.progress.unlockedLocations = (settledClone.progress.unlockedLocations || [])
+    .map((n) => TRAVEL_TO_CANONICAL[n] || n);
   return true;
 }
