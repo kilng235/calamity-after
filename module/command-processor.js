@@ -225,9 +225,9 @@ var commandProcessor = (function () {
         var progress = gd.progress = gd.progress || {};
         progress.currentLocation = 规范化文本(progress.currentLocation, '锈钉镇');
         if (progress.currentPlace === undefined || progress.currentPlace === null) {
-            // 旧存档一次性迁移：开局仍在锈钉镇的，补齐据点名与开局场所
+            // 旧存档一次性迁移：开局仍在锈钉镇的，补齐据点名与开局场所（地名已统一为「锈钉镇」）
             if (progress.currentLocation === '锈钉镇' || progress.currentLocation === '佣兵镇·锈钉') {
-                progress.currentLocation = '佣兵镇·锈钉';
+                progress.currentLocation = '锈钉镇';
                 progress.currentPlace = '佣兵公会大厅';
             } else {
                 progress.currentPlace = '';

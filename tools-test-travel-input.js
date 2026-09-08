@@ -91,17 +91,15 @@ function check(name, cond) {
     applied === true && finalGd.gameTime.hour === 9 && finalGd.progress.currentLocation === '灰烬森林'
     && finalGd.progress.unlockedLocations.indexOf('灰烬森林') >= 0 && finalGd.progress.gold === 50);
 
-  // ── 运行时正名映射（开局存档「佣兵镇·锈钉」↔ 路网「锈钉镇」）──
-  const rCanon = p('去灰烬森林', '佣兵镇·锈钉');
-  check('20. 正名当前地归一：佣兵镇·锈钉 下解析出灰烬森林（正名不挡门）',
-    rCanon.intent === true && rCanon.destination === '灰烬森林');
-  const finalGd2 = { gameTime: {}, progress: { currentLocation: '灰烬森林', gold: 1 } };
-  const clone2 = { gameTime: { year: 300, month: 11, day: 12, hour: 9, minute: 10 }, progress: { currentLocation: '锈钉镇', unlockedLocations: ['锈钉镇', '灰烬森林'] } };
-  check('21. 结算写回正名：锈钉镇 → 佣兵镇·锈钉（位置与 unlocked 同步映射）',
-    input.applyTravelSettlement(finalGd2, clone2) === true
-    && finalGd2.progress.currentLocation === '佣兵镇·锈钉'
-    && finalGd2.progress.unlockedLocations.indexOf('佣兵镇·锈钉') >= 0
-    && finalGd2.progress.unlockedLocations.indexOf('灰烬森林') >= 0);
+  // ── 统一地名词表（2026-09-08：开局/存档迁移/命令校准/路网/遭遇池全部使用「锈钉镇」）──
+  const gdTown = { gameTime: { year: 300, month: 11, day: 12, hour: 7, minute: 10 }, progress: { currentLocation: '锈钉镇', unlockedLocations: ['锈钉镇'] } };
+  const tClone = input.cloneForTravel(gdTown);
+  check('20. cloneForTravel：深拷贝独立（克隆与本体互不影响）',
+    tClone !== gdTown && tClone.progress.currentLocation === '锈钉镇'
+    && gdTown.progress.currentLocation === '锈钉镇');
+  const tReal = system.travelTo('灰烬森林', input.cloneForTravel(gdTown));
+  check('21. 统一词汇回归：锈钉镇→灰烬森林 旅行成功（真实开局场景）',
+    tReal.success === true && tReal.newLocation === '灰烬森林' && tReal.effectiveDanger === '低');
 
   console.log('\n' + (fail === 0 ? '✅ 全部通过（' + pass + ' 项）' : '❌ 失败 ' + fail + ' 项 / 通过 ' + pass + ' 项'));
   process.exit(fail === 0 ? 0 : 1);

@@ -3617,7 +3617,7 @@ function clearSTPreset() {
   import equipmentData from './module/equipment-system.js';
   import questData from './module/quest-system.js';
   import skillData from './module/skill-system.js';
-  import { parseTravelIntent, buildTravelPromptBlock, applyTravelSettlement } from './module/travel-input.js';
+  import { parseTravelIntent, buildTravelPromptBlock, applyTravelSettlement, cloneForTravel } from './module/travel-input.js';
   import { travelTo } from './module/travel-system.js';
   import { TRAVEL_LOCATIONS } from './module/travel-tables.js';
 
@@ -4729,8 +4729,8 @@ function clearSTPreset() {
       try {
         const tIntent = parseTravelIntent(message, gd.progress && gd.progress.currentLocation, TRAVEL_LOCATIONS);
         if (tIntent.intent) {
-          const settledClone = JSON.parse(JSON.stringify(gd));
-          const tResult = travelTo(tIntent.destination, settledClone);   // 副作用只落克隆，事务式落盘
+          const settledClone = cloneForTravel(gd);   // 深拷贝 + 位置/unlocked 归一为路网名（travelTo 只认路网词表）
+          const tResult = travelTo(tIntent.destination, settledClone);
           const travelBlock = buildTravelPromptBlock(tResult);
           if (travelBlock) prompt.messages.splice(1, 0, { role: 'system', content: travelBlock });
           if (tResult && tResult.success) pendingTravel = { result: tResult, settled: settledClone };
@@ -5275,7 +5275,7 @@ function saveCharacter() {
     equipment: kit.equipment,
     inventory: kit.inventory,
     currency: { gold: kit.gold },
-    progress: { currentLocation: '佣兵镇·锈钉', currentPlace: '佣兵公会大厅', completedQuests: [], unlockedLocations: ['佣兵镇·锈钉'], backstory: document.getElementById('out').value },
+    progress: { currentLocation: '锈钉镇', currentPlace: '佣兵公会大厅', completedQuests: [], unlockedLocations: ['锈钉镇'], backstory: document.getElementById('out').value },
     relationships: {},
     quests: { active: [], completed: [], failed: [] },
     skills: [],

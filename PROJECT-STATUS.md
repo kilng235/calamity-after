@@ -109,6 +109,7 @@
 
 ## ⚠️ 已知问题
 
+0. **P1 块遵从率 0% 与 SUMMARY 遵从率 41%（24 回合无头真机长跑实测，2026-09-08）**：MiniMax-M3 真跑 22 个有效回合，[实体更新]/[悬念] 块输出 **0 次**（账本套件空转，台账/悬念簿/主观记忆终态全 0），`<SUMMARY>` 输出仅 **9/22**（59% 回合对记忆系统不可见）。命令遵从尚可（31 条 0 拒绝，10/22 回合有命令）。**待办**：SUMMARY 强制化（协议硬条款 + 无 SUMMARY 时从正文首段自动生成纪要的工程兜底）优先级高于 P1 兜底；重跑对比遵从率曲线
 1. ~~**equipment 双状态源**~~：✅ 已消除（2026-09-05）——combat-system/creature-system 移入 `module/legacy/` 冻结；其生物模板已整合进世界书（10 只 JS 独有生物迁移为 yaml，5 只重叠核对一致）；同时修复 `buildCreatureWorldbook()` 在 Object.assign 时遮蔽静态 yaml 生物条目的活体 bug，生物数据单一事实源为 `世界书/生物/*.yaml`（32 只）
 2. **opening-system.js 模块闲置**：开局叙事实际由内联 `IDENTITY_OPENINGS` + `calamityOpening` 通道实现（可用），模块本身未接线
 3. **quest-system.js 旁路**：主链路收敛于 gameData.quests，独立 questManager 仍是并行代码
@@ -121,6 +122,11 @@
 ---
 
 ## 🔄 更新日志
+
+### 2026-09-08（旅行地名词表统一 + 无头长跑验证）
+- 无头真机长跑 24 回合（MiniMax-M3，~50 万 token）：P1 块遵从率 0%、SUMMARY 遵从率 41%、命令 31 条 0 拒绝、旅行 3 触发 2 失败——结论入已知问题 0
+- 地名词表全项目统一为「锈钉镇」：开局建档/旧存档迁移（game-state）/命令校准（command-processor）四处归一，travel-input 删除正名↔路网映射层；世界书叙事文本保留正名
+- 旧存档迁移经 Node 实测验证（位置/unlocked 映射、currentPlace/金币/HP 保留）；travel 测试重写为统一词汇版 21 项；无头长跑器完成使命后移除
 
 ### 2026-09-07（旅行/遭遇系统运行时接线：自然语言入口）
 - 新模块 travel-input.js：parseTravelIntent（动词+地名+唯一性三重门，10 区域词表+5 别名）/ buildTravelPromptBlock / applyTravelSettlement

@@ -5,6 +5,26 @@
 
 ---
 
+## 🧭 旅行地名词表统一 — 全项目归一「锈钉镇」（2026-09-08）
+
+### 背景：24 回合无头真机长跑（MiniMax-M3）实测暴露
+
+- **T8/T15 旅行静默失败**：开局存档 progress.currentLocation 用正名「佣兵镇·锈钉」（世界书地理总纲），旅行路网/遭遇池词表用「锈钉镇」——双词表导致 travelTo findRoute 匹配不到起点，3 次旅行挂 2 次，灰烬森林弧线位置状态机从未移动
+- 实测同时确认：P1 块遵从率 0%（0/22 实体/悬念块）、SUMMARY 遵从率 41%（9/22）、战斗类重回合易超时——详见 PROJECT-STATUS 已知问题
+
+### 修复：地名词表全项目统一为「锈钉镇」（从源头消灭双词表）
+
+- **统一点 4 处**：
+  - 开局建档（index.html saveCharacter）：currentLocation/unlockedLocations → '锈钉镇'
+  - 旧存档迁移（game-state loadGameData）：「佣兵镇·锈钉」→「锈钉镇」（位置 + unlocked 双映射；currentPlace/金币/HP 等字段保留，经 Node 实测验证）
+  - 命令校准（command-processor）：AI 写「佣兵镇·锈钉」自动归一为「锈钉镇」
+- **travel-input.js 简化**：删除正名↔路网双向映射层（CANONICAL_TO_TRAVEL/TRAVEL_TO_CANONICAL/toTravelLocation），cloneForTravel 退化为纯深拷贝——词汇统一后映射不再需要
+- **世界书叙事文本保留「佣兵镇·锈钉」**：in-world 正名（地理总纲/开局大纲/数据同步协议等 prompt 文本不动，协议示例值本就是「锈钉镇」），AI 口语兼容，state 层由迁移+校准双兜底
+- 验证工具（无头长跑器）完成使命后按需移除，其发现的结论记录于 PROJECT-STATUS 已知问题
+- 测试：tools-test-travel-input.js 重写为统一词汇版（21 项，含真实开局旅行回归与深拷贝语义）；全量 14 套件 exit=0
+
+---
+
 ## 🧭 旅行/遭遇系统运行时接线 — 自然语言入口（2026-09-07）
 
 ### 背景
