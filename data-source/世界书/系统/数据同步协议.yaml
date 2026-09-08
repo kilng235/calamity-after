@@ -148,7 +148,7 @@ AI 只可写以下 15 个顶层根：
 
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| currentLocation | string | '锈钉镇' | 当前位置（区域·据点，如"佣兵镇·锈钉"） |
+| currentLocation | string | '锈钉镇' | 当前位置（区域·据点，如"锈钉镇"） |
 | currentPlace | string | '' | 当前具体场所（如"佣兵公会大厅""铁匠铺"）；进入新场景或场景内移动时更新，离开据点时清空 |
 | completedQuests | string[] | [] | 已完成任务 ID 数组 |
 | unlockedLocations | string[] | ['锈钉镇'] | 已解锁地点数组 |

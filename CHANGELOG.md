@@ -19,7 +19,8 @@
   - 旧存档迁移（game-state loadGameData）：「佣兵镇·锈钉」→「锈钉镇」（位置 + unlocked 双映射；currentPlace/金币/HP 等字段保留，经 Node 实测验证）
   - 命令校准（command-processor）：AI 写「佣兵镇·锈钉」自动归一为「锈钉镇」
 - **travel-input.js 简化**：删除正名↔路网双向映射层（CANONICAL_TO_TRAVEL/TRAVEL_TO_CANONICAL/toTravelLocation），cloneForTravel 退化为纯深拷贝——词汇统一后映射不再需要
-- **世界书叙事文本保留「佣兵镇·锈钉」**：in-world 正名（地理总纲/开局大纲/数据同步协议等 prompt 文本不动，协议示例值本就是「锈钉镇」），AI 口语兼容，state 层由迁移+校准双兜底
+- **世界书文本同步统一**：地理总纲表行 / 区域条目标题 / 开局大纲 / 开局生成规则（2 处）/ 数据同步协议示例 —— `佣兵镇·锈钉` → `锈钉镇`，`npm run convert` 重生成 prompt-data；旅行采集表键同步改为 `地理/锈钉镇`（原 `地理/佣兵镇·锈钉`）
+- **旧名兼容读取保留**：game-state 迁移与 command-processor 校准仍识别旧名「佣兵镇·锈钉」（老玩家存档自动归一，双名读容错不删）
 - 验证工具（无头长跑器）完成使命后按需移除，其发现的结论记录于 PROJECT-STATUS 已知问题
 - 测试：tools-test-travel-input.js 重写为统一词汇版（21 项，含真实开局旅行回归与深拷贝语义）；全量 14 套件 exit=0
 

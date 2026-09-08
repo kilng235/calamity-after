@@ -13,7 +13,7 @@ export const GATHERING_TABLES = {
     ]
   },
 
-  '地理/佣兵镇·锈钉': {
+  '地理/锈钉镇': {
     cooldownMinutes: 15,
     materials: [
       { name: '清水',     weight: 20, amount: '1d2' },

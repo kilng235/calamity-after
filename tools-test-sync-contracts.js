@@ -37,7 +37,7 @@ const base = () => ({
   equipment: {}, inventory: [],
   currency: { gold: 10 }, conditions: {},
   gameTime: { year: 300, month: 11, day: 12, hour: 7, minute: 10 },
-  progress: { currentLocation: '佣兵镇·锈钉', currentPlace: '佣兵公会大厅' }
+  progress: { currentLocation: '锈钉镇', currentPlace: '佣兵公会大厅' }
 });
 
 // ---------- yaml 独立解析（与转换器实现互为第二双眼睛） ----------
@@ -492,7 +492,7 @@ const attrSysYaml = fs.readFileSync(path.join(ROOT, 'data-source/世界书/系�
   // 7x. listGatheringLocations 6 个注册采集点
   check('7x. listGatheringLocations 返回全部 6 个注册采集点',
     listGatheringLocations().length === 6 &&
-    ['地理/灰烬森林', '地理/佣兵镇·锈钉', '地理/深渊裂隙', '地理/地下裂谷', '地理/龙骨山脉', '地理/魔法荒原']
+    ['地理/灰烬森林', '地理/锈钉镇', '地理/深渊裂隙', '地理/地下裂谷', '地理/龙骨山脉', '地理/魔法荒原']
       .every(k => listGatheringLocations().includes(k)));
 
   // 7y. 全区域表结构：总权重=100 + 材料均在 MATERIALS + 冷却为正

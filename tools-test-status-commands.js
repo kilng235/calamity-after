@@ -12,7 +12,7 @@ const base = () => ({
   attributes: { 力量: 10, 敏捷: 10, 体质: 10, 感知: 10, 智力: 10, 魅力: 10 },
   equipment: {}, inventory: [],
   currency: { gold: 10 }, conditions: {}, gameTime: { year: 300, month: 11, day: 12, hour: 7, minute: 10 },
-  progress: { currentLocation: '佣兵镇·锈钉', currentPlace: '佣兵公会大厅' }
+  progress: { currentLocation: '锈钉镇', currentPlace: '佣兵公会大厅' }
 });
 
 // 1. 获得状态

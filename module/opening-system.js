@@ -21,10 +21,10 @@ export const OPENING_ANCHOR = {
     display: '灾厄纪年300年11月12日 07:10'
   },
   location: {
-    region: '佣兵镇',
+    region: '锈钉镇',
     town: '锈钉',
     place: '佣兵公会大厅',
-    full: '佣兵镇·锈钉，佣兵公会大厅'
+    full: '锈钉镇，佣兵公会大厅'
   },
   initialState: {
     gold: 15,
