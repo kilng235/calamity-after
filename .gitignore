@@ -20,6 +20,10 @@ data-source/世界书/系统/*.backup
 # ST 预设测试夹具（tools-*.js 本地验证用，第三方内容不入库）
 _tmp-polarday.json
 
+# 长跑验证器：API 凭据（严禁入库）与运行产物
+.api-key.local
+longrun/
+
 # 系统
 .DS_Store
 Thumbs.db
