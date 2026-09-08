@@ -30,7 +30,8 @@ window.apiService = {
   config: { endpoint: 'http://main', apiKey: 'main-key', model: 'main-model' },
   getConfig() { return this.config; },
   async sendMessages(messages, options) {
-    apiCalls.push({ url: (options && options.endpoint) || 'http://main', model: (options && options.model) || 'main-model' });
+    const sys0 = messages && messages[0] && messages[0].content || '';
+    apiCalls.push({ url: (options && options.endpoint) || 'http://main', model: (options && options.model) || 'main-model', kind: sys0.indexOf('记忆提取员') >= 0 ? 'extract' : 'compress' });
     const sys = messages && messages[0] && messages[0].content || '';
     if (sys.indexOf('记忆提取员') >= 0) return { content: EXTRACT_JSON, usage: {} };
     return { content: '测试压缩' + (++compSeq) + '：主角与莉娅在铁矿镇击退狼群，护送任务完成。', usage: {} };
@@ -213,6 +214,107 @@ function check(name, cond) {
   // stats 暴露 P1 计数
   const stP1 = storyEngine.stats();
   check('38. stats 含 P1 计数（台账/悬念/主观记忆）', typeof stP1.ledger === 'number' && typeof stP1.suspenseActive === 'number' && typeof stP1.subjective === 'number');
+
+  // ==================== 大缺口分批压缩 / 恢复幂等 / 队列归并（v2.1.1 修复批） ====================
+
+  // 干净重置
+  await memoryStore.clearAll();
+  localStorage.removeItem('calamity-memory-floor');
+  localStorage.removeItem('calamity-memory-pending');
+  await storyEngine.init();
+
+  // 直写 121 层纪要（绕过 onTurnArchived，不触发自动压缩链）
+  for (let i = 1; i <= 121; i++) {
+    await memoryStore.put('summary', { floor: i, text: '第' + i + '层剧情：分批测试', time: '300年11月12日 12:00', location: '铁矿镇', createdAt: Date.now() });
+  }
+
+  // 39. 分批规划：121 层全有纪要 → [1,80]+[81,121] 两批
+  let batches = storyEngine._planLevel1Batches(1, 121);
+  check('39. 分批规划：121 层切成 [1,80]+[81,121] 两批', batches.length === 2
+    && batches[0].from === 1 && batches[0].to === 80 && batches[1].from === 81 && batches[1].to === 121);
+
+  apiCalls.length = 0;
+  await storyEngine._compressLevel1(1, 121);
+  let l1s = memoryStore.allStory().filter(r => r.level === 1).sort((a, b) => a.from - b.from);
+  check('40. 大区间压缩分批：121 层产出 2 篇纪事且标签如实', l1s.length === 2
+    && l1s[0].from === 1 && l1s[0].to === 80 && l1s[1].from === 81 && l1s[1].to === 121);
+  check('41. 分批调用数：压缩 2 次 + 提取 2 次（旧版为 1 次半盲压缩）',
+    apiCalls.filter(c => c.kind === 'compress').length === 2 && apiCalls.filter(c => c.kind === 'extract').length === 2);
+
+  // 42. 已覆盖区间重复压缩幂等（重试/恢复安全的核心）
+  const l1CountBefore = l1s.length;
+  apiCalls.length = 0;
+  await storyEngine._compressLevel1(1, 121);
+  check('42. 已覆盖区间重复压缩幂等（零调用零新增）', apiCalls.length === 0
+    && memoryStore.allStory().filter(r => r.level === 1).length === l1CountBefore);
+
+  // 43. 空洞断批：删除 41~50 层纪要（模拟回滚），分批应在空洞处断开且标签不虚标
+  for (let f = 41; f <= 50; f++) await memoryStore.del('summary', f);
+  batches = storyEngine._planLevel1Batches(1, 121);
+  check('43. 空洞断批：标签不虚标无纪要楼层', batches.length === 2
+    && batches[0].from === 1 && batches[0].to === 40 && batches[1].from === 51 && batches[1].to === 121);
+
+  // 44-45. 中断恢复：批 1 成功、批 2 失败 → 重试只补失败批次
+  await memoryStore.clearStore('story');
+  const origSend = window.apiService.sendMessages;
+  let compCount = 0;
+  window.apiService.sendMessages = async function (messages, options) {
+    const sys0 = messages && messages[0] && messages[0].content || '';
+    if (sys0.indexOf('记忆提取员') === -1 && ++compCount === 2) throw new Error('模拟副API中断');
+    return origSend.call(this, messages, options);
+  };
+  apiCalls.length = 0;
+  await storyEngine._compressLevel1(1, 121).catch(function () { /* 批2失败预期内 */ });
+  window.apiService.sendMessages = origSend;
+  apiCalls.length = 0;
+  await storyEngine._compressLevel1(1, 121);
+  l1s = memoryStore.allStory().filter(r => r.level === 1).sort((a, b) => a.from - b.from);
+  check('44. 中断恢复：重试只补失败批次不重复已完成批次', l1s.length === 2
+    && l1s[0].from === 1 && l1s[0].to === 40 && l1s[1].from === 51 && l1s[1].to === 121);
+  check('45. 中断恢复：重试仅 1 次压缩 + 1 次提取',
+    apiCalls.filter(c => c.kind === 'compress').length === 1 && apiCalls.filter(c => c.kind === 'extract').length === 1);
+
+  // 46. 断档期队列归并：连续失败回合只积压一条 L1 任务（旧版逐回合积压重叠任务）
+  await memoryStore.clearAll();
+  localStorage.removeItem('calamity-memory-floor');
+  localStorage.removeItem('calamity-memory-pending');
+  await storyEngine.init();
+  for (let i = 1; i <= 120; i++) {
+    await memoryStore.put('summary', { floor: i, text: '第' + i + '层剧情：队列归并测试', time: '300年11月12日 13:00', location: '铁矿镇', createdAt: Date.now() });
+  }
+  window.apiService.sendMessages = async function () { throw new Error('副API断档'); };
+  for (let turn = 0; turn < 3; turn++) {
+    await storyEngine._maybeCompress(20 + turn * 40, true).catch(function () { /* 断档预期内 */ });
+  }
+  window.apiService.sendMessages = origSend;
+  const pendingQueue = JSON.parse(localStorage.getItem('calamity-memory-pending') || '[]');
+  const l1Tasks = pendingQueue.filter(t => t.level === 1);
+  check('46. 断档期队列归并：3 回合失败后 L1 任务仅 1 条且跨度完整',
+    l1Tasks.length === 1 && l1Tasks[0].from === 1 && l1Tasks[0].to === 100);
+
+  // 47-48. 恢复：一次 maybeCompress 完成全部补压，无重叠无风暴
+  apiCalls.length = 0;
+  await storyEngine._maybeCompress(120, true);
+  l1s = memoryStore.allStory().filter(r => r.level === 1).sort((a, b) => a.from - b.from);
+  check('47. 恢复后一次补压完成：[1,80]+[81,100]+[101,120] 三篇无重叠', l1s.length === 3
+    && l1s[0].from === 1 && l1s[0].to === 80 && l1s[1].from === 81 && l1s[1].to === 100 && l1s[2].from === 101 && l1s[2].to === 120);
+  check('48. 恢复风暴消除：仅 3 压缩 + 3 提取（旧版为积压任务数×2 次调用）',
+    apiCalls.filter(c => c.kind === 'compress').length === 3 && apiCalls.filter(c => c.kind === 'extract').length === 3);
+
+  // 49-50. 旧版本病态队列自愈：预置 3 条重叠 L1 任务，归并后一次执行
+  await memoryStore.clearStore('story');
+  localStorage.setItem('calamity-memory-pending', JSON.stringify([
+    { level: 1, from: 1, to: 20, batch: 0 },
+    { level: 1, from: 1, to: 40, batch: 0 },
+    { level: 1, from: 1, to: 60, batch: 0 }
+  ]));
+  apiCalls.length = 0;
+  await storyEngine._maybeCompress(60, true);
+  l1s = memoryStore.allStory().filter(r => r.level === 1).sort((a, b) => a.from - b.from);
+  check('49. 旧积压队列自愈：3 条重叠任务归并为一次执行产出 [1,60] 一篇',
+    l1s.length === 1 && l1s[0].from === 1 && l1s[0].to === 60);
+  check('50. 旧积压队列自愈：仅 1 次压缩 + 1 次提取（旧版为 3×2 次调用）',
+    apiCalls.filter(c => c.kind === 'compress').length === 1 && apiCalls.filter(c => c.kind === 'extract').length === 1);
 
   console.log('\n' + (fail === 0 ? '✅ 全部通过（' + pass + ' 项）' : '❌ 失败 ' + fail + ' 项 / 通过 ' + pass + ' 项'));
   process.exit(fail === 0 ? 0 : 1);

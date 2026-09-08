@@ -4,6 +4,7 @@
  * 架构（见 docs/记忆系统2.0-工程蓝图.md）：
  *   核心（常启）：每层纪要 → 编年史一行 → 滚动合并（纪事20层→卷宗100层→典章300层）
  *                 注入 = 典章/卷宗/纪事(常驻) + 编年史尾窗(常驻) + 词法命中展开(按需)
+ *                 大缺口补压分批执行（≤80 层/批、空洞断批、已覆盖批跳过）+ 失败队列 L1 区间归并（防恢复风暴）
  *   向量模块（可选，calamity-memory-vec）：摘要向量化，召回与词法按楼层去重合并
  *   P1 账本套件：实体台账（[实体更新] 块维护）+ 悬念簿（[悬念]/[悬念核销]）+ 主观记忆
  *                （挂纪事压缩批量提取，走副API；主演/龙套分级注入）
@@ -18,6 +19,7 @@ var storyEngine = (function() {
     const CHRONICLE_TAIL = 100;     // 编年史常驻尾窗行数
     const RECALL_TOPK = 3;          // 词法命中展开楼层数
     const LINE_MAX = 40;            // 编年史行正文上限
+    const MAX_COMPRESS_INPUTS = 80; // 单次压缩输入行上限（大区间自动分批，见 planLevel1Batches）
 
     // P1 账本套件参数
     const LEDGER_HISTORY_MAX = 5;   // 台账每实体变更史上限
@@ -255,14 +257,45 @@ var storyEngine = (function() {
     function pendingLoad() { try { return JSON.parse(ls('calamity-memory-pending') || '[]'); } catch (e) { return []; } }
     function pendingSave(list) { try { localStorage.setItem('calamity-memory-pending', JSON.stringify(list)); } catch (e) { /* ignore */ } }
 
-    /** 收集楼层区间的压缩/提取输入行（超长保护：只取最近 80 层，优先保留新近因果） */
+    /**
+     * L1 任务区间并集归并：队列中所有 L1 任务（可选并入 [extraFrom, extraTo]）合并为一条跨区间任务。
+     * 修复背景：旧版断档期每个失败回合都 push 一个 {from,to} 重叠任务（{1,20},{1,21}…），
+     * 恢复后重试循环逐个执行 → 压缩/提取调用风暴 + 上百篇重叠纪事。归并后恒为一条，
+     * 执行端（compressLevel1）按批切段、已覆盖批跳过，合并跨度含无纪要空洞也安全。
+     */
+    function mergePendingL1(pending, extraFrom, extraTo) {
+        const hasExtra = extraFrom != null && extraTo != null;
+        let lo = hasExtra ? extraFrom : Infinity;
+        let hi = hasExtra ? extraTo : -Infinity;
+        let insertAt = -1;
+        const rest = [];
+        for (let i = 0; i < pending.length; i++) {
+            const t = pending[i];
+            if (t && t.level === 1 && typeof t.from === 'number' && typeof t.to === 'number') {
+                if (insertAt === -1) insertAt = rest.length;
+                lo = Math.min(lo, t.from);
+                hi = Math.max(hi, t.to);
+            } else {
+                rest.push(t);
+            }
+        }
+        if (insertAt !== -1 || hasExtra) {
+            const merged = { level: 1, from: lo, to: hi, batch: 0 };
+            if (insertAt === -1) rest.push(merged);
+            else rest.splice(insertAt, 0, merged);
+        }
+        return rest;
+    }
+
+    /** 收集楼层区间的压缩/提取输入行。正常调用方（compressLevel1 分批）保证区间 ≤ MAX_COMPRESS_INPUTS，
+     *  此处截断仅作最后安全网（超出时取最近批次，优先保留新近因果）。 */
     function collectInputs(from, to) {
         const inputs = [];
         for (let f = from; f <= to; f++) {
             const s = memoryStore.getSummary(f);
             if (s) inputs.push('第' + f + '层(' + (s.time || '') + '·' + (s.location || '') + ')：' + s.text);
         }
-        if (inputs.length > 80) inputs = inputs.slice(-80);
+        if (inputs.length > MAX_COMPRESS_INPUTS) inputs = inputs.slice(-MAX_COMPRESS_INPUTS);
         return inputs;
     }
 
@@ -299,6 +332,45 @@ var storyEngine = (function() {
         return memoryStore.allStory()
             .filter(r => r.level === level && !r.absorbedBy)
             .sort((a, b) => a.from - b.from);
+    }
+
+    // ---------- L1 分批压缩（大缺口断档恢复：分批 + 幂等 + 队列归并） ----------
+    /**
+     * 计划 L1 压缩分批：区间内实际有纪要的楼层按 ≤MAX_COMPRESS_INPUTS 连续层打包；
+     * 无纪要空洞（回滚删除等）处断开批次，保证每批 from~to 标签与实际输入一致（标签不虚标）。
+     */
+    function planLevel1Batches(from, to) {
+        const batches = [];
+        let start = null, prev = null, count = 0;
+        for (let f = from; f <= to; f++) {
+            if (!memoryStore.getSummary(f)) continue;
+            if (start !== null && (count >= MAX_COMPRESS_INPUTS || f !== prev + 1)) {
+                batches.push({ from: start, to: prev });
+                start = null;
+            }
+            if (start === null) { start = f; count = 0; }
+            prev = f;
+            count++;
+        }
+        if (start !== null) batches.push({ from: start, to: prev });
+        return batches;
+    }
+
+    /**
+     * L1 纪事分批压缩：每批独立压缩成一篇纪事并挂同区间主观记忆提取。
+     * 已被任意 L1 记录（含已吸收——内容已并入常驻线）完全覆盖的批次跳过，
+     * 因此重试/恢复/旧积压队列天然幂等（旧版大区间一次性压缩在超 80 层时静默截断且标签虚标）。
+     */
+    async function compressLevel1(from, to) {
+        const batches = planLevel1Batches(from, to);
+        for (const b of batches) {
+            const alreadyCovered = memoryStore.allStory().some(r =>
+                r.level === 1 && r.from <= b.from && r.to >= b.to);
+            if (alreadyCovered) continue;
+            await compressStory(1, b.from, b.to, null);
+            // P1：纪事压缩成功 → 同区间主观记忆提取（await 于压缩锁内，失败不阻塞）
+            await hookSubjectiveExtraction(b.from, b.to);
+        }
     }
 
     // ---------- P1 账本套件：主观记忆批量提取（挂纪事压缩，走副API） ----------
@@ -377,9 +449,8 @@ var storyEngine = (function() {
             if (sources.length < task.batch) return;   // 源不足（可能已被回滚），放弃
             await compressStory(task.level, sources[0].from, sources[sources.length - 1].to, sources);
         } else {
-            await compressStory(1, task.from, task.to, null);
-            // P1：纪事压缩成功 → 同区间主观记忆提取（await 于压缩锁内，失败不阻塞）
-            await hookSubjectiveExtraction(task.from, task.to);
+            // 分批执行（≤80 层/批），已覆盖批次自动跳过——重试/旧积压队列幂等
+            await compressLevel1(task.from, task.to);
         }
     }
 
@@ -392,28 +463,24 @@ var storyEngine = (function() {
         if (!cfg || !cfg.apiKey) return;
         _compressing = true;
         try {
-            // 1. 重试上次失败任务
-            let pending = pendingLoad();
+            // 1. 重试上次失败任务（L1 任务先做区间并集归并：旧版本断档可能积压重叠任务，归并后一次执行）
+            let pending = mergePendingL1(pendingLoad());
             for (const task of pending.slice()) {
                 try { await doCompressTask(task); pending = pending.filter(t => t !== task); pendingSave(pending); }
                 catch (e) { console.warn('[StoryEngine] 压缩重试失败（下轮再试）:', e && e.message || e); break; }
             }
-            // 2. 覆盖度驱动：未覆盖楼层 ≥ every 时补压一篇纪事（API 曾不可用导致的缺口也会在后续回合补上）
+            // 2. 覆盖度驱动：未覆盖楼层 ≥ every 时补压纪事（分批执行；API 曾不可用导致的缺口也会在后续回合补上）
             const ev = every();
             const covered = memoryStore.allStory().reduce((m, r) => Math.max(m, r.to || 0), 0);
             if (currentFloor - covered >= ev) {
-                const from = covered + 1;
-                if (!unabsorbed(1).some(r => r.from === from)) {
-                    try {
-                        await compressStory(1, from, currentFloor, null);
-                        // P1：纪事压缩成功 → 同区间主观记忆提取
-                        await hookSubjectiveExtraction(from, currentFloor);
-                    }
-                    catch (e) {
-                        console.warn('[StoryEngine] 纪事压缩失败（已入重试队列）:', e && e.message || e);
-                        pending.push({ level: 1, from: from, to: currentFloor, batch: 0 });
-                        pendingSave(pending);
-                    }
+                try {
+                    await compressLevel1(covered + 1, currentFloor);
+                }
+                catch (e) {
+                    console.warn('[StoryEngine] 纪事压缩失败（已入重试队列）:', e && e.message || e);
+                    // 入队前做区间并集归并：断档期逐回合失败只积压一条任务，恢复后不产生重试风暴
+                    pending = mergePendingL1(pending, covered + 1, currentFloor);
+                    pendingSave(pending);
                 }
             }
             // 3. 未吸收纪事超限 → 最旧 keep1 篇合并成卷宗（循环直到不超限）
@@ -764,6 +831,9 @@ var storyEngine = (function() {
         lexicalRecall: lexicalRecall,
         // 内部暴露（测试用）
         _compressStory: compressStory,
+        _compressLevel1: compressLevel1,
+        _planLevel1Batches: planLevel1Batches,
+        _mergePendingL1: mergePendingL1,
         _maybeCompress: maybeCompress,
         _applyEntities: applyEntities,
         _applySuspenses: applySuspenses,
