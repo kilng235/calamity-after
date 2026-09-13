@@ -385,6 +385,64 @@ class QuestManager {
   }
 
   /**
+   * 同步到 gameData.quests 数据结构
+   * @param {Object} gd - gameData
+   */
+  syncToGameData(gd) {
+    if (!gd) return;
+    if (!gd.quests || typeof gd.quests !== 'object') {
+      gd.quests = { active: [], completed: [], failed: [] };
+    }
+    const activeList = this.getActiveQuests();
+    const completedList = this.getCompletedQuests();
+    gd.quests.active = activeList.map(q => ({
+      id: q.id,
+      name: q.name,
+      description: q.description,
+      status: 'active',
+      objectives: q.objectives,
+      rewards: q.rewards
+    }));
+    gd.quests.completed = completedList.map(q => ({
+      id: q.id,
+      name: q.name,
+      description: q.description,
+      status: 'completed',
+      objectives: q.objectives,
+      rewards: q.rewards
+    }));
+  }
+
+  /**
+   * 从 gameData.quests 导入任务数据
+   * @param {Object} gd - gameData
+   */
+  syncFromGameData(gd) {
+    if (!gd || !gd.quests) return;
+    const quests = gd.quests;
+    this.quests.clear();
+    this.activeQuests.clear();
+    this.completedQuests.clear();
+
+    const active = Array.isArray(quests.active) ? quests.active : [];
+    const completed = Array.isArray(quests.completed) ? quests.completed : [];
+
+    active.forEach(q => {
+      if (!q) return;
+      const quest = Object.assign({}, q, { status: QUEST_STATUS.IN_PROGRESS });
+      this.quests.set(quest.id, quest);
+      this.activeQuests.add(quest.id);
+    });
+
+    completed.forEach(q => {
+      if (!q) return;
+      const quest = Object.assign({}, q, { status: QUEST_STATUS.COMPLETED });
+      this.quests.set(quest.id, quest);
+      this.completedQuests.add(quest.id);
+    });
+  }
+
+  /**
    * 导出任务数据（用于存档）
    * @returns {Object} 任务数据
    */

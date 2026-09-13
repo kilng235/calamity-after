@@ -446,6 +446,61 @@ var responseParser = (function () {
     }
 
     /**
+     * 安全简单的四则算术求值器，替代 new Function
+     */
+    function _safeEvalMath(expr) {
+        // 仅允许数字、小数点、空格、加减乘除与括号
+        if (!/^[0-9+\-*/ .()]+$/.test(expr)) return null;
+        // 使用安全词法/语法解析执行四则运算
+        var tokens = expr.match(/\d+(?:\.\d+)?|[+\-*/()]/g);
+        if (!tokens) return null;
+        var pos = 0;
+        function parsePrimary() {
+            var tok = tokens[pos++];
+            if (tok === '(') {
+                var res = parseAddSub();
+                if (tokens[pos++] !== ')') return null;
+                return res;
+            }
+            if (tok === '-' || tok === '+') {
+                var next = parsePrimary();
+                return tok === '-' ? -next : next;
+            }
+            var num = Number(tok);
+            return Number.isFinite(num) ? num : null;
+        }
+        function parseMulDiv() {
+            var left = parsePrimary();
+            if (left === null) return null;
+            while (pos < tokens.length && (tokens[pos] === '*' || tokens[pos] === '/')) {
+                var op = tokens[pos++];
+                var right = parsePrimary();
+                if (right === null) return null;
+                if (op === '*') left = left * right;
+                else if (op === '/') {
+                    if (right === 0) return null; // 除零防御
+                    left = left / right;
+                }
+            }
+            return left;
+        }
+        function parseAddSub() {
+            var left = parseMulDiv();
+            if (left === null) return null;
+            while (pos < tokens.length && (tokens[pos] === '+' || tokens[pos] === '-')) {
+                var op = tokens[pos++];
+                var right = parseMulDiv();
+                if (right === null) return null;
+                if (op === '+') left = left + right;
+                else if (op === '-') left = left - right;
+            }
+            return left;
+        }
+        var finalResult = parseAddSub();
+        return (pos === tokens.length && Number.isFinite(finalResult)) ? finalResult : null;
+    }
+
+    /**
      * 白名单算术求值：只处理 `:` 或 `=`/`＝`/`：` 后、以数字开头数字结尾、
      * 仅含数字与四则运算符的表达式；含引号的行整体跳过（防误伤字符串值）。
      */
@@ -459,11 +514,10 @@ var responseParser = (function () {
                 function (match, prefix, expr) {
                     var trimmed = expr.trim();
                     if (!/[+\-*/]/.test(trimmed)) return prefix + trimmed;
-                    if (!/^[0-9+\-*/ .()]+$/.test(trimmed)) return prefix + trimmed;
-                    try {
-                        var result = new Function('return (' + trimmed + ')')();
-                        if (Number.isFinite(result)) return prefix + result;
-                    } catch (e) { /* 保原文 */ }
+                    var result = _safeEvalMath(trimmed);
+                    if (result !== null && Number.isFinite(result)) {
+                        return prefix + result;
+                    }
                     return prefix + trimmed;
                 }
             );

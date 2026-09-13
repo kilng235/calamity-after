@@ -19,12 +19,22 @@ var variableSystem = (function() {
     var globalVars = new Map();
     var _preCommitSnapshot = null;  // commitTurn 前的 session 快照，用于回滚
 
+    function _deepClone(val) {
+        if (val === null || typeof val !== 'object') return val;
+        try {
+            return JSON.parse(JSON.stringify(val));
+        } catch (e) {
+            return val;
+        }
+    }
+
     function init(initialSession) {
         turnVars.clear();
         sessionVars.clear();
+        _preCommitSnapshot = null;
         if (initialSession) {
             Object.keys(initialSession).forEach(function(k) {
-                sessionVars.set(k, initialSession[k]);
+                sessionVars.set(k, _deepClone(initialSession[k]));
             });
         }
     }
@@ -37,16 +47,17 @@ var variableSystem = (function() {
 
     function set(key, value, scope) {
         if (scope === undefined) scope = 'turn';
-        if (scope === 'turn') turnVars.set(key, value);
-        else if (scope === 'session') sessionVars.set(key, value);
-        else if (scope === 'global') globalVars.set(key, value);
+        var cloned = _deepClone(value);
+        if (scope === 'turn') turnVars.set(key, cloned);
+        else if (scope === 'session') sessionVars.set(key, cloned);
+        else if (scope === 'global') globalVars.set(key, cloned);
     }
 
     function commitTurn() {
-        // 保存 commit 前的 session 快照，供回滚使用
+        // 保存 commit 前的 session 快照（深拷贝），供回滚使用
         _preCommitSnapshot = {};
-        sessionVars.forEach(function(v, k) { _preCommitSnapshot[k] = v; });
-        turnVars.forEach(function(v, k) { sessionVars.set(k, v); });
+        sessionVars.forEach(function(v, k) { _preCommitSnapshot[k] = _deepClone(v); });
+        turnVars.forEach(function(v, k) { sessionVars.set(k, _deepClone(v)); });
         turnVars.clear();
     }
 
@@ -56,7 +67,7 @@ var variableSystem = (function() {
         if (_preCommitSnapshot) {
             sessionVars.clear();
             Object.keys(_preCommitSnapshot).forEach(function(k) {
-                sessionVars.set(k, _preCommitSnapshot[k]);
+                sessionVars.set(k, _deepClone(_preCommitSnapshot[k]));
             });
             _preCommitSnapshot = null;
         }
