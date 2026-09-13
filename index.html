@@ -2105,6 +2105,7 @@
     <div class="panel-section">
       <div class="panel-title">◆ ◇ 快捷操作</div>
       <button class="action-btn" onclick="openInventory()">◈ 打开背包</button>
+      <button class="action-btn" onclick="openCraftOverlay()">◈ 炼金与锻造</button>
       <button class="action-btn" onclick="openVecOverlay()">◈ 记忆系统</button>
       <button class="action-btn" onclick="openSettings()">◈ 设置</button>
       <button class="action-btn" onclick="navigate('home')">◈ 返回首页</button>
@@ -2143,6 +2144,22 @@
     </div>
     <div class="inv-body" id="inv-body"></div>
     <div class="inv-footer" id="inv-footer"></div>
+  </div>
+</div>
+
+<!-- 炼金与锻造工坊弹窗 -->
+<div class="inv-overlay" id="craft-overlay" onclick="if(event.target===this)closeCraftOverlay()">
+  <div class="inv-panel" style="width:600px">
+    <div class="inv-header">
+      <span>◈ 炼金与锻造工坊 ◈</span>
+      <button class="inv-close" onclick="closeCraftOverlay()"></button>
+    </div>
+    <div style="display:flex;gap:8px;padding:10px 16px 0">
+      <button class="action-btn" id="craft-tab-alchemy" style="flex:1" onclick="switchCraftTab('alchemy')">⚗ 炼金台</button>
+      <button class="action-btn" id="craft-tab-forge" style="flex:1" onclick="switchCraftTab('forge')">🔨 锻造台</button>
+    </div>
+    <div class="inv-body" id="craft-body"></div>
+    <div class="inv-footer" id="craft-toast" style="min-height:20px"></div>
   </div>
 </div>
 
@@ -3624,7 +3641,8 @@ function clearSTPreset() {
   import { parseGatherIntent, settleGather, buildGatherPromptBlock, applyGatherSettlement } from './module/gather-input.js';
   import { parseBrewIntent, settleBrew, buildAlchemyPromptBlock, applyAlchemySettlement } from './module/alchemy-input.js';
   import { parseCastIntent, settleCast, buildSpellPromptBlock, applyCastSettlement } from './module/spell-input.js';
-  import { parseCraftIntent, settleCraft, buildCraftPromptBlock, applyCraftSettlement } from './module/craft-input.js';
+  import { parseCraftIntent, settleCraft, buildCraftPromptBlock, applyCraftSettlement, listCraftableTemplates, listCraftMods } from './module/craft-input.js';
+  import { alchemySystem as craftAlchemy } from './module/alchemy-system.js';
 
   // 暴露 gameData 到 window，供 preset-importer.js 的 getvar 宏读取游戏状态
   Object.defineProperty(window, 'gameData', {
@@ -5242,6 +5260,224 @@ function clearSTPreset() {
 
   window.openInventory = openInventory;
   window.closeInventory = closeInventory;
+
+  // ── 炼金与锻造工坊（UI 直连引擎：玩家点选 → 引擎权威结算 → 落盘刷新） ──
+  let _craftTab = 'alchemy';
+
+  function craftToast(msg) {
+    document.getElementById('craft-toast').textContent = msg || '';
+  }
+
+  function openCraftOverlay() {
+    switchCraftTab(_craftTab);
+    document.getElementById('craft-overlay').classList.add('open');
+  }
+  function closeCraftOverlay() {
+    document.getElementById('craft-overlay').classList.remove('open');
+    craftToast('');
+  }
+  function switchCraftTab(tab) {
+    _craftTab = tab;
+    craftToast('');
+    document.getElementById('craft-tab-alchemy').style.opacity = tab === 'alchemy' ? '1' : '0.55';
+    document.getElementById('craft-tab-forge').style.opacity = tab === 'forge' ? '1' : '0.55';
+    if (tab === 'alchemy') renderAlchemyTab(); else renderForgeTab();
+  }
+
+  function hasAlchemySkill(gd) {
+    return (gd.skills || []).some(s => s && s.name === '药剂炼制');
+  }
+
+  function matSummary(gd, materials) {
+    return Object.entries(materials).map(([m, n]) => {
+      const have = (gd.inventory || []).filter(i => i && i.name === m)
+        .reduce((s, i) => s + (i.amount || 1), 0);
+      return m + ' ' + have + '/' + n;
+    }).join('、');
+  }
+
+  function enoughMaterials(gd, materials) {
+    // 与 materialSystem.hasMaterials 同口径：按首个同名栈判定
+    return Object.entries(materials).every(([m, n]) => {
+      const stack = (gd.inventory || []).find(i => i && i.name === m);
+      return stack ? (stack.amount || 1) >= n : false;
+    });
+  }
+
+  function renderAlchemyTab() {
+    const gd = gameState.getGameData();
+    const body = document.getElementById('craft-body');
+    const skilled = hasAlchemySkill(gd);
+    const hasAlchemyTool = (gd.inventory || []).some(i => i && i.name === '炼金工具');
+    const parts = [];
+    parts.push('<div style="margin-bottom:8px;color:#7a5c1e">' +
+      (skilled ? '持有「药剂炼制」技能，可自炼（成本=成品基准价÷2，失败材料全损）'
+               : '⚠ 未持有「药剂炼制」技能：只能购买成品或委托炼金师代工（艾莉丝出售成品；杜兰·碎星接代工）') +
+      '｜金币 ' + ((gd.currency && gd.currency.gold) || 0) +
+      '｜炼金工具：' + (hasAlchemyTool ? '有（优势）' : '无（劣势）') + '</div>');
+    const recipes = craftAlchemy.getRecipeList();
+    const groups = {};
+    recipes.forEach(r => { (groups[r.category] = groups[r.category] || []).push(r); });
+    for (const cat of Object.keys(groups)) {
+      parts.push('<div style="font-weight:bold;margin:10px 0 4px;color:#8a6a20">◆ ' + cat + '</div>');
+      for (const r of groups[cat]) {
+        const cost = r.basePrice === null ? null : craftAlchemy.calculateMaterialCost(r.basePrice);
+        const gold = (gd.currency && gd.currency.gold) || 0;
+        const matsOk = enoughMaterials(gd, r.materials);
+        const goldOk = gold >= cost;
+        const rareBlocked = !!r.rare;
+        const can = skilled && matsOk && goldOk && !rareBlocked;
+        parts.push('<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px dashed #d8c89a">' +
+          '<div style="flex:1"><b>' + r.name + '</b>（DC' + r.dc + '，' + (rareBlocked ? '议价' : cost + ' 金') + '）<br>' +
+          '<span style="font-size:12px;color:#6a5518">' + r.baseEffect + '｜' + matSummary(gd, r.materials) +
+          (rareBlocked ? '｜需' + (r.commissionNPC || '代工') + '代工' : '') + '</span></div>' +
+          '<button class="action-btn" style="padding:4px 10px;' + (can ? '' : 'opacity:0.45') + '"' +
+          (can ? ' onclick="uiBrew(\'' + r.name + '\')"' : ' disabled') + '>炼制</button></div>');
+      }
+    }
+    body.innerHTML = parts.join('');
+  }
+
+  function uiBrew(name) {
+    const gd = gameState.getGameData();
+    const result = settleBrew(gd, name);   // 就地结算：扣材料/金币、成品或事故物入包
+    gameState.saveGameData();
+    refreshGameUI();
+    renderAlchemyTab();
+    craftToast(result.success
+      ? '炼制成功：' + result.potion.name + '（' + result.potion.effect + '，- ' + result.materialCost + ' 金）'
+      : (result.accidentItem ? '大失败！事故物「' + result.accidentItem.name + '」入包（- ' + result.materialCost + ' 金）'
+        : (result.phase === 'precheck' ? '缺少「药剂炼制」技能' : (result.error === '材料不足' ? '材料不足，未消耗'
+          : (result.error === '金币不足' ? '金币不足（需 ' + result.required + ' 金）' : '炼制失败，材料全损')))));
+  }
+
+  function allEquipped(gd) {
+    const eq = gd.equipment || {};
+    return ['mainHand', 'offHand', 'body', 'head', 'hands', 'legs', 'feet', 'shoulders', 'accessory1', 'accessory2']
+      .map(k => ({ slot: k, item: eq[k] })).filter(x => x.item);
+  }
+
+  function renderForgeTab() {
+    const gd = gameState.getGameData();
+    const body = document.getElementById('craft-body');
+    const hasSmithTool = (gd.inventory || []).some(i => i && i.name === '铁匠工具');
+    const parts = [];
+    parts.push('<div style="margin-bottom:8px;color:#7a5c1e">' +
+      (hasSmithTool ? '持有铁匠工具（一阶档锻造，DC10，自锻成本=基准价÷2；失败产出瑕疵品可修复）'
+                    : '⚠ 未持有铁匠工具：徒手锻造有劣势（背包添加「铁匠工具」后解除）') +
+      '｜金币 ' + ((gd.currency && gd.currency.gold) || 0) + '</div>');
+
+    // 已装备与改装
+    parts.push('<div style="font-weight:bold;margin:8px 0 4px;color:#8a6a20">◆ 已装备与改装</div>');
+    const equipped = allEquipped(gd);
+    if (equipped.length === 0) parts.push('<div style="color:#999;padding:4px 0">（身上没有装备）</div>');
+    for (const { item } of equipped) {
+      const wn = item.worldName || item.name;
+      const mods = item.mods || [];
+      parts.push('<div style="padding:6px 0;border-bottom:1px dashed #d8c89a"><b>' + item.name + '</b>' +
+        (item.worldName && item.worldName !== item.name ? '（' + item.worldName + '）' : '') +
+        (item.flaw ? ' ⚠瑕疵：' + item.flaw : '') + '</div>');
+      for (const m of mods) {
+        parts.push('<div style="display:flex;align-items:center;gap:8px;padding:2px 0 2px 12px;font-size:13px">' +
+          '<span style="flex:1">· ' + m.name + '（' + m.effect + '）</span>' +
+          '<button class="action-btn" style="padding:2px 8px" onclick="uiRemove(\'' + m.name + '\',\'' + slot + '\')">拆卸</button></div>');
+      }
+      const applicable = listCraftMods().filter(md =>
+        !mods.some(m => m.name === md.name) &&
+        !mods.some(m => m.category === md.category) &&
+        md.applyTo.some(t => item.name.indexOf(t) !== -1 || String(wn).indexOf(t) !== -1 ||
+          (md.applyTo.indexOf('任意护甲') !== -1 && item.type === 'armor') ||
+          (md.applyTo.indexOf('任意近战武器') !== -1 && item.type === 'weapon' && !(item.weapon && item.weapon.ranged))));
+      const slotFull = mods.length >= (item.maxModSlots || 2);
+      for (const md of applicable) {
+        const gold = (gd.currency && gd.currency.gold) || 0;
+        const can = gold >= md.price && !slotFull;
+        parts.push('<div style="display:flex;align-items:center;gap:8px;padding:2px 0 2px 12px;font-size:13px">' +
+          '<span style="flex:1">+ ' + md.name + '（' + md.effect + '，' + md.price + ' 金/DC' + md.dc + '）</span>' +
+          '<button class="action-btn" style="padding:2px 8px;' + (can ? '' : 'opacity:0.45') + '"' +
+          (can ? ' onclick="uiInstall(\'' + md.name + '\',\'' + slot + '\')"' : ' disabled') + '>' +
+          (slotFull ? '槽位已满' : '安装') + '</button></div>');
+      }
+    }
+
+    // 修理
+    const flawedList = allEquipped(gd).map(x => x.item)
+      .concat(gd.inventory || []).filter(i => i && i.repairable && i.flaw);
+    if (flawedList.length > 0) {
+      parts.push('<div style="font-weight:bold;margin:10px 0 4px;color:#8a6a20">◆ 修理（原 DC+2）</div>');
+      for (const it of flawedList) {
+        const slotOf = allEquipped(gd).find(x => x.item === it);
+        const args = (slotOf ? '\'' + slotOf.slot + '\'' : 'null,\'' + (it.id || '') + '\'');
+        parts.push('<div style="display:flex;align-items:center;gap:8px;padding:4px 0">' +
+          '<span style="flex:1">' + it.name + '（' + it.flaw + '）</span>' +
+          '<button class="action-btn" style="padding:2px 8px" onclick="uiRepair(' + args + ')">修复</button></div>');
+      }
+    }
+
+    // 锻造
+    parts.push('<div style="font-weight:bold;margin:10px 0 4px;color:#8a6a20">◆ 锻造新装备（一阶材料档）</div>');
+    for (const kindLabel of ['weapon', 'armor']) {
+      const group = listCraftableTemplates().filter(t => t.kind === kindLabel);
+      if (group.length === 0) continue;
+      parts.push('<div style="margin:6px 0 2px;color:#6a5518;font-size:13px">— ' + (kindLabel === 'weapon' ? '武器' : '护甲') + ' —</div>');
+      for (const t of group) {
+      const cost = t.basePrice / 2;
+      const gold = (gd.currency && gd.currency.gold) || 0;
+      const can = gold >= cost;
+      parts.push('<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px dashed #d8c89a">' +
+        '<div style="flex:1"><b>' + t.displayName + '</b>' +
+        '<span style="font-size:12px;color:#6a5518">（' + (t.kind === 'armor' ? '护甲' : '武器') + '，基准 ' + t.basePrice + ' 金）</span></div>' +
+        '<button class="action-btn" style="padding:2px 10px;' + (can ? '' : 'opacity:0.45') + '"' +
+        (can ? ' onclick="uiForge(\'' + t.displayName + '\',\'' + t.engineName + '\',\'' + t.kind + '\')"' : ' disabled') +
+        '>锻造（' + cost + ' 金）</button></div>');
+      }
+    }
+    body.innerHTML = parts.join('');
+  }
+
+  function afterCraftAction(toast) {
+    gameState.saveGameData();
+    refreshGameUI();
+    if (_craftTab === 'alchemy') renderAlchemyTab(); else renderForgeTab();
+    craftToast(toast);
+  }
+
+  function uiForge(displayName, engineName, kind) {
+    const result = settleCraft(gameState.getGameData(), { intent: true, family: 'forge', displayName, engineName, kind });
+    afterCraftAction(result.success
+      ? '锻造成功：' + (result.grade ? '品质 ' + result.grade + '，' : '') + '「' + result.equipment.name + '」入包（- ' + result.materialCost + ' 金' + (result.affixes ? '，' + result.affixes.length + ' 条词条' : '') + '）'
+      : (result.equipment && result.equipment.flaw ? '锻造失败：瑕疵品「' + result.equipment.name + '」（' + result.equipment.flaw + '，- ' + result.materialCost + ' 金）'
+        : (result.error === '金币不足' ? '金币不足（需 ' + result.required + ' 金）' : '锻造未完成')));
+  }
+
+  function uiRepair(slot, itemId) {
+    const result = settleCraft(gameState.getGameData(), { intent: true, family: 'repair', slot, itemId });
+    afterCraftAction(result.success ? '修复成功，瑕疵已消除'
+      : (result.reason === 'no-repairable' ? '身上没有可修的瑕疵装备' : '修复失败（可再次尝试）'));
+  }
+
+  function uiInstall(modName, slot) {
+    const result = settleCraft(gameState.getGameData(), { intent: true, family: 'install', modName, slot });
+    afterCraftAction(result.success ? '安装「' + modName + '」成功（- ' + result.cost + ' 金）'
+      : (result.reason === 'not-applicable-slot' ? '该改装件不适用于所选装备'
+        : (result.reason === 'gold' ? '金币不足（需 ' + result.required + ' 金）'
+          : (result.error ? '未能安装：' + result.error + '（未扣费）' : '安装失败，改装件材料已消耗'))));
+  }
+
+  function uiRemove(modName, slot) {
+    const result = settleCraft(gameState.getGameData(), { intent: true, family: 'remove', modName, slot, rawMessage: '' });
+    afterCraftAction(result.success ? '拆下「' + modName + '」'
+      : (result.error ? '未能拆卸：' + result.error : '拆卸失败，改装件损毁'));
+  }
+
+  window.openCraftOverlay = openCraftOverlay;
+  window.closeCraftOverlay = closeCraftOverlay;
+  window.switchCraftTab = switchCraftTab;
+  window.uiBrew = uiBrew;
+  window.uiForge = uiForge;
+  window.uiRepair = uiRepair;
+  window.uiInstall = uiInstall;
+  window.uiRemove = uiRemove;
 
   function applyDisplaySettings() {
     try {

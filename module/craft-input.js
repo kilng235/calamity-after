@@ -168,14 +168,35 @@ export function parseCraftIntent(message, gd) {
  * @param {Object} gd - gameData
  * @param {string} [nameHint] - 玩家点名的装备名（世界书名/物品名包含匹配），不点名取第一个
  */
-function findRepairable(gd, nameHint) {
+function findRepairable(gd, nameHint, ref) {
   const eq = gd.equipment || {};
+  // 精确定位（UI 面板传入槽位/物品 id）：优先按槽位，其次背包按 id
+  if (ref && ref.slot && eq[ref.slot]) {
+    const it = eq[ref.slot];
+    if (it.repairable && it.flaw && (!ref.itemId || it.id === ref.itemId)) return it;
+  }
+  if (ref && ref.itemId) {
+    const inv = (gd.inventory || []).find((i) => i && i.id === ref.itemId && i.repairable && i.flaw);
+    if (inv) return inv;
+  }
   const slots = ['mainHand', 'offHand', 'body', 'head', 'hands', 'legs', 'feet', 'shoulders', 'accessory1', 'accessory2']
     .map((k) => eq[k]).filter(Boolean);
   const pool = slots.concat((gd.inventory || []).filter(Boolean));
   const flawed = pool.filter((i) => i.repairable && i.flaw);
   if (!nameHint) return flawed[0] || null;
   return flawed.find((i) => i.name.indexOf(nameHint) !== -1 || resolveWorldName(i).indexOf(nameHint) !== -1) || null;
+}
+
+/**
+ * 改装件适用判定（install 槽位搜索与面板渲染共用的口径）
+ */
+function modApplies(mod, item) {
+  const wn = item.worldName || resolveWorldName(item);
+  return mod.applyTo.some((t) =>
+    item.name.indexOf(t) !== -1 || String(wn).indexOf(t) !== -1 ||
+    String(item.type || '').indexOf(t) !== -1 ||
+    (mod.applyTo.indexOf('任意护甲') !== -1 && item.type === 'armor') ||
+    (mod.applyTo.indexOf('任意近战武器') !== -1 && item.type === 'weapon' && !(item.weapon && item.weapon.ranged)));
 }
 
 /**
@@ -223,7 +244,7 @@ export function settleCraft(gdClone, intent) {
   }
 
   if (family === 'repair') {
-    const target = findRepairable(gdClone, intent.displayName);
+    const target = findRepairable(gdClone, intent.displayName, { slot: intent.slot, itemId: intent.itemId });
     if (!target) return { family, phase: 'precheck', success: false, reason: 'no-repairable' };
     const toolType = resolveWorldName(target) === '法杖' ? '炼金工具' : '铁匠工具';
     const result = forgingSystem.repairEquipment(gdClone, target, toolType);
@@ -232,20 +253,26 @@ export function settleCraft(gdClone, intent) {
 
   if (family === 'install') {
     const mod = WEAPON_MODS[intent.modName] || ARMOR_MODS[intent.modName];
-    // 目标 = 全装备槽中第一件适用装备（按 applyTo 对 worldName/物品名求交；盾牌在 offHand、头盔在 head）
+    // 目标：UI 传 slot 时精确定位（不适用即拒绝，不回落）；否则全装备槽第一件适用装备
     const eq = gdClone.equipment || {};
     const slotKeys = ['mainHand', 'offHand', 'body', 'head', 'hands', 'legs', 'feet', 'shoulders', 'accessory1', 'accessory2'];
     let target = null;
-    for (const k of slotKeys) {
-      const item = eq[k];
-      if (!item) continue;
-      item.worldName = resolveWorldName(item);
-      const applicable = mod.applyTo.some((t) =>
-        item.name.indexOf(t) !== -1 || item.worldName.indexOf(t) !== -1 ||
-        String(item.type || '').indexOf(t) !== -1 ||
-        (mod.applyTo.indexOf('任意护甲') !== -1 && item.type === 'armor') ||
-        (mod.applyTo.indexOf('任意近战武器') !== -1 && item.type === 'weapon' && !(item.weapon && item.weapon.ranged)));
-      if (applicable) { target = item; break; }
+    if (intent.slot) {
+      const it = eq[intent.slot];
+      if (!it) return { family, phase: 'precheck', success: false, reason: 'no-target', modName: intent.modName };
+      it.worldName = resolveWorldName(it);
+      if (!modApplies(mod, it)) {
+        return { family, phase: 'precheck', success: false, reason: 'not-applicable-slot', modName: intent.modName, slot: intent.slot };
+      }
+      target = it;
+    }
+    if (!target) {
+      for (const k of slotKeys) {
+        const item = eq[k];
+        if (!item) continue;
+        item.worldName = resolveWorldName(item);
+        if (modApplies(mod, item)) { target = item; break; }
+      }
     }
     if (!target) {
       return { family, phase: 'precheck', success: false, reason: 'no-target', modName: intent.modName };
@@ -265,11 +292,12 @@ export function settleCraft(gdClone, intent) {
     return Object.assign({ family, phase: 'install', targetName: target.name, modName: intent.modName }, result);
   }
 
-  // remove
+  // remove：UI 传 slot 时精确定位该槽；否则扫全槽找装着该改装件的装备
   const modName = intent.modName;
   const eq = gdClone.equipment || {};
   const slotKeys = ['mainHand', 'offHand', 'body', 'head', 'hands', 'legs', 'feet', 'shoulders', 'accessory1', 'accessory2'];
-  for (const k of slotKeys) {
+  const trySlots = intent.slot ? [intent.slot] : slotKeys;
+  for (const k of trySlots) {
     const target = eq[k];
     if (!target || !Array.isArray(target.mods)) continue;
     const idx = target.mods.findIndex((m) => m && m.name === modName);
@@ -384,4 +412,26 @@ export function applyCraftSettlement(finalGd, settledClone) {
   finalGd.currency.gold = (settledClone.currency && settledClone.currency.gold) || 0;
   finalGd.equipment = settledClone.equipment || finalGd.equipment;
   return true;
+}
+
+/**
+ * UI 辅助：可锻造模板清单（炼金/锻造面板用）——craftableTemplates 的导出包装
+ */
+export function listCraftableTemplates() {
+  const ec = (typeof window !== 'undefined' && window.equipmentContract) || null;
+  const out = craftableTemplates();
+  return Object.entries(out).map(([displayName, t]) => {
+    const entry = ec && ec[t.kind === 'armor' ? 'armors' : 'weapons'] ? ec[t.kind === 'armor' ? 'armors' : 'weapons'][displayName] : null;
+    return { displayName, ...t, basePrice: (entry && entry.basePrice) || 0 };
+  });
+}
+
+/**
+ * UI 辅助：改装件目录（名称/效果/价格/DC/适用面/类别，锻造面板用）
+ */
+export function listCraftMods() {
+  return [
+    ...Object.entries(WEAPON_MODS).map(([name, m]) => ({ name, family: '武器', ...m })),
+    ...Object.entries(ARMOR_MODS).map(([name, m]) => ({ name, family: '护甲', ...m }))
+  ];
 }
