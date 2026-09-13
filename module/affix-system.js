@@ -422,7 +422,7 @@ class AffixSystem {
     // 更新装备名称（加入词缀名）
     if (affixes.length > 0) {
       const affixNames = affixes.map(a => a.name).join('·');
-      equipment.displayName = `${equipment.material || ''}·${affixNames}·${equipment.baseName || equipment.name}`;
+      equipment.displayName = `${(equipment.material && equipment.material.name) || equipment.material || ''}·${affixNames}·${equipment.baseName || equipment.name}`;
     }
     
     return equipment;

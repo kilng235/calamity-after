@@ -3624,6 +3624,7 @@ function clearSTPreset() {
   import { parseGatherIntent, settleGather, buildGatherPromptBlock, applyGatherSettlement } from './module/gather-input.js';
   import { parseBrewIntent, settleBrew, buildAlchemyPromptBlock, applyAlchemySettlement } from './module/alchemy-input.js';
   import { parseCastIntent, settleCast, buildSpellPromptBlock, applyCastSettlement } from './module/spell-input.js';
+  import { parseCraftIntent, settleCraft, buildCraftPromptBlock, applyCraftSettlement } from './module/craft-input.js';
 
   // 暴露 gameData 到 window，供 preset-importer.js 的 getvar 宏读取游戏状态
   Object.defineProperty(window, 'gameData', {
@@ -4791,6 +4792,21 @@ function clearSTPreset() {
           pendingCraft = null;
         }
       }
+      if (!pendingTravel && !pendingCraft) {
+        try {
+          const kIntent = parseCraftIntent(message, gd);
+          if (kIntent.intent) {
+            const settled = JSON.parse(JSON.stringify(gd));
+            const kResult = settleCraft(settled, kIntent);
+            const block = buildCraftPromptBlock(kResult);
+            if (block) prompt.messages.splice(1, 0, { role: 'system', content: block });
+            pendingCraft = { kind: 'craft', result: kResult, settled, family: kIntent.family, displayName: kIntent.displayName || kIntent.modName };
+          }
+        } catch (e) {
+          console.warn('[Craft] 锻造结算异常（按普通回合继续）:', e && e.message || e);
+          pendingCraft = null;
+        }
+      }
 
       // 调用 AI（修正为 sendMessages(messages[], options)）
       const apiConfig = apiService.getConfig();
@@ -4842,7 +4858,8 @@ function clearSTPreset() {
       if (pendingCraft) {
         if (pendingCraft.kind === 'gather') craftApplied = applyGatherSettlement(finalGd, pendingCraft.settled);
         else if (pendingCraft.kind === 'brew') craftApplied = applyAlchemySettlement(finalGd, pendingCraft.settled);
-        else craftApplied = applyCastSettlement(finalGd, pendingCraft.settled);
+        else if (pendingCraft.kind === 'cast') craftApplied = applyCastSettlement(finalGd, pendingCraft.settled);
+        else craftApplied = applyCraftSettlement(finalGd, pendingCraft.settled);
       }
       if (finalGd !== gd || travelApplied || craftApplied) {
         gameState.importGameData(finalGd);
@@ -4864,6 +4881,30 @@ function clearSTPreset() {
           displayNarrative('\n✨ 施法结算：' + pendingCraft.spellName
             + (r.phase === 'precheck' ? '（未习得且无卷轴）' : (r.reason === 'MP不足' ? '（MP 不足）'
               : (r.success ? ' 成功' : ' 失败') + '（MP - ' + (r.mpCost || 0) + (r.viaScroll ? '｜卷轴已消耗' : '') + '）')) + '\n');
+        } else if (pendingCraft.kind === 'craft') {
+          const famLabel = { forge: '🔨 锻造结算', repair: '🔧 修理结算', install: '⚙️ 改装结算', remove: '🔌 拆卸结算' }[pendingCraft.family] || '🔨 锻造结算';
+          let detail;
+          if (r.phase === 'precheck') {
+            detail = r.reason === 'gold' ? '金币不足（需 ' + r.required + ' 金）'
+              : r.reason === 'no-target' ? '无可安装目标'
+              : r.reason === 'no-repairable' ? '没有可修复的瑕疵装备'
+              : r.reason === 'mod-not-found' ? '未找到已安装的「' + r.modName + '」' : '前置条件不满足';
+          } else if (r.phase === 'craft') {
+            detail = r.success ? '成功，获得「' + (r.equipment.worldName || r.equipment.name) + '」（- ' + r.materialCost + ' 金'
+              + (r.affixes ? '，含 ' + r.affixes.length + ' 条词条' : '') + '）'
+              : (r.equipment && r.equipment.flaw ? '失败，产出瑕疵品「' + r.equipment.name + '」（' + r.equipment.flaw + '，- ' + r.materialCost + ' 金）'
+                : (r.error === '金币不足' ? '金币不足（需 ' + r.required + ' 金）' : '失败，材料全损'));
+          } else if (r.phase === 'repair') {
+            detail = r.success ? '修复成功' : '修复失败（可再试）';
+          } else if (r.phase === 'install') {
+            detail = r.success ? '安装「' + r.modName + '」成功（- ' + r.cost + ' 金）'
+              : (r.error ? '未能安装「' + r.modName + '」（' + r.error + '，未扣费）'
+                : '安装「' + r.modName + '」失败，材料已消耗（- ' + r.cost + ' 金）');
+          } else {
+            detail = r.success ? '拆下「' + r.modName + '」'
+              : (r.error ? '未能拆卸「' + r.modName + '」（' + r.error + '）' : '「' + r.modName + '」拆卸失败，改装件损毁');
+          }
+          displayNarrative('\n' + famLabel + '：' + detail + '\n');
         }
       }
       if (travelApplied) {

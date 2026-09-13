@@ -17,6 +17,7 @@ globalThis.localStorage = {
 // 契约先于引擎加载（模拟 index.html 脚本顺序）
 new Function(fs.readFileSync(path.join(ROOT, 'module/numeric-contract.js'), 'utf8'))();
 new Function(fs.readFileSync(path.join(ROOT, 'module/status-contract.js'), 'utf8'))();
+new Function(fs.readFileSync(path.join(ROOT, 'module/equipment-contract.js'), 'utf8'))();
 new Function(fs.readFileSync(path.join(ROOT, 'module/command-engine.js'), 'utf8'))();
 new Function(fs.readFileSync(path.join(ROOT, 'module/command-processor.js'), 'utf8'))();
 const processor = window.commandProcessor;
@@ -292,6 +293,192 @@ const r14 = processor.applyCommands(gd14, [{ action: 'set', key: '状态.力竭.
 check('B14. 增益跨回合存活：conditions 引擎署名条目豁免白名单校准',
   r14.gameData.conditions['力量药剂'] && r14.gameData.conditions['力量药剂'].source === '炼金' &&
   r14.gameData.conditions['力竭']);
+
+// ---------- 锻造/改装接线 ----------
+const craftMod = await import('./module/craft-input.js');
+const forgeMod2 = await import('./module/forging-system.js');
+
+// F0. 契约前置：equipment-contract 已在顶部加载（craft-input 依赖 createWeapon + mapping）
+
+// F1. 意图门：世界书名匹配 + 无模板不触发 + 动词族互斥
+const f1 = craftMod.parseCraftIntent('我来锻造一把铁剑', base());
+const f1b = craftMod.parseCraftIntent('锻造一个不存在的东西', base());
+const f1c = craftMod.parseCraftIntent('锻造并顺便安装锐刃打磨', base());
+check('F1. 锻造意图：铁剑→废土长刀 / 无模板不触发 / 动词族互斥',
+  f1.intent === true && f1.engineName === '废土长刀' && f1.kind === 'weapon' &&
+  f1b.intent === false && f1b.reason === 'no-template' &&
+  f1c.intent === false && f1c.reason === 'ambiguous');
+
+// F2. 锻造结算（成功）：成品入背包 + currency 扣 7.5（铁剑 15÷2，精确值）
+const gdF = base();
+gdF.currency.gold = 20;
+gdF.inventory = [{ name: '铁匠工具', amount: 1, type: '工具' }];
+const settledF = clone(gdF);
+const origRandomF = Math.random;
+Math.random = () => 0.999999;  // 强制天然 20 → 杰出
+let f2;
+try { f2 = craftMod.settleCraft(settledF, f1); } finally { Math.random = origRandomF; }
+const f2item = settledF.inventory.find(i => i.worldName === '铁剑');
+check('F2. 锻造结算：成品入背包（type=weapon/worldName）+ 金币 20→12.5 + 杰出 3 词条',
+  f2.success === true && !!f2item && f2item.type === 'weapon' &&
+  settledF.currency.gold === 12.5 &&
+  f2.affixes && f2.affixes.length === 3 && f2item.affixes && f2item.affixes.length === 3);
+
+// F3. 锻造预检：金币不足 → 结构化拒绝且零消耗
+const gdF3 = base();
+gdF3.currency.gold = 0;
+const settledF3 = clone(gdF3);
+const f3 = craftMod.settleCraft(settledF3, craftMod.parseCraftIntent('打造一件皮甲', gdF3));
+check('F3. 锻造预检：金币不足拒绝 + 零消耗（皮甲 25÷2=12.5）',
+  f3.success === false && f3.error === '金币不足' && f3.required === 12.5 && settledF3.currency.gold === 0);
+
+// F4. 法杖走炼金工具：工具从背包派生（无炼金工具 → 检定劣势但仍可尝试）
+const f4 = craftMod.parseCraftIntent('锻造一根法杖', base());
+check('F4. 锻造意图：法杖模板可解析（worldName=法杖）',
+  f4.intent === true && f4.displayName === '法杖');
+
+// F5. 修理：瑕疵装备在背包 → 修复成功后 flaw 消除
+const gdF5 = base();
+gdF5.inventory = [{
+  name: '铁废土长刀', type: 'weapon', worldName: '铁剑',
+  material: { tier: 1, name: '铁' },
+  weapon: { damageBase: 8, baseDie: 8, damageBonus: 0, damageType: '劈砍', speed: '中', twoHanded: false },
+  durability: { current: 80, max: 80 }, price: 15,
+  flaw: '卷刃', flawEffect: { narrative: '迟滞', mechanic: '伤害骰-1档' }, repairable: true, repairDC: 12
+}];
+const settledF5 = clone(gdF5);
+const origRandomF5 = Math.random;
+Math.random = () => 0.999999;
+let f5;
+try { f5 = craftMod.settleCraft(settledF5, craftMod.parseCraftIntent('把这把剑修理一下', gdF5)); } finally { Math.random = origRandomF5; }
+check('F5. 修理结算：瑕疵消除 + repairable 清理',
+  f5.phase === 'repair' && f5.success === true &&
+  !settledF5.inventory[0].flaw && !settledF5.inventory[0].repairable);
+
+// F6. 改装安装：主手武器 + 锐刃打磨（stub 成功）→ mods 入列 + 金币扣 5
+const gdF6 = base();
+gdF6.currency.gold = 50;
+gdF6.equipment.mainHand = {
+  name: '铁废土长刀', type: 'weapon', worldName: '铁剑',
+  material: { tier: 1, name: '铁' },
+  weapon: { damageBase: 8, baseDie: 8, damageBonus: 0, damageType: '劈砍', speed: '中', twoHanded: false },
+  durability: { current: 80, max: 80 }, price: 15
+};
+const settledF6 = clone(gdF6);
+const origRandomF6 = Math.random;
+Math.random = () => 0.999999;
+let f6;
+try { f6 = craftMod.settleCraft(settledF6, craftMod.parseCraftIntent('给主手武器改装锐刃打磨', gdF6)); } finally { Math.random = origRandomF6; }
+check('F6. 改装安装：mods 入列 + 金币 50→45 + worldName 解析',
+  f6.phase === 'install' && f6.success === true &&
+  settledF6.equipment.mainHand.mods.length === 1 && settledF6.equipment.mainHand.mods[0].name === '锐刃打磨' &&
+  settledF6.currency.gold === 45 && settledF6.equipment.mainHand.worldName === '铁剑');
+
+// F7. 混装互斥：双手剑先装短柄改造（伤害骰档位调整组），重复安装同组改装件应结构性拒绝且不扣费
+// （yaml 分组设计上同组成员不作用于同一装备，现实触发路径 = 重复安装）
+const gdF7 = base();
+gdF7.currency.gold = 100;
+gdF7.equipment.mainHand = {
+  name: '铁重型斩刀', type: 'weapon',
+  material: { tier: 1, name: '铁' },
+  weapon: { damageBase: 10, baseDie: 10, damageBonus: 0, damageType: '劈砍', speed: '慢', twoHanded: true },
+  durability: { current: 70, max: 70 }, price: 30
+};
+const settledF7 = clone(gdF7);
+const origRandomF7 = Math.random;
+Math.random = () => 0.999999;
+let f7a, f7;
+try {
+  f7a = craftMod.settleCraft(settledF7, craftMod.parseCraftIntent('给主手武器加装短柄改造', gdF7));
+  f7 = craftMod.settleCraft(settledF7, craftMod.parseCraftIntent('再加装短柄改造', settledF7));
+} finally { Math.random = origRandomF7; }
+check('F7. 改装混装拒绝：伤害骰档位组同类取一 + 金币不扣',
+  f7a.success === true && settledF7.currency.gold === 100 - 10 &&
+  f7.phase === 'install' && f7.success === false && f7.error.indexOf('禁止混装') !== -1 &&
+  settledF7.currency.gold === 90);
+
+// F8. 拆卸：自拆检定成功 → 改装件移除
+const settledF8 = clone(settledF6);
+const origRandomF8 = Math.random;
+Math.random = () => 0.999999;
+let f8;
+try { f8 = craftMod.settleCraft(settledF8, craftMod.parseCraftIntent('把锐刃打磨拆卸下来', settledF6)); } finally { Math.random = origRandomF8; }
+check('F8. 拆卸结算：mods 清空 + 移除成功',
+  f8.phase === 'remove' && f8.success === true && settledF8.equipment.mainHand.mods.length === 0);
+
+// F9. 注入块：四族形态均含权威声明
+check('F9. 锻造块：锻造/修理/改装/拆卸四形态',
+  craftMod.buildCraftPromptBlock(f2).indexOf('【锻造结算·系统权威】') !== -1 &&
+  craftMod.buildCraftPromptBlock(f5).indexOf('修复') !== -1 &&
+  craftMod.buildCraftPromptBlock(f6).indexOf('工艺改装件') !== -1 &&
+  craftMod.buildCraftPromptBlock(f8).indexOf('拆卸') !== -1);
+
+// F10. 合并：inventory/currency/equipment 落到最终 gameData
+const finalF10 = base();
+check('F10. 锻造合并：背包/金币/装备槽落到最终 gameData',
+  craftMod.applyCraftSettlement(finalF10, settledF6) === true &&
+  finalF10.currency.gold === 45 && finalF10.equipment.mainHand.mods.length === 1);
+
+// F11. 商店装（无 worldName，引擎名≠世界书名）改装：映射正向解析（质检 🔴2 回归）
+const gdF11 = base();
+gdF11.currency.gold = 50;
+gdF11.equipment.mainHand = {
+  name: '铁废土短刃', type: 'weapon',
+  material: { tier: 1, name: '铁' },
+  weapon: { damageBase: 6, baseDie: 6, damageBonus: 0, damageType: '劈砍', speed: '快', twoHanded: false },
+  durability: { current: 70, max: 70 }, price: 8
+};
+const settledF11 = clone(gdF11);
+const origRandomF11 = Math.random;
+Math.random = () => 0.999999;
+let f11;
+try { f11 = craftMod.settleCraft(settledF11, craftMod.parseCraftIntent('给我的短剑加装锐刃打磨', gdF11)); } finally { Math.random = origRandomF11; }
+check('F11. 商店装改装：worldName 正向解析（废土短刃→短剑）+ 安装成功',
+  f11.phase === 'install' && f11.success === true &&
+  settledF11.equipment.mainHand.mods[0].name === '锐刃打磨' && settledF11.currency.gold === 45);
+
+// F12. 盾牌在 offHand：铆钉加固全槽位搜索命中（质检 🔴1 回归）
+const gdF12 = base();
+gdF12.currency.gold = 50;
+gdF12.equipment.offHand = {
+  name: '铁废铁盾牌', type: 'armor',
+  material: { tier: 1, name: '铁' },
+  armor: { acBase: 2, weight: '轻', dexBonus: 'none', strengthReq: 0 },
+  durability: { current: 65, max: 65 }, price: 10
+};
+const settledF12 = clone(gdF12);
+const origRandomF12 = Math.random;
+Math.random = () => 0.999999;
+let f12;
+try { f12 = craftMod.settleCraft(settledF12, craftMod.parseCraftIntent('给盾牌加装铆钉加固', gdF12)); } finally { Math.random = origRandomF12; }
+check('F12. 盾牌改装：offHand 槽位命中 + 安装成功',
+  f12.phase === 'install' && f12.success === true &&
+  settledF12.equipment.offHand.mods[0].name === '铆钉加固');
+
+// F13. 混装拒绝的注入块：不谎称已消耗（质检 🔴3 回归）
+const f13block = craftMod.buildCraftPromptBlock(f7);
+check('F13. 混装拒绝块：明确未扣费 + 无 undefined',
+  f13block.indexOf('未扣除任何费用') !== -1 && f13block.indexOf('undefined') === -1);
+
+// F14. 局部防护件（skipped）不在可锻造列表（质检 🔴4 回归）
+check('F14. skipped 模板：锻造手套 → no-template',
+  craftMod.parseCraftIntent('锻造一副手套', base()).reason === 'no-template');
+
+// F15. 稀有材料锻造拦截（质检 🟡10 回归）
+const f15 = craftMod.parseCraftIntent('锻造一把秘银短剑', base());
+check('F15. 稀有材料：秘银 → rareUnsupported 拦截 + 引导块',
+  f15.intent === true && f15.rareUnsupported === '秘银' &&
+  craftMod.buildCraftPromptBlock(craftMod.settleCraft(clone(base()), f15)).indexOf('暂未开放') !== -1);
+
+// F16. 叙事句误触发收紧（质检 🔴5 回归）：所属格 / 疑问句不触发
+check('F16. 误触发收紧：「父亲的铁剑」与疑问句不触发锻造',
+  craftMod.parseCraftIntent('这把铁剑是我父亲手工打造的', base()).intent === false &&
+  craftMod.parseCraftIntent('要不要给你的剑加装锐刃打磨？', base()).intent === false);
+
+// F17. 炼金成本同样精确 ÷2（与锻造口径统一；6/2=3 不变）
+check('F17. 炼金成本精确 ÷2：1.5→0.75 / 6→3',
+  (await import('./module/material-system.js')).materialSystem.calculateAlchemyCost(1.5) === 0.75 &&
+  (await import('./module/material-system.js')).materialSystem.calculateAlchemyCost(6) === 3);
 
 console.log('\n' + (fail === 0 ? '✅ 全部通过（' + pass + ' 项）' : '❌ 失败 ' + fail + ' 项 / 通过 ' + pass + ' 项'));
 process.exit(fail === 0 ? 0 : 1);

@@ -944,17 +944,17 @@ class MaterialSystem {
   }
 
   /**
-   * 计算锻造材料成本（成品基准价 ÷ 2）
+   * 计算锻造材料成本（成品基准价 ÷ 2，精确值——世界书示例：铁剑 15→7.5 金）
    */
   calculateForgingCost(equipmentBasePrice) {
-    return Math.ceil(equipmentBasePrice / 2);
+    return equipmentBasePrice / 2;
   }
 
   /**
    * 计算炼金材料成本（成品基准价 ÷ 2）
    */
   calculateAlchemyCost(potionBasePrice) {
-    return Math.ceil(potionBasePrice / 2);
+    return potionBasePrice / 2;
   }
 
   /**

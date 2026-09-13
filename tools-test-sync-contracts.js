@@ -744,6 +744,124 @@ const attrSysYaml = fs.readFileSync(path.join(ROOT, 'data-source/世界书/系�
   check('8s. extraPool 生效：锈钉镇→深渊裂隙 200 次内出现裂隙犬（extraPool 注入成功）',
     riftHoundSeen);
 
+  // ============ T9：锻造/词缀契约（源：锻造规则.yaml + 词缀表.yaml） ============
+  const forgeMod = await import('./module/forging-system.js');
+  const affixMod = await import('./module/affix-system.js');
+  const forgeYaml = fs.readFileSync(path.join(ROOT, 'data-source/世界书/系统/锻造规则.yaml'), 'utf8');
+  const affixYaml = fs.readFileSync(path.join(ROOT, 'data-source/世界书/系统/词缀表.yaml'), 'utf8');
+
+  // 9f1. DC 三档：一阶10/二阶15/三阶20 与锻造规则一致
+  check('9f1. FORGE_DC 三档 10/15/20（锻造规则「DC 三档材料映射」）',
+    forgeMod.FORGE_DC.TIER_1.dc === 10 && forgeMod.FORGE_DC.TIER_2.dc === 15 && forgeMod.FORGE_DC.TIER_3.dc === 20);
+
+  // 9f2. 自锻成本 = 成品基准价 ÷ 2 精确值（yaml 示例：铁剑 15→7.5 / 匕首 3→1.5 / 锁甲 70→35）
+  const fc = forgeMod.forgingSystem.calculateMaterialCost.bind(forgeMod.forgingSystem);
+  check('9f2. 自锻成本精确 ÷2：15→7.5 / 3→1.5 / 70→35',
+    fc(15) === 7.5 && fc(3) === 1.5 && fc(70) === 35);
+
+  // 9f3. 武器改装件：17 条名称+价格+DC 与锻造规则 yaml 逐条相等
+  const forgeWeaponSection = forgeYaml.slice(forgeYaml.indexOf('### 武器改装件'), forgeYaml.indexOf('### 护甲改装件'));
+  const yamlWMods = {};
+  for (const m of forgeWeaponSection.matchAll(/\[([^:\]：]+):[^\]]*\]\[价格：([\d.]+) ?金(?:\/DC(\d+))?\]/g)) {
+    yamlWMods[m[1]] = { price: Number(m[2]), dc: m[3] === undefined ? null : Number(m[3]) };
+  }
+  const eWMods = forgeMod.WEAPON_MODS;
+  const wModIssues = [];
+  if (Object.keys(yamlWMods).length !== Object.keys(eWMods).length) {
+    wModIssues.push(`数量 ${Object.keys(eWMods).length} != yaml ${Object.keys(yamlWMods).length}`);
+  }
+  for (const [name, y] of Object.entries(yamlWMods)) {
+    const e = eWMods[name];
+    if (!e) { wModIssues.push(`缺 ${name}`); continue; }
+    if (e.price !== y.price) wModIssues.push(`${name} 价 ${e.price}!=${y.price}`);
+    if (y.dc !== null && e.dc !== y.dc) wModIssues.push(`${name} DC ${e.dc}!=${y.dc}`);
+  }
+  check('9f3. 武器改装件 17 条名称/价格/DC 与锻造规则逐条相等', wModIssues.length === 0);
+
+  // 9f4. 护甲改装件：4 条名称+价格与 yaml 相等（armor 行无 DC 标注，引擎默认 DC10）
+  const forgeArmorSection = forgeYaml.slice(forgeYaml.indexOf('### 护甲改装件'), forgeYaml.indexOf('### 改装限制'));
+  const yamlAMods = {};
+  for (const m of forgeArmorSection.matchAll(/\[([^:\]：]+):[^\]]*\]\[价格：([\d.]+) ?金(?:\/DC(\d+))?\]/g)) {
+    yamlAMods[m[1]] = { price: Number(m[2]) };
+  }
+  const eAMods = forgeMod.ARMOR_MODS;
+  const aModIssues = [];
+  if (Object.keys(yamlAMods).length !== Object.keys(eAMods).length) {
+    aModIssues.push(`数量 ${Object.keys(eAMods).length} != yaml ${Object.keys(yamlAMods).length}`);
+  }
+  for (const [name, y] of Object.entries(yamlAMods)) {
+    const e = eAMods[name];
+    if (!e) { aModIssues.push(`缺 ${name}`); continue; }
+    if (e.price !== y.price) aModIssues.push(`${name} 价 ${e.price}!=${y.price}`);
+  }
+  check('9f4. 护甲改装件 4 条名称/价格与锻造规则逐条相等（内衬加厚等旧自创条目已废）',
+    aModIssues.length === 0);
+
+  // 9f5. 禁止混装分组（世界书「改装限制」）：伤害骰档位调整 6 件 / 射程增幅 2 件 / 检定优势含弩机校准+握柄改造+铆钉加固
+  const cat = (n) => (eWMods[n] || eAMods[n] || {}).category;
+  check('9f5. 禁止混装分组与 yaml 一致',
+    ['锐刃打磨','弓弦强化','配重锤头','锻打矛尖','弩臂强化','短柄改造'].every(n => cat(n) === '伤害骰档位调整') &&
+    cat('配重调整') === '射程增幅' && cat('角木复合弓臂') === '射程增幅' &&
+    cat('弩机校准') === '检定优势' && cat('握柄改造') === '检定优势' && cat('铆钉加固') === '检定优势' &&
+    cat('镀银层') !== cat('猎兽倒钩') && cat('双持锁扣') !== cat('加长改造'));
+
+  // 9f6. 改装槽位 = 2（武器/护甲各 2 槽）
+  const mk1 = forgeMod.forgingSystem.createEquipment({ type: '武器', name: 'x', basePrice: 10 }, { grade: '普通', gradeLevel: 1 });
+  const mk2 = forgeMod.forgingSystem.createEquipment({ type: '护甲', name: 'y', basePrice: 10 }, { grade: '普通', gradeLevel: 1 });
+  check('9f6. 改装槽位：武器/护甲各 2 槽（锻造规则「改造槽位」）',
+    mk1.maxModSlots === 2 && mk2.maxModSlots === 2 && Array.isArray(mk1.mods) && mk1.mods.length === 0);
+
+  // 9f7. 铁匠代工 7 名（yaml 名包含引擎键名——「（无名）」后缀变体；单元格后无空格的行也要命中）+ 赛拉斯基准价
+  const smithSection = forgeYaml.slice(forgeYaml.indexOf('## 铁匠代工'), forgeYaml.indexOf('## 工艺改装件'));
+  const yamlSmiths = [...smithSection.matchAll(/^\|\s*([^|]+?)\s*\|/gm)].map(m => m[1].trim())
+    .filter(n => n && n !== '铁匠' && !/^-+$/.test(n));
+  const engineSmiths = Object.keys(forgeMod.BLACKSMITHS);
+  const smithOk = yamlSmiths.length === 7 && yamlSmiths.every(yn =>
+    engineSmiths.some(en => yn.indexOf(en) !== -1)) &&
+    forgeMod.BLACKSMITHS['赛拉斯·铁火'].priceModifier === 1.0;
+  check('9f7. 铁匠代工 7 名与 yaml 一致 + 赛拉斯·铁火基准价（×1.0）', smithOk);
+
+  // 9f8. 工具→属性分工：铁匠工具→力量 / 炼金工具→智力（yaml 工匠工具表）
+  check('9f8. 工具属性分工：铁匠工具→力量 / 炼金工具→智力',
+    forgeMod.CRAFT_TOOLS['铁匠工具'].attribute === '力量' && forgeMod.CRAFT_TOOLS['炼金工具'].attribute === '智力');
+
+  // 9a1. 装备品质→词条数：普通1/罕见2/稀有2/史诗3/传说3（词缀表「装备品质决定词条数」）
+  const Q = affixMod.EQUIPMENT_QUALITY;
+  check('9a1. 品质词条数：普通1/罕见2/稀有2/史诗3/传说3',
+    Q['普通'].affixCount === 1 && Q['罕见'].affixCount === 2 && Q['稀有'].affixCount === 2 &&
+    Q['史诗'].affixCount === 3 && Q['传说'].affixCount === 3);
+
+  // 9a2. 词条强度骰四档：d10 区间 1-2/3-7/8-9/10 与乘数 0.75/1.0/1.25/1.5
+  const S = affixMod.AFFIX_STRENGTH;
+  check('9a2. 强度骰四档：区间与乘数对齐词缀表',
+    S.WEAK.min === 1 && S.WEAK.max === 2 && S.WEAK.multiplier === 0.75 &&
+    S.STANDARD.min === 3 && S.STANDARD.max === 7 && S.STANDARD.multiplier === 1.0 &&
+    S.STRONG.min === 8 && S.STRONG.max === 9 && S.STRONG.multiplier === 1.25 &&
+    S.PERFECT.min === 10 && S.PERFECT.max === 10 && S.PERFECT.multiplier === 1.5);
+
+  // 9a3. 一词条一状态（硬约束）：重复状态被 ensureUniqueEffects 裁剪
+  const dup = [
+    { name: 'A', status: '燃烧', effect: 'x' },
+    { name: 'B', status: '燃烧', effect: 'x' },
+    { name: 'C', status: '中毒', effect: 'y' }
+  ];
+  const dedup = affixMod.affixSystem.ensureUniqueEffects(dup);
+  check('9a3. 一词条一状态：重复状态裁剪后仅 2 条',
+    dedup.length === 2 && new Set(dedup.map(a => a.status)).size === 2);
+
+  // 9a4. 材料→主题锚定：8 大主题锚定材料与词缀表一致（引擎可扩展宝石细名，锚定 8 条不可偏）
+  const TM = (await import('./module/material-system.js')).MATERIAL_THEME_MAP;
+  const anchors = { '黑曜石': '火焰', '硫磺矿': '毒素', '精铁': '锋锐', '秘银': '精准', '血晶石': '深渊', '星铁': '星辉', '焦木': '朴素' };
+  const anchorOk = Object.entries(anchors).every(([m, t]) => TM[m] === t);
+  const gemOk = ['紫水晶', '黄玉', '玛瑙', '琥珀', '蓝宝石'].every(g => TM[g] === '灵光');
+  check('9a4. 材料→主题：7 锚定材料 + 宝石系灵光与词缀表一致', anchorOk && gemOk);
+
+  // 9a5. 词缀生成：字段齐全（效果文本由 description 承载）+ 状态在候选池内不重复
+  const gen = affixMod.affixSystem.generateAffixes('精铁', '史诗', '武器', { grade: '杰出' });
+  check('9a5. generateAffixes：史诗 3 词条 + 字段齐全 + 状态不重复',
+    gen.length === 3 && gen.every(a => a.name && a.status && a.description && a.strength && a.narrative) &&
+    new Set(gen.map(a => a.status)).size === 3);
+
   console.log('\n' + (fail === 0 ? '✅ 全部通过（' + pass + ' 项）' : '❌ 失败 ' + fail + ' 项 / 通过 ' + pass + ' 项'));
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error('测试执行异常:', e); process.exit(1); });

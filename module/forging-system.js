@@ -57,35 +57,35 @@ export const WEAPON_MODS = {
     price: 5,
     dc: 10,
     applyTo: ['剑', '斧', '匕首'],
-    category: '伤害强化'
+    category: '伤害骰档位调整'
   },
   '弓弦强化': {
     effect: '远程伤害骰 +1 档，耐久上限 −5',
     price: 6,
     dc: 10,
     applyTo: ['猎弓', '长弓'],
-    category: '伤害强化'
+    category: '伤害骰档位调整'
   },
   '配重锤头': {
     effect: '钝击伤害骰 +1 档',
     price: 6,
     dc: 10,
     applyTo: ['铁锤', '战锤'],
-    category: '伤害强化'
+    category: '伤害骰档位调整'
   },
   '锻打矛尖': {
     effect: '穿刺伤害骰 +1 档',
     price: 4,
     dc: 10,
     applyTo: ['短矛'],
-    category: '伤害强化'
+    category: '伤害骰档位调整'
   },
   '弩臂强化': {
     effect: '弩矢伤害骰 +1 档（重弩 1d12 已达上限，装之无效）',
     price: 6,
     dc: 10,
     applyTo: ['轻弩'],
-    category: '伤害强化'
+    category: '伤害骰档位调整'
   },
   
   // 附加与倍率伤害
@@ -110,14 +110,14 @@ export const WEAPON_MODS = {
     price: 8,
     dc: 10,
     applyTo: ['双手剑', '战斧', '战锤'],
-    category: '攻速操控'
+    category: '检定优势'
   },
   '短柄改造': {
     effect: '双手武器可单手持握，代价伤害骰 −1 档',
     price: 10,
     dc: 15,
     applyTo: ['双手剑', '战斧', '战锤'],
-    category: '攻速操控'
+    category: '伤害骰档位调整'
   },
   '速射匣': {
     effect: '重弩免除装填 1 回合；轻弩获可移动射击',
@@ -131,7 +131,7 @@ export const WEAPON_MODS = {
     price: 10,
     dc: 15,
     applyTo: ['轻弩', '重弩'],
-    category: '攻速操控'
+    category: '检定优势'
   },
   
   // 射程与特化
@@ -140,42 +140,42 @@ export const WEAPON_MODS = {
     price: 4,
     dc: 10,
     applyTo: ['匕首', '短矛'],
-    category: '射程特化'
+    category: '射程增幅'
   },
   '角木复合弓臂': {
     effect: '弓射程 ×1.5，耐久上限 −5',
     price: 7,
     dc: 15,
     applyTo: ['猎弓', '长弓'],
-    category: '射程特化'
+    category: '射程增幅'
   },
   '加长改造': {
     effect: '近战触及 +1m',
     price: 6,
     dc: 10,
     applyTo: ['短剑', '铁斧', '铁锤'],
-    category: '射程特化'
+    category: '触及特化'
   },
   '镀银层': {
     effect: '对不死生物特攻：命中时伤害按易伤口径翻倍',
     price: 8,
     dc: 15,
     applyTo: ['剑', '斧', '匕首', '矛头'],
-    category: '射程特化'
+    category: '不死特攻'
   },
   '猎兽倒钩': {
     effect: '命中后将目标拉近约 5 米',
     price: 5,
     dc: 10,
     applyTo: ['匕首', '短矛', '铁斧'],
-    category: '射程特化'
+    category: '控场特化'
   },
   '双持锁扣': {
     effect: '副手武器的词缀状态挂载恢复生效（全卡唯一例外）',
     price: 15,
     dc: 20,
     applyTo: ['匕首', '短剑'],
-    category: '射程特化'
+    category: '双持辅助'
   }
 };
 
@@ -184,36 +184,29 @@ export const ARMOR_MODS = {
     effect: '护甲重量降一档（中→轻），耐火叙事',
     price: 6,
     dc: 10,
-    applyTo: ['任意护甲'],
+    applyTo: ['皮甲', '锁甲', '盾牌'],
     category: '轻量化'
   },
-  '内衬加厚': {
-    effect: 'AC +1，重量 +1 档',
-    price: 8,
-    dc: 15,
-    applyTo: ['中甲', '重甲'],
-    category: '防御强化'
-  },
-  '活动关节': {
-    effect: '敏捷（杂技）检定不受护甲劣势',
+  '镫铁镀层': {
+    effect: '护甲耐久上限 +30',
     price: 10,
-    dc: 15,
-    applyTo: ['中甲', '重甲'],
-    category: '灵活性'
+    dc: 10,
+    applyTo: ['锁甲', '板甲', '头盔', '盾牌'],
+    category: '护甲耐久'
   },
-  '快速拆卸': {
-    effect: '穿脱护甲时间减半',
+  '皮革补强': {
+    effect: '护甲耐久上限 +20（外观厚重叙事，不升重量档）',
     price: 5,
     dc: 10,
-    applyTo: ['任意护甲'],
-    category: '便利性'
+    applyTo: ['皮甲'],
+    category: '护甲耐久'
   },
-  '隐蔽涂装': {
-    effect: '敏捷（隐匿）检定劣势减半',
-    price: 7,
-    dc: 15,
-    applyTo: ['轻甲', '中甲'],
-    category: '隐蔽性'
+  '铆钉加固': {
+    effect: '盾牌格挡相关检定获优势；格挡承接的伤害不再损耗盾牌耐久（铆钉锁死甲面）',
+    price: 8,
+    dc: 10,
+    applyTo: ['盾牌'],
+    category: '检定优势'
   }
 };
 
@@ -309,7 +302,9 @@ class ForgingSystem {
     let advantage = options.advantage || false;
     let disadvantage = options.disadvantage || false;
 
-    if (!character.hasTool?.[toolType]) {
+    // 工具 = 背包中的物品（gameData 形状），与 alchemy-system 同口径
+    const hasCraftTool = (character.inventory || []).some(i => i && i.name === toolType);
+    if (!hasCraftTool) {
       disadvantage = true; // 徒手有劣势
     } else {
       advantage = true; // 持工具获优势
@@ -381,8 +376,9 @@ class ForgingSystem {
     // 计算材料成本
     const materialCost = this.calculateMaterialCost(equipment.basePrice || 0);
     
-    // 检查金币
-    if ((character.gold || 0) < materialCost) {
+    // 检查金币（gameData 金币在 currency.gold）
+    const gold = (character.currency && character.currency.gold) || 0;
+    if (gold < materialCost) {
       return { success: false, error: '金币不足', required: materialCost };
     }
 
@@ -391,7 +387,8 @@ class ForgingSystem {
 
     // 消耗材料和金币（无论成功失败）
     this.consumeMaterials(character, materials);
-    character.gold -= materialCost;
+    if (!character.currency) character.currency = {};
+    character.currency.gold = Math.max(0, (character.currency.gold || 0) - materialCost);
 
     if (!checkResult.success) {
       // 失败：装备带瑕疵但仍可用
@@ -483,12 +480,12 @@ class ForgingSystem {
   /**
    * 修复瑕疵装备
    */
-  repairEquipment(character, equipment) {
+  repairEquipment(character, equipment, toolType = '铁匠工具') {
     if (!equipment.flaw || !equipment.repairable) {
       return { success: false, error: '该装备无需修复或不可修复' };
     }
 
-    const checkResult = this.performForgingCheck(character, '铁匠工具', equipment.repairDC);
+    const checkResult = this.performForgingCheck(character, toolType, equipment.repairDC);
     
     if (checkResult.success) {
       delete equipment.flaw;
@@ -505,15 +502,19 @@ class ForgingSystem {
   /**
    * 安装改装件
    */
-  installMod(character, equipment, modName) {
-    const modList = equipment.type === '武器' ? WEAPON_MODS : ARMOR_MODS;
+  installMod(character, equipment, modName, options = {}) {
+    // 兼容两种 type 记法：gameData 实例为 'weapon'/'armor'，锻造模板为 '武器'/'护甲'
+    const isWeapon = equipment.type === '武器' || equipment.type === 'weapon';
+    const modList = isWeapon ? WEAPON_MODS : ARMOR_MODS;
     const mod = modList[modName];
     
     if (!mod) {
       return { success: false, error: '未知改装件' };
     }
 
-    // 检查槽位
+    // 检查槽位（非锻造产物的既有装备就地补齐槽位字段：武器/护甲各 2 槽）
+    if (!Array.isArray(equipment.mods)) equipment.mods = [];
+    if (!equipment.maxModSlots) equipment.maxModSlots = 2;
     if (equipment.mods.length >= equipment.maxModSlots) {
       return { success: false, error: '改装槽位已满' };
     }
@@ -521,17 +522,19 @@ class ForgingSystem {
     // 检查同类互斥
     const sameCategory = equipment.mods.find(m => m.category === mod.category);
     if (sameCategory) {
-      return { success: false, error: `同类改装件「${sameCategory}」已安装，禁止混装` };
+      return { success: false, error: `同类改装件「${sameCategory.name}」已安装，禁止混装` };
     }
 
-    // 检查装备类型
-    const canApply = mod.applyTo.some(type => equipment.name.includes(type) || equipment.type.includes(type));
+    // 检查装备类型：装备名 + 世界书名（worldName，如「铁剑」「锁甲」——改装件 applyTo 用世界书词表）
+    const worldName = equipment.worldName || '';
+    const canApply = mod.applyTo.some(type =>
+      equipment.name.includes(type) || worldName.includes(type) || String(equipment.type || '').includes(type));
     if (!canApply && !mod.applyTo.includes('任意护甲') && !mod.applyTo.includes('任意近战武器')) {
       return { success: false, error: '该改装件不适用于此装备' };
     }
 
-    // 执行安装检定
-    const checkResult = this.performForgingCheck(character, '铁匠工具', mod.dc);
+    // 执行安装检定（toolType 由接线层按目标装备分派：法杖系→炼金工具，默认铁匠工具）
+    const checkResult = this.performForgingCheck(character, options.toolType || '铁匠工具', mod.dc);
     
     if (checkResult.success) {
       equipment.mods.push({
@@ -549,7 +552,7 @@ class ForgingSystem {
   /**
    * 拆卸改装件
    */
-  removeMod(character, equipment, modIndex, byBlacksmith = false) {
+  removeMod(character, equipment, modIndex, byBlacksmith = false, toolType = '铁匠工具') {
     if (modIndex < 0 || modIndex >= equipment.mods.length) {
       return { success: false, error: '无效的改装件索引' };
     }
@@ -558,15 +561,16 @@ class ForgingSystem {
 
     if (byBlacksmith) {
       // 铁匠代拆：保成功，工费1金
-      if ((character.gold || 0) < 1) {
+      const gold = (character.currency && character.currency.gold) || 0;
+      if (gold < 1) {
         return { success: false, error: '金币不足（需要1金）' };
       }
-      character.gold -= 1;
+      character.currency.gold = gold - 1;
       equipment.mods.splice(modIndex, 1);
       return { success: true, message: `成功拆卸「${mod.name}」`, returnedMod: mod };
     } else {
-      // 自拆：DC10检定
-      const checkResult = this.performForgingCheck(character, '铁匠工具', 10);
+      // 自拆：DC10检定（工具由接线层按目标装备分派）
+      const checkResult = this.performForgingCheck(character, toolType, 10);
       if (checkResult.success) {
         equipment.mods.splice(modIndex, 1);
         return { success: true, message: `成功拆卸「${mod.name}」`, checkResult, returnedMod: mod };
