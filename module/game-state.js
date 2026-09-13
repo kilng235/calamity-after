@@ -370,35 +370,28 @@ export function removeGold(amount) {
  * @param {number} exp - 经验值
  */
 export function addExp(exp) {
+  if (typeof exp !== 'number' || isNaN(exp) || exp <= 0) return;
   gameData.character.exp += exp;
   console.log(`✓ 获得 ${exp} 经验值`);
   
-  // 检查升级
-  while (gameData.character.exp >= gameData.character.expToNextLevel) {
-    levelUp();
+  // 权威升级逻辑：收敛由 commandProcessor.syncLevel 处理
+  if (typeof window !== 'undefined' && window.commandProcessor && typeof window.commandProcessor.syncLevel === 'function') {
+    window.commandProcessor.syncLevel(gameData);
+  } else {
+    // 基础离线兜底（遵循每级 50*level 契约基准）
+    var cost = Math.max(1, (gameData.character.level || 1) * 50);
+    while (gameData.character.exp >= cost) {
+      gameData.character.exp -= cost;
+      gameData.character.level = (gameData.character.level || 1) + 1;
+      gameData.hp.max = (gameData.hp.max || 100) + 10;
+      gameData.hp.current = Math.min(gameData.hp.max, (gameData.hp.current || 100) + 10);
+      cost = Math.max(1, gameData.character.level * 50);
+      console.log(`🎉 升级！当前等级：${gameData.character.level}`);
+    }
+    gameData.character.expToNextLevel = cost;
   }
   
   saveGameData();
-}
-
-/**
- * 升级
- */
-function levelUp() {
-  gameData.character.level++;
-  gameData.character.exp -= gameData.character.expToNextLevel;
-  gameData.character.expToNextLevel = Math.floor(gameData.character.expToNextLevel * 1.5);
-  
-  // 每 4 级熟练加值 +1
-  if (gameData.character.level % 4 === 0) {
-    gameData.character.proficiencyBonus++;
-  }
-  
-  // 生命值增加
-  gameData.hp.max += 5;
-  gameData.hp.current = gameData.hp.max;
-  
-  console.log(`🎉 升级！当前等级：${gameData.character.level}`);
 }
 
 // ==================== 任务管理 ====================

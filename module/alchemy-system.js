@@ -553,13 +553,13 @@ class AlchemySystem {
       strength = POTION_STRENGTH.WEAK;
     }
 
-    // 品级加成：强度骰结果 +1 档
+    // 品级加成：强度骰结果 +1 档或 +2 档
     let finalStrength = strength;
     if (gradeBonus >= 2) {
       // 杰出：+2档
       if (strength === POTION_STRENGTH.WEAK) {
         finalStrength = POTION_STRENGTH.STRONG;
-      } else if (strength === POTION_STRENGTH.STANDARD) {
+      } else if (strength === POTION_STRENGTH.STANDARD || strength === POTION_STRENGTH.STRONG || strength === POTION_STRENGTH.PERFECT) {
         finalStrength = POTION_STRENGTH.PERFECT;
       }
     } else if (gradeBonus >= 1) {
@@ -568,7 +568,7 @@ class AlchemySystem {
         finalStrength = POTION_STRENGTH.STANDARD;
       } else if (strength === POTION_STRENGTH.STANDARD) {
         finalStrength = POTION_STRENGTH.STRONG;
-      } else if (strength === POTION_STRENGTH.STRONG) {
+      } else if (strength === POTION_STRENGTH.STRONG || strength === POTION_STRENGTH.PERFECT) {
         finalStrength = POTION_STRENGTH.PERFECT;
       }
     }
@@ -743,10 +743,11 @@ class AlchemySystem {
       case '恢复':
         // hp 为对象 {current, max}（gameData 形状）
         if (!character.hp || typeof character.hp !== 'object') character.hp = { current: 0, max: 0 };
-        character.hp.current = Math.min(
-          (character.hp.current || 0) + potion.effectValue,
-          character.hp.max || character.hp.current
-        );
+        const maxHp = (typeof character.hp.max === 'number' && character.hp.max > 0)
+          ? character.hp.max
+          : Infinity;
+        const currentHp = Number(character.hp.current) || 0;
+        character.hp.current = Math.min(currentHp + potion.effectValue, maxHp);
         result.healed = potion.effectValue;
         break;
       case '法力': {

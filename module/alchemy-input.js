@@ -77,6 +77,9 @@ export function settleBrew(gdClone, recipeName) {
   }
 
   const brew = alchemySystem.brewPotion(gdClone, recipeName);
+  if (!Array.isArray(gdClone.inventory)) {
+    gdClone.inventory = [];
+  }
   if (brew.success) {
     gdClone.inventory.push(Object.assign({}, brew.potion, { amount: 1, type: '消耗品' }));
   } else if (brew.accidentItem) {

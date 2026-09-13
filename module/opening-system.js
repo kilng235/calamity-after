@@ -187,6 +187,7 @@ class OpeningSystem {
 
     // 创建世界书开局数据
     const openingData = this.createOpeningWorldbookData(character, quest, narrative);
+    this.openingData = openingData;
 
     this.initialized = true;
 

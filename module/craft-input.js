@@ -238,6 +238,9 @@ export function settleCraft(gdClone, intent) {
       craft.affixes = affixes;
     }
     if (craft.success || craft.equipment) {
+      if (!Array.isArray(gdClone.inventory)) {
+        gdClone.inventory = [];
+      }
       gdClone.inventory.push(Object.assign({}, craft.equipment, { amount: 1 }));
     }
     return Object.assign({ family, phase: 'craft', displayName: intent.displayName }, craft);

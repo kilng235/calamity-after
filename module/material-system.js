@@ -975,11 +975,15 @@ class MaterialSystem {
    * 消耗材料
    */
   consumeMaterials(character, materials) {
-    const inventory = character.inventory || [];
+    if (!character) return [];
+    if (!Array.isArray(character.inventory)) {
+      character.inventory = [];
+    }
+    const inventory = character.inventory;
     const consumed = [];
 
     for (const [materialName, amount] of Object.entries(materials)) {
-      const item = inventory.find(i => i.name === materialName);
+      const item = inventory.find(i => i && i.name === materialName);
       if (item && item.amount >= amount) {
         item.amount -= amount;
         consumed.push({ name: materialName, amount });
@@ -997,11 +1001,15 @@ class MaterialSystem {
    * 添加材料到背包
    */
   addMaterials(character, materials) {
-    const inventory = character.inventory || [];
+    if (!character) return [];
+    if (!Array.isArray(character.inventory)) {
+      character.inventory = [];
+    }
+    const inventory = character.inventory;
     const added = [];
 
     for (const [materialName, amount] of Object.entries(materials)) {
-      const existing = inventory.find(i => i.name === materialName);
+      const existing = inventory.find(i => i && i.name === materialName);
       if (existing) {
         existing.amount += amount;
       } else {
