@@ -403,6 +403,19 @@ var storyEngine = (function() {
     }
 
     function safeParseJsonArray(text) {
+        if (!text) return null;
+        if (typeof window !== 'undefined' && typeof window.safeParseLLMJson === 'function') {
+            try {
+                const parsed = window.safeParseLLMJson(text);
+                if (Array.isArray(parsed)) return parsed;
+                if (parsed && typeof parsed === 'object') {
+                    // 兼容模型输出包含包装键的情况，如 { memories: [...] } 或 { list: [...] }
+                    for (const k of Object.keys(parsed)) {
+                        if (Array.isArray(parsed[k])) return parsed[k];
+                    }
+                }
+            } catch (e) {}
+        }
         const t = String(text || '').trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
         try {
             const v = JSON.parse(t);

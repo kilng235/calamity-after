@@ -138,10 +138,11 @@ var apiService = (function() {
         }
         var signal = options && options.signal;
         var timeoutMs = (options && options.timeoutMs) || config.requestTimeoutMs || DEFAULT_REQUEST_TIMEOUT;
+        var timeoutId = null;
         if (!signal) {
             var controller = new AbortController();
             signal = controller.signal;
-            setTimeout(function() { controller.abort(); }, timeoutMs);
+            timeoutId = setTimeout(function() { controller.abort(); }, timeoutMs);
         }
         var maxTokens = _resolveMaxOutputTokens(options);
         var temperature = (options && typeof options.temperature === 'number') ? options.temperature : null;
@@ -162,6 +163,10 @@ var apiService = (function() {
                 throw new Error('请求超时（' + Math.round(timeoutMs / 1000) + ' 秒），已中断');
             }
             throw e;
+        } finally {
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
         }
     }
 
@@ -376,6 +381,7 @@ var apiService = (function() {
      * 流式发送消息
      * @param {Array} messages - 消息数组
      * @param {object} callbacks - { onToken(text), onThinking(text), onComplete(fullText, usage), onError(err) }
+     * @param {object} [options] - 选项
      * @returns {{ abort: Function }} 中断控制器
      */
     function sendMessagesStream(messages, callbacks, options) {
@@ -386,14 +392,61 @@ var apiService = (function() {
 
         var controller = new AbortController();
         var maxTokens = _resolveMaxOutputTokens(options);
+        var timeoutMs = (options && options.timeoutMs) || config.requestTimeoutMs || DEFAULT_REQUEST_TIMEOUT;
+        var timeoutId = setTimeout(function() {
+            controller.abort(new Error('STREAM_TIMEOUT'));
+        }, timeoutMs);
+
+        var wrappedCallbacks = {
+            onToken: function(token) {
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                    timeoutId = setTimeout(function() {
+                        controller.abort(new Error('STREAM_TIMEOUT'));
+                    }, timeoutMs);
+                }
+                if (callbacks.onToken) callbacks.onToken(token);
+            },
+            onThinking: function(text) {
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                    timeoutId = setTimeout(function() {
+                        controller.abort(new Error('STREAM_TIMEOUT'));
+                    }, timeoutMs);
+                }
+                if (callbacks.onThinking) callbacks.onThinking(text);
+            },
+            onComplete: function(fullContent, usage) {
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                    timeoutId = null;
+                }
+                if (callbacks.onComplete) callbacks.onComplete(fullContent, usage);
+            },
+            onError: function(err) {
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                    timeoutId = null;
+                }
+                if (callbacks.onError) callbacks.onError(err);
+            }
+        };
 
         if (config.type === 'gemini') {
-            _streamGemini(messages, callbacks, controller, maxTokens);
+            _streamGemini(messages, wrappedCallbacks, controller, maxTokens, timeoutMs);
         } else {
-            _streamOpenAI(messages, callbacks, controller, maxTokens);
+            _streamOpenAI(messages, wrappedCallbacks, controller, maxTokens, timeoutMs);
         }
 
-        return { abort: function() { controller.abort(); } };
+        return {
+            abort: function() {
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                    timeoutId = null;
+                }
+                controller.abort();
+            }
+        };
     }
 
     async function _streamOpenAI(messages, callbacks, controller, maxTokens) {
@@ -478,11 +531,25 @@ var apiService = (function() {
                     }
                 }
             }
+            // 流结束时若 buffer 还有残留数据尝试解析
+            if (buffer && buffer.trim() && buffer.trim().startsWith('data: ')) {
+                try {
+                    var lastDataStr = buffer.trim().substring(6);
+                    if (lastDataStr !== '[DONE]') {
+                        var lastChunk = JSON.parse(lastDataStr);
+                        var lastDelta = lastChunk.choices && lastChunk.choices[0] && lastChunk.choices[0].delta;
+                        if (lastDelta && lastDelta.content) {
+                            fullContent += lastDelta.content;
+                            callbacks.onToken(lastDelta.content);
+                        }
+                    }
+                } catch (e) {}
+            }
             // 流结束但没收到 [DONE]
             callbacks.onComplete(fullContent, null);
         } catch (err) {
-            if (err.name === 'AbortError') {
-                // 用户中断，将已收到的内容作为完成
+            if (err.name === 'AbortError' || (err && err.message === 'STREAM_TIMEOUT')) {
+                // 用户中断或超时中断，将已收到的内容作为完成
                 callbacks.onComplete(fullContent, null);
             } else {
                 callbacks.onError(err);
@@ -559,9 +626,21 @@ var apiService = (function() {
                     }
                 }
             }
+            if (buffer && buffer.trim() && buffer.trim().startsWith('data: ')) {
+                try {
+                    var lastDataStr = buffer.trim().substring(6);
+                    var lastChunk = JSON.parse(lastDataStr);
+                    var lastParts = lastChunk.candidates && lastChunk.candidates[0] &&
+                                    lastChunk.candidates[0].content && lastChunk.candidates[0].content.parts;
+                    if (lastParts && lastParts.length > 0 && lastParts[0].text) {
+                        fullContent += lastParts[0].text;
+                        callbacks.onToken(lastParts[0].text);
+                    }
+                } catch (e) {}
+            }
             callbacks.onComplete(fullContent, null);
         } catch (err) {
-            if (err.name === 'AbortError') {
+            if (err.name === 'AbortError' || (err && err.message === 'STREAM_TIMEOUT')) {
                 callbacks.onComplete(fullContent, null);
             } else {
                 callbacks.onError(err);

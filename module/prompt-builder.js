@@ -364,9 +364,16 @@ var promptBuilder = (function() {
             }
         }
 
-        // 对话历史（滚动窗口，来自本地 chat context；置于 before 段之后、本次输入之前）
-        for (ci = 0; ci < history.length; ci++) {
-            var hmsg = history[ci];
+        // 对话历史（滚动滑动窗口，防超长 Context 溢出；置于 before 段之后、本次输入之前）
+        // 限制最多保留最近 20 条（10 轮）完整历史，兼顾上下文连贯与 Token 预算
+        var MAX_HISTORY_MESSAGES = 20;
+        var effectiveHistory = history;
+        if (history.length > MAX_HISTORY_MESSAGES) {
+            effectiveHistory = history.slice(history.length - MAX_HISTORY_MESSAGES);
+        }
+
+        for (ci = 0; ci < effectiveHistory.length; ci++) {
+            var hmsg = effectiveHistory[ci];
             if (hmsg && (hmsg.role === 'user' || hmsg.role === 'assistant') && hmsg.content) {
                 messages.push({ role: hmsg.role, content: String(hmsg.content) });
             }
