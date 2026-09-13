@@ -3620,6 +3620,10 @@ function clearSTPreset() {
   import { parseTravelIntent, buildTravelPromptBlock, applyTravelSettlement, cloneForTravel } from './module/travel-input.js';
   import { travelTo } from './module/travel-system.js';
   import { TRAVEL_LOCATIONS } from './module/travel-tables.js';
+  import { alchemySystem } from './module/alchemy-system.js';
+  import { parseGatherIntent, settleGather, buildGatherPromptBlock, applyGatherSettlement } from './module/gather-input.js';
+  import { parseBrewIntent, settleBrew, buildAlchemyPromptBlock, applyAlchemySettlement } from './module/alchemy-input.js';
+  import { parseCastIntent, settleCast, buildSpellPromptBlock, applyCastSettlement } from './module/spell-input.js';
 
   // 暴露 gameData 到 window，供 preset-importer.js 的 getvar 宏读取游戏状态
   Object.defineProperty(window, 'gameData', {
@@ -4740,6 +4744,54 @@ function clearSTPreset() {
         pendingTravel = null;
       }
 
+      // 采集/炼金/施法意图（引擎权威结算，模式同旅行；互斥：一条消息至多命中一个门，宁缺勿滥）
+      let pendingCraft = null;
+      if (!pendingTravel) {
+        try {
+          const gIntent = parseGatherIntent(message, gd);
+          if (gIntent.intent) {
+            const settled = JSON.parse(JSON.stringify(gd));
+            const gResult = settleGather(settled, gIntent.locationKey);
+            const block = buildGatherPromptBlock(gResult);
+            if (block) prompt.messages.splice(1, 0, { role: 'system', content: block });
+            pendingCraft = { kind: 'gather', result: gResult, settled };
+          }
+        } catch (e) {
+          console.warn('[Gather] 采集结算异常（按普通回合继续）:', e && e.message || e);
+          pendingCraft = null;
+        }
+      }
+      if (!pendingTravel && !pendingCraft) {
+        try {
+          const bIntent = parseBrewIntent(message, gd);
+          if (bIntent.intent) {
+            const settled = JSON.parse(JSON.stringify(gd));
+            const bResult = settleBrew(settled, bIntent.recipeName);
+            const block = buildAlchemyPromptBlock(bResult);
+            if (block) prompt.messages.splice(1, 0, { role: 'system', content: block });
+            pendingCraft = { kind: 'brew', result: bResult, settled, recipeName: bIntent.recipeName };
+          }
+        } catch (e) {
+          console.warn('[Brew] 炼金结算异常（按普通回合继续）:', e && e.message || e);
+          pendingCraft = null;
+        }
+      }
+      if (!pendingTravel && !pendingCraft) {
+        try {
+          const cIntent = parseCastIntent(message, gd);
+          if (cIntent.intent) {
+            const settled = JSON.parse(JSON.stringify(gd));
+            const cResult = settleCast(settled, cIntent.spellName);
+            const block = buildSpellPromptBlock(cResult);
+            if (block) prompt.messages.splice(1, 0, { role: 'system', content: block });
+            pendingCraft = { kind: 'cast', result: cResult, settled, spellName: cIntent.spellName };
+          }
+        } catch (e) {
+          console.warn('[Cast] 施法结算异常（按普通回合继续）:', e && e.message || e);
+          pendingCraft = null;
+        }
+      }
+
       // 调用 AI（修正为 sendMessages(messages[], options)）
       const apiConfig = apiService.getConfig();
       if (!apiConfig || !apiConfig.apiKey) throw new Error('未配置 API Key，请先到「设置」填写');
@@ -4785,9 +4837,34 @@ function clearSTPreset() {
       if (pendingTravel) {
         travelApplied = applyTravelSettlement(finalGd, pendingTravel.settled);
       }
-      if (finalGd !== gd || travelApplied) {
+      // 采集/炼金/施法结算合并（引擎权威：即使检定失败，材料/金币/MP 的消耗也要落盘）
+      let craftApplied = false;
+      if (pendingCraft) {
+        if (pendingCraft.kind === 'gather') craftApplied = applyGatherSettlement(finalGd, pendingCraft.settled);
+        else if (pendingCraft.kind === 'brew') craftApplied = applyAlchemySettlement(finalGd, pendingCraft.settled);
+        else craftApplied = applyCastSettlement(finalGd, pendingCraft.settled);
+      }
+      if (finalGd !== gd || travelApplied || craftApplied) {
         gameState.importGameData(finalGd);
         refreshGameUI();
+      }
+      if (craftApplied) {
+        const r = pendingCraft.result;
+        if (pendingCraft.kind === 'gather' && r.success) {
+          displayNarrative('\n🌾 采集结算：' + r.materials.map((m) => m.name + ' ×' + m.amount).join('、') + '（已入背包）\n');
+        } else if (pendingCraft.kind === 'brew') {
+          displayNarrative('\n⚗️ 炼金结算：' + (r.success
+            ? '获得「' + r.potion.name + '」（' + r.potion.effect + '，- ' + r.materialCost + ' 金）'
+            : (r.accidentItem ? '大失败，获得事故物「' + r.accidentItem.name + '」（- ' + r.materialCost + ' 金）'
+              : (r.phase === 'precheck' ? '缺少「药剂炼制」技能，未消耗'
+                : (r.error === '材料不足' ? '材料不足，未消耗'
+                  : (r.error === '金币不足' ? '金币不足（需 ' + r.required + ' 金），未消耗'
+                    : '失败，材料全损（- ' + r.materialCost + ' 金）'))))) + '\n');
+        } else if (pendingCraft.kind === 'cast') {
+          displayNarrative('\n✨ 施法结算：' + pendingCraft.spellName
+            + (r.phase === 'precheck' ? '（未习得且无卷轴）' : (r.reason === 'MP不足' ? '（MP 不足）'
+              : (r.success ? ' 成功' : ' 失败') + '（MP - ' + (r.mpCost || 0) + (r.viaScroll ? '｜卷轴已消耗' : '') + '）')) + '\n');
+        }
       }
       if (travelApplied) {
         const tr = pendingTravel.result;
@@ -5076,7 +5153,27 @@ function clearSTPreset() {
     const gd = gameState.getGameData();
     const item = gd.inventory?.[idx];
     if (!item) return;
-    if (item.type === 'consumable' && item.effect === 'heal') {
+    if (item.brewed) {
+      // 炼金成品药水：走 alchemy-system 六类结算（gameData 形状）
+      const result = alchemySystem.usePotion(gd, item);
+      if (!result.success) {
+        displayNarrative('⚠️ ' + (result.error || '无法使用') + (result.hint ? '：' + result.hint : ''));
+        openInventory();
+        return;
+      }
+      if (result.requiresCombatContext) {
+        // 战斗类（火焰瓶/烟幕弹/涂层）：不在背包中消耗，留给战斗流程
+        displayNarrative('⚠️ ' + result.message + '——请在战斗叙事中使用。');
+        openInventory();
+        return;
+      }
+      const parts = ['你使用了 ' + item.name + '。'];
+      if (result.healed != null) parts.push('恢复 ' + result.healed + ' 点生命（HP ' + gd.hp.current + '/' + gd.hp.max + '）。');
+      if (result.restored != null) parts.push('恢复 ' + result.restored + ' 点法力。');
+      if (result.buffApplied) parts.push('增益「' + item.name + '」已挂到状态栏。');
+      if (result.specialEffect) parts.push('（' + result.specialEffect + '）');
+      displayNarrative(parts.join(' '));
+    } else if (item.type === 'consumable' && item.effect === 'heal') {
       const heal = item.value || 10;
       gd.hp.current = Math.min(gd.hp.max, gd.hp.current + heal);
       displayNarrative('你使用了 ' + item.name + '，恢复了 ' + heal + ' 点生命。');

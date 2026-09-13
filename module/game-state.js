@@ -23,7 +23,8 @@ const defaultGameData = {
     exp: 0,
     expToNextLevel: 100,
     proficiencyBonus: 2,  // 熟练加值
-    ac: 10  // 护甲等级（由装备系统重算）
+    ac: 10,  // 护甲等级（由装备系统重算）
+    mp: 0    // 法力（上限 = 智力 × 每点智力，命令后校准钳制；开局由身份系统按契约初始化）
   },
   
   // 六维属性（DND 5E）
@@ -68,6 +69,9 @@ const defaultGameData = {
   
   // 背包
   inventory: [],
+
+  // 采集冷却（键 = 采集点 key「地理/…」，值 = 上次采集的游戏分钟数；material-system 读写）
+  gatherCooldowns: {},
 
   // 技能列表（对齐技能总纲：{name, level(1-3), source, learnedAt}）
   skills: [],

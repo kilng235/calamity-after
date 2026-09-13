@@ -459,18 +459,19 @@ class AlchemySystem {
     const attributeValue = character.attributes?.[attributeName] || 10;
     const modifier = Math.floor((attributeValue - 10) / 2);
 
-    // 工具优势/劣势
+    // 工具优势/劣势（工具 = 背包中的物品，与 gameData.inventory 对齐）
     let advantage = options.advantage || false;
     let disadvantage = options.disadvantage || false;
 
-    if (!character.hasTool?.['炼金工具']) {
+    const hasAlchemyTool = (character.inventory || []).some(i => i && i.name === '炼金工具');
+    if (!hasAlchemyTool) {
       disadvantage = true; // 徒手有劣势
     } else {
       advantage = true; // 持工具获优势
     }
 
-    // 无药剂炼制技能时承受劣势
-    if (!character.skills?.['药剂炼制']) {
+    // 无药剂炼制技能时承受劣势（skills 为数组：{name, level, source, learnedAt}）
+    if (!(character.skills || []).some(s => s && s.name === '药剂炼制')) {
       disadvantage = true;
     }
 
@@ -605,8 +606,9 @@ class AlchemySystem {
     //     但 brewPotion 的玩家扣费口径遵循世界书规则，不按材料价推导
     const materialCost = this.calculateMaterialCost(recipe.basePrice);
 
-    // 检查金币
-    if ((character.gold || 0) < materialCost) {
+    // 检查金币（gameData 金币在 currency.gold）
+    const gold = (character.currency && character.currency.gold) || 0;
+    if (gold < materialCost) {
       return { success: false, error: '金币不足', required: materialCost };
     }
 
@@ -615,7 +617,8 @@ class AlchemySystem {
 
     // 消耗材料和金币（无论成功失败）
     this.consumeMaterials(character, recipe.materials);
-    character.gold -= materialCost;
+    if (!character.currency) character.currency = {};
+    character.currency.gold = Math.max(0, (character.currency.gold || 0) - materialCost);
 
     // 大失败：出事故物
     if (checkResult.criticalFailure) {
@@ -715,8 +718,7 @@ class AlchemySystem {
    * 类别 → 行为映射（对齐世界书 6 类）：
    *   恢复     直接补 HP（旧「治疗」类的语义迁移）
    *   法力     直接补 MP（含「全满」特判，传奇法力药水走该分支）
-   *   增益     挂 statusEffects（已知与 status-system 的 `statuses[]` 字段名错位，
-   *           留待 S8 修复；本类挂载位置保持向下兼容）
+   *   增益     写 conditions 映射（键=状态名，与状态契约/命令白名单同源）
    *   战斗     投掷/淬毒类（火焰瓶/烟幕弹/麻痹药剂/腐蚀药剂/剧毒油）；
    *           不直接作用于角色，标记为「待应用」由战斗流程消费
    *   介质     卷轴/照明/净水粉等器具类；不直接作用于角色，标记 specialEffect
@@ -739,32 +741,36 @@ class AlchemySystem {
     // 根据类别应用效果
     switch (potion.category) {
       case '恢复':
-        character.hp = Math.min(
-          (character.hp || 0) + potion.effectValue,
-          character.maxHp || character.hp
+        // hp 为对象 {current, max}（gameData 形状）
+        if (!character.hp || typeof character.hp !== 'object') character.hp = { current: 0, max: 0 };
+        character.hp.current = Math.min(
+          (character.hp.current || 0) + potion.effectValue,
+          character.hp.max || character.hp.current
         );
         result.healed = potion.effectValue;
         break;
       case '法力': {
-        // 「恢复全部法力值」（传奇法力药水）：按当前 MP 上限直接补满，钳制同常量药水
+        // 「恢复全部法力值」（传奇法力药水）：按当前 MP 上限直接补满
+        // MP 上限 = 智力 × 每点智力（数值契约「法力」，与 command-processor 钳制同源）；兼容显式 maxMp
+        const perInt = (typeof window !== 'undefined' && window.numericContract && window.numericContract.法力 && window.numericContract.法力.每点智力) || 5;
+        const mpMax = Number(character.maxMp) || Math.max(0, (character.attributes?.['智力'] || 10) * perInt);
         const fullRestore = /全部|全满/.test(potion.effect || '');
         const amount = fullRestore
-          ? Math.max(0, (character.maxMp || 0) - (character.mp || 0))
+          ? Math.max(0, mpMax - getMp(character))
           : potion.effectValue;
-        character.mp = Math.min(
-          (character.mp || 0) + amount,
-          character.maxMp || character.mp
-        );
+        setMp(character, Math.min(getMp(character) + amount, mpMax));
         result.restored = amount;
         break;
       }
       case '增益':
-        if (!character.statusEffects) character.statusEffects = [];
-        character.statusEffects.push({
+        // 增益写 conditions 映射（键=状态名，与状态契约/命令白名单一致）
+        if (!character.conditions) character.conditions = {};
+        character.conditions[potion.name] = {
           name: potion.name,
           duration: 10,
-          effect: potion.effect
-        });
+          effect: potion.effect,
+          source: '炼金'
+        };
         result.buffApplied = true;
         break;
       case '战斗':
@@ -853,6 +859,19 @@ class AlchemySystem {
 
 // 导出单例
 export const alchemySystem = new AlchemySystem();
+
+/**
+ * MP 访问器：gameData 的 MP 在 character.mp（gd.character.mp，命令后校准钳制）；
+ * 兼容测试/旧调用的平铺形态（顶层 mp/maxMp）。与 spell-system 同口径。
+ */
+function getMp(character) {
+  if (character.character && typeof character.character.mp === 'number') return character.character.mp;
+  return character.mp || 0;
+}
+function setMp(character, value) {
+  if (character.character) character.character.mp = value;
+  else character.mp = value;
+}
 
 // 导出类供测试使用
 export { AlchemySystem };

@@ -143,6 +143,9 @@ var commandProcessor = (function () {
         }
         var whitelist = effectiveWhitelist();
         Object.keys(conditions).forEach(function (name) {
+            // 引擎署名条目豁免：炼金增益等由引擎写入（source='炼金'），非 AI 可写状态，白名单外保留
+            var cv = conditions[name];
+            if (cv && typeof cv === 'object' && cv.source === '炼金') return;
             if (!whitelist.hasOwnProperty(name)) {
                 delete conditions[name];   // 未知状态名拒绝落地
                 return;
@@ -412,6 +415,13 @@ var commandProcessor = (function () {
         var mpBefore = gd.character.mp;
         gd.character.mp = Math.max(0, Math.min(mpMaxCap, Number(gd.character.mp) || 0));
         if (mpBefore !== gd.character.mp) corrections.push('character.mp 钳制');
+
+        // 法术列表校准：tier 缺省补 1（spell-system 精通/奥义升级链依赖；AI push spells 不经手 tier）
+        if (Array.isArray(gd.spells)) {
+            gd.spells.forEach(function (s) {
+                if (s && typeof s === 'object' && !s.tier) s.tier = 1;
+            });
+        }
 
         // 时间规范化
         gd.gameTime = normalizeGameTime(gd.gameTime);

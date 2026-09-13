@@ -387,7 +387,7 @@ class SpellSystem {
     const spell = SPELLS[spellName];
     if (!spell) return false;
     const mpCost = SPELL_LEVEL[spell.level].mpCost;
-    return (character.mp || 0) >= mpCost;
+    return getMp(character) >= mpCost;
   }
 
   /**
@@ -397,7 +397,7 @@ class SpellSystem {
     const spell = SPELLS[spellName];
     if (!spell) return 0;
     const mpCost = SPELL_LEVEL[spell.level].mpCost;
-    character.mp = (character.mp || 0) - mpCost;
+    setMp(character, getMp(character) - mpCost);
     return mpCost;
   }
 
@@ -428,7 +428,10 @@ class SpellSystem {
     const int = character.attributes?.智力 || 10;
     const intMod = Math.floor((int - 10) / 2);
     const pb = 1 + Math.ceil((character.level || 1) / 4);
-    const hasStaff = options.hasStaff !== false;
+    // 持杖判定：默认从主手装备派生（gameData.equipment.mainHand，category='staff'）；显式传入优先
+    const mainHand = character.equipment?.mainHand;
+    const staffHeld = mainHand && (mainHand.category === 'staff' || mainHand.weapon?.category === 'staff');
+    const hasStaff = options.hasStaff !== undefined ? options.hasStaff : staffHeld;
 
     let roll = Math.floor(Math.random() * 20) + 1;
     let roll2 = null;
@@ -510,6 +513,8 @@ class SpellSystem {
     const existing = character.spells.find(s => s.name === spellName);
 
     if (existing) {
+      // 旧档 tier 缺省补 1（normalize 之外的运行时兜底）
+      if (!existing.tier) existing.tier = 1;
       if (existing.tier >= 3) {
         return { success: false, reason: '已达最高等级（奥义），静默拒绝' };
       }
@@ -592,7 +597,7 @@ class SpellSystem {
    */
   longRest(character) {
     const mpMax = this.calculateMPMax(character.attributes?.智力 || 10);
-    character.mp = mpMax;
+    setMp(character, mpMax);
     return { mpMax, restored: mpMax };
   }
 
@@ -601,10 +606,10 @@ class SpellSystem {
    */
   restoreMP(character, amount) {
     const mpMax = this.calculateMPMax(character.attributes?.智力 || 10);
-    const before = character.mp || 0;
-    character.mp = Math.min(mpMax, before + amount);
-    const restored = character.mp - before;
-    return { restored, current: character.mp, max: mpMax };
+    const before = getMp(character);
+    setMp(character, Math.min(mpMax, before + amount));
+    const restored = getMp(character) - before;
+    return { restored, current: getMp(character), max: mpMax };
   }
 
   /**
@@ -700,6 +705,19 @@ class SpellSystem {
 }
 
 // 导出单例
+/**
+ * MP 访问器：gameData 的 MP 在 character.mp（gd.character.mp，命令后校准钳制）；
+ * 兼容测试/旧调用的平铺形态（顶层 mp/maxMp）。
+ */
+function getMp(character) {
+  if (character.character && typeof character.character.mp === 'number') return character.character.mp;
+  return character.mp || 0;
+}
+function setMp(character, value) {
+  if (character.character) character.character.mp = value;
+  else character.mp = value;
+}
+
 export const spellSystem = new SpellSystem();
 
 // 导出类供测试使用

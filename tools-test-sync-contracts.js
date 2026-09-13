@@ -409,22 +409,26 @@ const attrSysYaml = fs.readFileSync(path.join(ROOT, 'data-source/世界书/系�
     hasMissing.missing[0] === '虚构材料');
 
   // 7q. brewPotion 按世界书规则扣费：materialCost = Math.ceil(basePrice/2)
-  //     治疗药水 basePrice=6 → cost = 3，金币扣除按 3
+  //     治疗药水 basePrice=6 → cost = 3，金币扣除按 3（夹具为 gameData 真实形状：skills 数组/currency.gold）
   const brewChar = base();
   brewChar.hp = { current: 100, max: 100 };
   brewChar.attributes['智力'] = 20;
-  brewChar.skills = { '药剂炼制': { level: 1 } };
-  brewChar.hasTool = { '炼金工具': true };
+  brewChar.skills = [{ name: '药剂炼制', level: 1 }];
   brewChar.inventory = [
+    { name: '炼金工具', amount: 1, type: '工具' },
     { name: '草药', amount: 5, type: '材料' },
     { name: '净化苔藓', amount: 5, type: '材料' }
   ];
-  brewChar.gold = 5;
+  brewChar.currency.gold = 5;
+  // 强制天然 20：消除炼金检定随机性（智力 20 下失败率 ~4%，会让回归间歇假红）
+  const origRandom7q = Math.random;
+  Math.random = () => 0.999999;
   const brewRes = alchMod.alchemySystem.brewPotion(brewChar, '治疗药水');
-  check('7q. brewPotion 按世界书规则：materialCost = Math.ceil(basePrice/2) = 3 + 金币扣除按 3',
+  Math.random = origRandom7q;
+  check('7q. brewPotion 按世界书规则：materialCost = Math.ceil(basePrice/2) = 3 + 金币扣除按 3（currency.gold）',
     brewRes.success === true &&
     brewRes.materialCost === 3 &&
-    brewChar.gold === 5 - 3);  // 5 - 3 = 2
+    brewChar.currency.gold === 5 - 3);  // 5 - 3 = 2
 
   // 7s. 自炼正收益断言：每个非稀有配方，basePrice - ceil(basePrice/2) > materialSum
   //     即"卖成品 - 自炼成本 - 买材料成本 > 0"，确保自炼是赚钱的
