@@ -23,6 +23,7 @@ var variableUI = (function() {
     // ==================== 内部状态 ====================
 
     var _populateTimer = null;
+    var _pendingForce = false;
     var _lastPopulateSignature = null;
     var _slots = [];  // 注册的 UI 绑定槽位
 
@@ -111,17 +112,37 @@ var variableUI = (function() {
      */
     function schedulePopulate(delay, force) {
         if (delay === undefined) delay = 80;
-        if (force === undefined) force = false;
+        _pendingForce = _pendingForce || !!force;
         
         if (_populateTimer) {
             clearTimeout(_populateTimer);
         }
         
         _populateTimer = setTimeout(function() {
+            var execForce = _pendingForce;
+            _pendingForce = false;
             requestAnimationFrame(function() {
-                populateAll({ force: force });
+                populateAll({ force: execForce });
             });
         }, delay);
+    }
+
+    /**
+     * 生成快速槽位签名，避免全量 JSON.stringify 巨型数据
+     */
+    function _computeFastSignature(data) {
+        if (!data) return '';
+        var parts = [];
+        for (var i = 0; i < _slots.length; i++) {
+            var s = _slots[i];
+            if (s.path) {
+                var v = (window.variableUtils && window.variableUtils.safeGet)
+                    ? window.variableUtils.safeGet(data, s.path)
+                    : null;
+                parts.push(s.selector + ':' + String(v));
+            }
+        }
+        return parts.join('|');
     }
 
     /**
@@ -143,9 +164,9 @@ var variableUI = (function() {
             return;
         }
         
-        // 签名机制（数据未变则跳过）
-        var sig = JSON.stringify(data);
-        if (!force && sig === _lastPopulateSignature) {
+        // 快速签名机制（数据未变则跳过）
+        var sig = _computeFastSignature(data);
+        if (!force && sig && sig === _lastPopulateSignature) {
             return;
         }
         _lastPopulateSignature = sig;

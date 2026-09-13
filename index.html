@@ -2127,7 +2127,7 @@
 
   <!-- 底部输入栏 -->
   <div class="bottom-bar">
-    <input type="text" class="input-box" id="input-box" placeholder="输入你的行动..." onkeypress="if(event.key==='Enter') sendMessage()">
+    <input type="text" class="input-box" id="input-box" placeholder="输入你的行动...">
     <button class="send-btn" onclick="sendMessage()">发送</button>
   </div>
 </div>
@@ -2864,7 +2864,7 @@ function navigate(route) {
   }
   if (route === 'create') {
     // 每次翻开登记册都从世界观页开始
-    var p1 = document.getElementById('create-p1'), p2 = document.getElementById('create-p2');
+    var p1 = document.getElementById('p1'), p2 = document.getElementById('p2');
     if (p1 && p2) { p1.classList.add('active'); p2.classList.remove('active'); }
     if (typeof updateAttr === 'function' && typeof generateOutput === 'function') {
       updateAttr(); generateOutput(); updateRaceHint();
@@ -4250,10 +4250,14 @@ function clearSTPreset() {
   function displayNarrative(text) {
     const display = document.getElementById('narrative-display');
     if (!display) return;
+    // 智能贴底：判断用户当前是否在底部附近（距底 ≤ 120px）
+    const isNearBottom = (display.scrollHeight - display.scrollTop - display.clientHeight) <= 120;
     display.appendChild(renderNarrativePage(text));
     appendNarrativeLog(text);   // 持久化：刷新后能按序重渲染各层正文/战斗卡/检定卡
     mountUndoBar(display);
-    display.scrollTop = display.scrollHeight;
+    if (isNearBottom) {
+      display.scrollTop = display.scrollHeight;
+    }
   }
 
   // ── 叙事页持久化：每次 displayNarrative 累加一份原文到 localStorage，刷新时按序重渲染 ──
@@ -4704,7 +4708,8 @@ function clearSTPreset() {
     const abortController = new AbortController();
     window._turnAbortController = abortController;
     input.value = '';
-    input.disabled = true;
+    input.readOnly = true;
+    input.classList.add('is-busy');
     pushUndoSnapshot();  // 发送前快照：撤销时回退本轮的变量、记忆与叙事
 
     try {
@@ -4957,7 +4962,8 @@ function clearSTPreset() {
     } finally {
       window._gameBusy = false;
       window._turnAbortController = null;
-      input.disabled = false;
+      input.readOnly = false;
+      input.classList.remove('is-busy');
       input.focus();
     }
   };
@@ -5495,6 +5501,19 @@ function clearSTPreset() {
   window.initGameView = function() {
     if (!window.gameReady) initGame();
     else { refreshGameUI(); }
+
+    // 绑定回车发送事件，兼顾中文输入法合成 (isComposing) 拦截
+    const inputEl = document.getElementById('input-box');
+    if (inputEl && !inputEl.dataset.enterBound) {
+      inputEl.dataset.enterBound = '1';
+      inputEl.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          if (e.isComposing || e.keyCode === 229) return;
+          e.preventDefault();
+          window.sendMessage();
+        }
+      });
+    }
   };
 
   // 设置按钮 → SPA 设置视图（原独立 settings.html 已并入，不再跳转独立页）
