@@ -1,51 +1,101 @@
 /**
- * 开局系统 - 灾厄之后独立版
- * 基于世界书开局大纲.yaml + 开局生成规则.yaml
+ * 开局系统 - 灾厄之后独立版（动态开局随机引擎增强版）
+ * 基于《世界书开局大纲.yaml》 + 《开局生成规则.yaml》
  *
  * 核心功能：
- * - 初始角色状态创建
- * - 开局叙事生成（按身份差异化）
- * - 初始任务创建
- * - 世界书接入（开局数据注入AI提示词）
+ * - 4 大突发情境随机（常规公会 / 废墟苏醒 / 酒馆突发冲突 / 沙暴避难所）
+ * - 时间与天气动态摇骰（清晨灰烬雾 / 正午黑日 / 黄昏酸雨 / 深夜静风）
+ * - 身份专属主线 + 随机告示板可选支线（3 选 1）
+ * - 开局彩蛋随身杂物随机掉落
+ * - 初始角色状态、装备信物与世界书动态注入
  */
 
-// ============== 固定锚点 ==============
+// ============== 动态开局情境随机池 ==============
 
-export const OPENING_ANCHOR = {
-  time: {
-    year: 300,
-    month: 11,
-    day: 12,
-    hour: 7,
-    minute: 10,
-    display: '灾厄纪年300年11月12日 07:10'
+export const SCENARIO_SEEDS = [
+  {
+    id: 'guild_normal',
+    weight: 40,
+    name: '公会常规接单',
+    location: { region: '锈钉镇', town: '锈钉', place: '佣兵公会大厅', full: '锈钉镇 · 佣兵公会大厅' },
+    leadIntro: '推门进去，炭火盆的暖意扑面而来，大厅里已经坐了三两拨交头接耳的佣兵。柜台后的办事员抬起头',
+    atmosphere: '空气里混着铁锈、隔夜麦酒和木柴烧过的味道，一切井然有序却暗流涌动。'
   },
-  location: {
-    region: '锈钉镇',
-    town: '锈钉',
-    place: '佣兵公会大厅',
-    full: '锈钉镇，佣兵公会大厅'
+  {
+    id: 'ruin_awakening',
+    weight: 25,
+    name: '废墟遇险苏醒',
+    location: { region: '锈钉镇郊外', town: '废弃前哨站', place: '坍塌的防御工事', full: '锈钉镇郊外 · 废弃前哨坍塌处' },
+    leadIntro: '你从一阵剧烈的头痛中睁开双眼，身旁是一具刚断气不久的变异沙虫幼体，武器就在三步开外的碎石堆中。公会的巡逻队正快步向你走来',
+    atmosphere: '四周弥漫着刺鼻的焦糊味与风沙，远处的警报钟声刚刚停歇。'
   },
-  initialState: {
-    gold: 15,
-    hp: 100,
-    hpMax: 100,
-    fatePoint: 1,
-    level: 1,
-    ac: 10,
-    startingWeapon: {
-      name: '铁剑',
-      type: '剑',
-      slot: 'mainHand',
-      durability: 80,
-      durabilityMax: 80,
-      damage: { dice: 1, sides: 8 },
-      quality: '普通'
-    }
+  {
+    id: 'tavern_brawl',
+    weight: 20,
+    name: '酒馆突发冲突',
+    location: { region: '锈钉镇', town: '锈钉', place: '跃马酒馆与公会偏厅', full: '锈钉镇 · 跃马酒馆与公会偏厅' },
+    leadIntro: '你刚坐下，几名浑身裹着破烂防弹插板的灰烬掠夺者便踹门而入寻衅滋事，酒保不动声色地从柜台下抽出短筒火铳，公会办事员隔着吧台对你使了个眼色',
+    atmosphere: '玻璃杯碎裂的声音与拔刀出鞘的金属摩擦声交织在一起，火药味瞬间弥漫。'
+  },
+  {
+    id: 'storm_shelter',
+    weight: 15,
+    name: '沙尘暴避难所',
+    location: { region: '风蚀走廊', town: '避难地窖', place: '03号加固防空洞', full: '风蚀走廊 · 03号加固防空地窖' },
+    leadIntro: '头顶厚重的铁门在狂暴的辐射尘暴中剧烈震颤。你与几名避难的旅人挤在昏暗的应急油灯下，公会驻防员一边分发过滤芯一边核对幸存者身份',
+    atmosphere: '昏黄的灯光在风声中摇曳，空气中充斥着干燥的尘土与紧张的喘息声。'
   }
-};
+];
 
-// ============== 身份差异化 ==============
+// ============== 天气与时间随机池 ==============
+
+export const WEATHER_SEEDS = [
+  { time: { hour: 6, minute: 45, display: '灾厄300年11月12日 06:45（破晓）' }, weather: '灰烬晨雾', effect: '能见度偏低，荒原轮廓若隐若现' },
+  { time: { hour: 11, minute: 30, display: '灾厄300年11月12日 11:30（烈日）' }, weather: '黑日高悬', effect: '紫外与辐射偏高，荒原干渴消耗略增' },
+  { time: { hour: 17, minute: 50, display: '灾厄300年11月12日 17:50（黄昏）' }, weather: '微酸性晚雨', effect: '地面泥泞湿滑，需披紧防雨斗篷' },
+  { time: { hour: 21, minute: 15, display: '灾厄300年11月12日 21:15（深夜）' }, weather: '干燥静风', effect: '气温骤降，夜间荒原异兽出没频繁' }
+];
+
+// ============== 随机告示板可选支线池 (3 选 1) ==============
+
+export const RANDOM_SIDE_HOOKS = [
+  {
+    name: '商队的受惊驮兽',
+    type: '悬赏支线',
+    desc: '行商老安德森的驮兽在镇外受惊走失，悬赏 12 金币寻找带有蓝色记号的驮包',
+    target: '搜寻受惊驮兽'
+  },
+  {
+    name: '水泵站的异响',
+    type: '清理支线',
+    desc: '镇北地下沉淀池滤网被变异水蛭堵塞，供水管道受损，急需清理',
+    target: '清理地下沉淀池'
+  },
+  {
+    name: '旧时代留声机',
+    type: '寻物支线',
+    desc: '酒馆老板高价收购一台据传遗留在回声谷边缘科研站旧宿舍内的完好音乐盒',
+    target: '搜寻科研站旧宿舍'
+  },
+  {
+    name: '通缉：黑眼巴克',
+    type: '悬赏通缉',
+    desc: '流窜在风蚀平原的独眼掠夺者斥候，击败并带回其身份狗牌可兑换公会赏金',
+    target: '追缉黑眼巴克'
+  }
+];
+
+// ============== 开局随身彩蛋杂物池 ==============
+
+export const RANDOM_TRINKETS = [
+  { name: '停摆的旧怀表', desc: '背面刻着模糊的字母「To K.」，虽然不走了，但工艺极精巧' },
+  { name: '半壶烈性黑麦酒', desc: '锈钉镇特产烈酒，能在寒夜中提神暖身，微量恢复体能' },
+  { name: '手绘的避风洞草图', desc: '不知哪位游侠随手画在羊皮纸背面的捷径，标记了附近的一处安全水源' },
+  { name: '打磨光滑的变异兽牙', desc: '串在皮绳上的兽牙护身符，据说能带来荒原好运' },
+  { name: '一小盒防锈油脂', desc: '保养金属武器与机关的必备耗材，可擦拭武器减少磨损' }
+];
+
+// ============== 7 大身份开场差异对话 ==============
 
 export const IDENTITY_OPENINGS = {
   '遗迹猎手': {
@@ -85,7 +135,8 @@ export const IDENTITY_OPENINGS = {
   }
 };
 
-// 7 大身份专属初始主线任务字典
+// ============== 7 大身份专属主线字典 ==============
+
 export const IDENTITY_QUESTS = {
   '遗迹猎手': {
     id: 'quest_identity_relic_hunter',
@@ -181,123 +232,89 @@ export const IDENTITY_QUESTS = {
   }
 };
 
-// ============== 默认初始任务 (兼容) ==============
 export const INITIAL_QUEST = IDENTITY_QUESTS['自由人'];
 
-// ============== 主线钩子 ==============
+// ============== 开局系统主引擎 ==============
 
-export const MAIN_PLOT_HOOK = {
-  id: 'hook_main_001',
-  name: '老维特失踪',
-  location: '告示板角落',
-  description: '泛黄旧单，墨迹洇开，铁钉生锈',
-  triggerCondition: '玩家主动询问',
-  autoProgress: false,
-  reward: '待定'
-};
-
-// ============== 可选支线事件 ==============
-
-export const OPTIONAL_EVENTS = [
-  {
-    id: 'event_001',
-    name: '求救马车',
-    location: '出城沿途',
-    trigger: 'random',
-    weight: 1
-  },
-  {
-    id: 'event_002',
-    name: '拾荒者痕迹',
-    location: '出城沿途',
-    trigger: 'random',
-    weight: 1
-  },
-  {
-    id: 'event_003',
-    name: '迷路的商队',
-    location: '出城沿途',
-    trigger: 'random',
-    weight: 1
-  }
-];
-
-// ============== 开局系统类 ==============
-
-class OpeningSystem {
+export class OpeningSystem {
   constructor() {
     this.initialized = false;
+    this.openingData = null;
   }
 
   /**
-   * 初始化游戏（玩家发送「登记档案」后调用）
+   * 摇骰抽取随机情境
    */
-  initializeGame(characterData) {
-    // 创建初始角色状态
-    const character = this.createInitialCharacter(characterData);
-
-    // 创建初始任务
-    const quest = this.createInitialQuest(character.identity);
-
-    // 生成开局叙事
-    const narrative = this.generateOpeningNarrative(character);
-
-    // 创建世界书开局数据
-    const openingData = this.createOpeningWorldbookData(character, quest, narrative);
-    this.openingData = openingData;
-
-    this.initialized = true;
-
-    return {
-      success: true,
-      character,
-      quest,
-      narrative,
-      openingData,
-      message: '开局初始化完成'
-    };
+  rollScenario() {
+    const totalWeight = SCENARIO_SEEDS.reduce((s, item) => s + item.weight, 0);
+    let rand = Math.random() * totalWeight;
+    for (const sc of SCENARIO_SEEDS) {
+      if (rand < sc.weight) return sc;
+      rand -= sc.weight;
+    }
+    return SCENARIO_SEEDS[0];
   }
 
   /**
-   * 创建初始角色
+   * 摇骰抽取天气
    */
-  createInitialCharacter(data) {
+  rollWeather() {
+    const idx = Math.floor(Math.random() * WEATHER_SEEDS.length);
+    return WEATHER_SEEDS[idx];
+  }
+
+  /**
+   * 摇骰抽取彩蛋杂物
+   */
+  rollTrinket() {
+    const idx = Math.floor(Math.random() * RANDOM_TRINKETS.length);
+    return RANDOM_TRINKETS[idx];
+  }
+
+  /**
+   * 摇骰抽取告示板随机支线
+   */
+  rollSideHook() {
+    const idx = Math.floor(Math.random() * RANDOM_SIDE_HOOKS.length);
+    return RANDOM_SIDE_HOOKS[idx];
+  }
+
+  /**
+   * 创建初始角色（融合情境种子、信物与彩蛋杂物）
+   */
+  createInitialCharacter(data, seedData) {
+    const weather = seedData ? seedData.weather : this.rollWeather();
+    const scenario = seedData ? seedData.scenario : this.rollScenario();
+    const trinket = seedData ? seedData.trinket : this.rollTrinket();
+
     const defaults = {
       name: data.name || '无名流浪者',
       race: data.race || '人类',
       identity: data.identity || '自由人',
-      attributes: data.attributes || {
-        力量: 10,
-        敏捷: 10,
-        体质: 10,
-        智力: 10,
-        感知: 10,
-        魅力: 10
-      },
+      attributes: data.attributes || { 力量: 10, 敏捷: 10, 体质: 10, 智力: 10, 感知: 10, 魅力: 10 },
       talents: data.talents || [],
-      ...OPENING_ANCHOR.initialState
+      gold: 15,
+      hp: 100,
+      hpMax: 100,
+      fatePoint: 1,
+      level: 1
     };
 
-    // 计算AC（按六维派生）
     const dexMod = Math.floor((defaults.attributes.敏捷 - 10) / 2);
     defaults.ac = 10 + dexMod;
 
-    // 计算负重
     const strMod = Math.floor((defaults.attributes.力量 - 10) / 2);
     const extraCarry = (defaults.identity === '自由人') ? 10 : 0;
     defaults.carryCapacity = 15 + strMod * 5 + extraCarry;
 
-    // 初始装备
     defaults.equipment = {
-      mainHand: { ...OPENING_ANCHOR.initialState.startingWeapon },
-      offHand: null,
-      head: null,
-      body: null,
-      accessory: null
+      mainHand: { name: '废土短刃', type: '剑', slot: 'mainHand', durability: 80, durabilityMax: 80, damage: { dice: 1, sides: 6 }, quality: '普通' },
+      offHand: null, body: null, head: null, accessory: null
     };
 
-    // 初始背包（包含身份专属初始信物）
     defaults.inventory = [];
+
+    // 注入身份信物
     if (typeof window !== 'undefined' && window.identitySystem && window.identitySystem.getEntry) {
       const idEntry = window.identitySystem.getEntry(defaults.identity);
       if (idEntry && idEntry.item) {
@@ -313,26 +330,38 @@ class OpeningSystem {
       }
     }
 
-    // 初始技能
-    defaults.skills = [];
+    // 注入随机彩蛋杂物
+    if (trinket) {
+      defaults.inventory.push({
+        id: 'item_trinket_' + Date.now().toString(36),
+        name: trinket.name,
+        type: 'trinket',
+        description: trinket.desc,
+        count: 1,
+        weight: 0.5,
+        quality: '纪念'
+      });
+    }
 
-    // 初始法术
-    defaults.spells = [];
+    defaults.time = {
+      year: 300, month: 11, day: 12,
+      hour: weather.time.hour,
+      minute: weather.time.minute,
+      display: weather.time.display
+    };
+    defaults.weather = weather.weather;
+    defaults.weatherEffect = weather.effect;
+    defaults.location = { ...scenario.location };
 
-    // 初始MP（按智力，系数走数值契约）
     const perInt = (typeof window !== 'undefined' && window.numericContract && window.numericContract.法力) ? (window.numericContract.法力.每点智力 || 5) : 5;
     defaults.mp = defaults.attributes.智力 * perInt;
     defaults.mpMax = defaults.mp;
-
-    // 初始时间地点
-    defaults.time = { ...OPENING_ANCHOR.time };
-    defaults.location = { ...OPENING_ANCHOR.location };
 
     return defaults;
   }
 
   /**
-   * 创建初始任务（根据身份动态匹配）
+   * 创建初始主线任务
    */
   createInitialQuest(identity) {
     const idKey = identity || '自由人';
@@ -340,59 +369,67 @@ class OpeningSystem {
     return {
       ...questTemplate,
       status: '进行中',
-      acceptedTime: { ...OPENING_ANCHOR.time },
+      acceptedTime: { year: 300, month: 11, day: 12, hour: 7, minute: 10, display: '灾厄300年11月12日 07:10' },
       deadlineTime: {
-        year: OPENING_ANCHOR.time.year,
-        month: OPENING_ANCHOR.time.month,
-        day: OPENING_ANCHOR.time.day + (questTemplate.deadline ? questTemplate.deadline.days : 3),
-        hour: OPENING_ANCHOR.time.hour,
-        minute: OPENING_ANCHOR.time.minute
+        year: 300, month: 11, day: 12 + (questTemplate.deadline ? questTemplate.deadline.days : 3),
+        hour: 7, minute: 10
       }
     };
   }
 
   /**
-   * 生成开局叙事
+   * 生成动态随机开局叙事
    */
-  generateOpeningNarrative(character) {
+  generateOpeningNarrative(character, seedData) {
     const identity = character.identity || '自由人';
     const opening = IDENTITY_OPENINGS[identity] || IDENTITY_OPENINGS['自由人'];
     const questTemplate = IDENTITY_QUESTS[identity] || IDENTITY_QUESTS['自由人'];
+    const scenario = seedData.scenario;
+    const weather = seedData.weather;
+    const sideHook = seedData.sideHook;
+    const trinket = seedData.trinket;
 
-    // 基础场景描述
-    let narrative = `锈钉镇的清晨比想象中醒得早。天还没全亮，铁匠铺的锤声就隔着两条街传过来，一下一下，像给整座镇子敲着起床的鼓点。你裹着旧斗篷穿过主街，灰烬雾还没散，空气里混着铁锈、隔夜麦酒和木柴烧过的味道。三百年了，这座镇子就这样醒过来，日复一日。\n\n`;
-
-    // 身份差异化场景
-    narrative += `佣兵公会在主街尽头，门脸不大，一块铁牌歪歪斜斜钉在门框上，写着「自由佣兵联盟」几个褪色的字。推门进去，炭火盆的暖意扑面而来，大厅里已经坐了三两拨人。柜台后的办事员抬起头，${opening.scene}。\n\n`;
-
-    // 接待员对话
+    let narrative = `【灾厄纪元 300 年 · 废土】\n时值 ${weather.time.display}，荒原上方笼罩着一袭薄薄的「${weather.weather}」。${weather.effect}。\n\n`;
+    narrative += `📍 **当前位置**：${scenario.location.full}\n${scenario.atmosphere}\n\n`;
+    narrative += `${scenario.leadIntro}，${opening.scene}。\n\n`;
     narrative += `${opening.greeting}\n\n`;
+    narrative += `办完建档手续，办事员递来一张加盖了火漆的信笺：「这是匹配你身份的当务之急——『${questTemplate.name}』。${questTemplate.description}。」\n\n`;
 
-    // 任务介绍
-    narrative += `办完登记手续，办事员递过一张专属委托信笺：「这是匹配你身份的当务之急——『${questTemplate.name}』。${questTemplate.description}。接好信物，荒原上多加小心。」\n\n`;
+    if (sideHook) {
+      narrative += `在旁边的告示板一角，你注意到还悬赏着另一条偶发事件：\n> 📜 **[可选告示] ${sideHook.name}**：${sideHook.desc}。\n\n`;
+    }
 
-    // 主线钩子
-    narrative += `告示板的角落里，还钉着一张边角泛黄的旧单子，墨迹被潮气洇开大半，只隐约能认出几个字：老维特，失踪，赏金待定。铁钉已经生锈，像是钉在那里很久了。\n\n`;
+    if (trinket) {
+      narrative += `你检查了一下行囊，除了随身武器与身份信物外，内袋里还静静躺着一件旧物——『${trinket.name}』（${trinket.desc}）。\n\n`;
+    }
 
-    // 出城
-    narrative += `你把委托单收好塞进斗篷内袋。出城时铁匠铺门口的矮人铁匠看了一眼你腰间的武器，咧嘴一笑：「新面孔，第一单活？」你微微颔首，他也不再多问，回身继续敲他的铁。镇门口的老守门人叼着烟斗，扫过你的登记凭证，摆摆手：「荒原深处近来不太平，天黑前尽量找据点过夜。」\n\n`;
-
-    // 结尾
-    narrative += `公会大门在你身后合上，灰烬雾正从镇外漫进来。地平线的尽头，天边泛着一层肃杀的灰白。\n\n接下来，往哪走，是你自己的事了。`;
+    narrative += `命运的齿轮已然咬合，废土的沙尘在脚下蔓延。\n接下来，往哪走，全看你自己的抉择。`;
 
     return narrative;
   }
 
   /**
-   * 创建开局世界书数据
+   * 初始化游戏（主入口）
    */
-  createOpeningWorldbookData(character, quest, narrative) {
-    return {
+  initializeGame(characterData) {
+    const seedData = {
+      scenario: this.rollScenario(),
+      weather: this.rollWeather(),
+      trinket: this.rollTrinket(),
+      sideHook: this.rollSideHook()
+    };
+
+    const character = this.createInitialCharacter(characterData, seedData);
+    const quest = this.createInitialQuest(character.identity);
+    const narrative = this.generateOpeningNarrative(character, seedData);
+
+    const openingData = {
       entryName: '开局数据',
       category: '开局',
       content: {
         time: character.time,
         location: character.location,
+        weather: character.weather,
         character: {
           name: character.name,
           race: character.race,
@@ -408,60 +445,31 @@ class OpeningSystem {
           fatePoint: character.fatePoint
         },
         initialQuest: quest,
-        mainPlotHook: MAIN_PLOT_HOOK,
-        optionalEvents: OPTIONAL_EVENTS,
+        sideHook: seedData.sideHook,
+        scenario: seedData.scenario.name,
         openingNarrative: narrative
-      },
-      keywords: ['开局', '初始', '锈钉', '佣兵公会', '灰烬森林'],
-      enabled: true
+      }
     };
-  }
 
-  /**
-   * 获取开局数据（供世界书使用）
-   */
-  getOpeningData() {
-    if (!this.initialized) {
-      return null;
-    }
-    return this.openingData;
-  }
+    this.openingData = openingData;
+    this.initialized = true;
 
-  /**
-   * 检查是否需要开局引导
-   */
-  needsOpeningGuide(playerMessage) {
-    const triggers = ['登记档案', '建档', '开始游戏', '新游戏'];
-    return triggers.some(t => playerMessage.includes(t));
-  }
-
-  /**
-   * 生成开局引导文本
-   */
-  generateOpeningGuide() {
-    return `【开局引导】
-
-请发送「登记档案」完成角色创建，格式如下：
-
-姓名：[角色名]
-种族：[人类/精灵/矮人/兽人/犬人/兔耳族/灵耳族/混血]
-身份：[佣兵/拾荒者/学者/猎人/商贩/工匠/医师]
-六维：力量[1-20] 敏捷[1-20] 体质[1-20] 智力[1-20] 感知[1-20] 魅力[1-20]
-背景特质：[最多2项]
-
-示例：
-姓名：艾什
-种族：人类
-身份：佣兵
-六维：力量14 敏捷12 体质13 智力10 感知11 魅力10
-背景特质：旧日遗民、铁匠学徒
-
-或者直接发送「默认开局」使用默认值（人类佣兵/全10六维）开始游戏。`;
+    return {
+      success: true,
+      character,
+      quest,
+      narrative,
+      openingData,
+      seedData,
+      message: '开局初始化完成'
+    };
   }
 }
 
-// 导出单例
 export const openingSystem = new OpeningSystem();
 
-// 导出类供测试使用
-export { OpeningSystem };
+if (typeof window !== 'undefined') {
+  window.openingSystem = openingSystem;
+  window.IDENTITY_QUESTS = IDENTITY_QUESTS;
+  window.IDENTITY_OPENINGS = IDENTITY_OPENINGS;
+}
