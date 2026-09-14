@@ -1913,7 +1913,7 @@
     <p class="lore-p">灾厄中，八个异世界种族坠入此界——矮人、精灵、羊人、虎族、犬人、灵耳族、兔耳族、猫人，如今与人类共存于灰烬废土。</p>
     <p class="lore-p">故事始于灾厄 300 年，锈钉镇——五大势力交汇的边境小镇。你，将是下一个踏入这个破碎世界的人。</p>
     <hr class="divider">
-    <button class="btn" onclick="switchPage(2)" data-ripple-bound="1">◈ 确认，翻开登记册 ◈</button>
+    <button type="button" class="btn" id="btn-open-register" onclick="window.switchPage(2)" data-ripple-bound="1" style="position:relative;z-index:10;cursor:pointer;">◈ 确认，翻开登记册 ◈</button>
     <div class="footer">圣火骑士团 · 联合登记处 · 灾厄 300 年</div>
     <div class="page-num">— ⅰ —</div>
   </div>
@@ -2554,17 +2554,27 @@
    游戏视图不受影响：#view-game 为 position:fixed + ID 特异性 display 规则，
    本块的类级 flex/display 覆盖对其无效。 */
 body{padding:0}
+/* ── 页面与登记册层级强约束（防层叠干扰） ── */
+#p1, #p2 { display: none !important; }
+#p1.active, #p2.active { display: block !important; }
+#view-create { width: 100%; }
+#view-create .book-cover { min-height: var(--app-height, 100vh); width: 100%; }
+#btn-open-register { position: relative; z-index: 20; cursor: pointer; pointer-events: auto !important; }
+
 .book-cover{
   max-width:none;width:100%;margin:0;border-radius:0;
   min-height:var(--app-height,100vh);
   display:flex;flex-direction:column;
 }
 .book-cover .book-cover{min-height:0} /* 嵌套封面（登记册）不再自带视口高，避免双重滚动 */
-.book-cover > .page{flex:1 0 auto}
+.book-cover > .page{display:none;flex:1 0 auto}
+.book-cover > .page.active{display:block}
 .book-cover > .view.active{display:flex;flex-direction:column}
-.book-cover > .view.active > .page{flex:1 0 auto}
+.book-cover > .view.active > .page{display:none;flex:1 0 auto}
+.book-cover > .view.active > .page.active{display:block}
 .book-cover > .view.active > .book-cover{flex:1 0 auto;display:flex;flex-direction:column}
-.book-cover > .view.active > .book-cover > .page{flex:1 0 auto}
+.book-cover > .view.active > .book-cover > .page{display:none;flex:1 0 auto}
+.book-cover > .view.active > .book-cover > .page.active{display:block}
 /* 首页：羊皮纸撑满后内容垂直居中 */
 #view-home.page.active{display:flex;flex-direction:column;justify-content:center}
 /* 页脚说明：从封面外移入羊皮纸底部（深底浅字改为纸面墨字） */
@@ -2594,8 +2604,6 @@ body{padding:0}
 <script src="./module/variable-system.js"></script>
 <script src="./module/variable-utils.js"></script>
 <script src="./module/variable-ui.js"></script>
-
-</section>
 
   <!-- ═══ 页面：设置（迁自 settings.html） ═══ -->
 <!-- ST 预设管理面板 -->
@@ -2955,6 +2963,14 @@ window.addEventListener('DOMContentLoaded', function() {
         localStorage.removeItem('character');
       }
       navigate('create');
+    });
+  }
+
+  var openRegBtn = document.getElementById('btn-open-register');
+  if (openRegBtn) {
+    openRegBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      if (typeof window.switchPage === 'function') window.switchPage(2);
     });
   }
 
@@ -5550,19 +5566,43 @@ var attrNames={str:'力量',dex:'敏捷',con:'体质',wis:'感知',int:'智力',
 var raceHints={人类:'适应力：跨种族社交/跨势力交涉不劣势',矮人:'锻造之心：锻造/鉴定/负重相关检定优势',精灵:'自然之眼：草本/魔法鉴定/暗视相关检定优势',羊人:'山地步兵：攀爬/耐力/行军相关检定优势',虎族:'猎手：视觉追踪/近战搏斗检定优势',犬人:'嗅觉追踪/信使任务相关检定优势',灵耳族:'耳语机巧：听觉定位/精密操作检定优势',兔耳族:'超级跳跃：跳跃/闪避/斥候侦查相关检定优势',猫人:'夜目+猫步：夜间行动/潜行/平衡检定优势'};
 
 function switchPage(n){
-  var pages=['p1','p2'];
-  var createView = document.getElementById('view-create');
-  var currentPage = createView ? createView.querySelector('.page.active') : document.querySelector('.page.active');
-  var nextPage = document.getElementById(pages[n-1]);
-  if(!nextPage) return;
-  if(currentPage) currentPage.classList.remove('active');
-  nextPage.classList.add('active');
-  nextPage.style.animation='none';void nextPage.offsetWidth;
-  nextPage.style.animation='pageOpen .6s ease-out';
-  if(typeof generateOutput === 'function') generateOutput();
+  console.log('[switchPage] switching to page:', n);
+  var p1 = document.getElementById('p1');
+  var p2 = document.getElementById('p2');
+  if (n === 2) {
+    if (p1) {
+      p1.classList.remove('active');
+      p1.style.setProperty('display', 'none', 'important');
+    }
+    if (p2) {
+      p2.classList.add('active');
+      p2.style.setProperty('display', 'block', 'important');
+      p2.style.animation = 'none';
+      void p2.offsetWidth;
+      p2.style.animation = 'pageOpen .6s ease-out';
+    }
+  } else if (n === 1) {
+    if (p2) {
+      p2.classList.remove('active');
+      p2.style.setProperty('display', 'none', 'important');
+    }
+    if (p1) {
+      p1.classList.add('active');
+      p1.style.setProperty('display', 'block', 'important');
+      p1.style.animation = 'none';
+      void p1.offsetWidth;
+      p1.style.animation = 'pageOpen .6s ease-out';
+    }
+  }
+  if (typeof generateOutput === 'function') generateOutput();
+  if (typeof updateAttr === 'function') updateAttr();
 }
 
-// 身份差异化开场数据
+// 暴露到 window 供 onclick 调用
+window.switchPage = switchPage;
+window.generateOutput = generateOutput;
+window.updateRaceHint = updateRaceHint;
+window.enterGame = enterGame;
 var IDENTITY_OPENINGS={
   '遗迹猎手':{scene:'正对着便携解码器调试参数，抬头审视公会内的陈设',greeting:'「遗迹猎手？听说你们这行最近都在盯着 09 号废弃避难所的动静。」'},
   '圣火祭司':{scene:'手抚胸前圣火徽记，低声念诵着晨祷词',greeting:'「愿圣火庇佑你，祭司。风蚀哨站那边近来异端传言四起，教团正需要信使。」'},
