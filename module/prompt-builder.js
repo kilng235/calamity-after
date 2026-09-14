@@ -272,6 +272,12 @@ var promptBuilder = (function() {
             if (identityBlock) sections.push(identityBlock);
         }
 
+        // 废土历法节日与动态世界事件（自动感应今日种族庆典与全图氛围）
+        if (typeof window !== 'undefined' && window.worldEventsSystem) {
+            var worldEventsBlock = window.worldEventsSystem.buildBlock(gd);
+            if (worldEventsBlock) sections.push(worldEventsBlock);
+        }
+
         // 当前任务数据（让 LLM 知道玩家当前任务）
         var questBlock = (window.worldbookEngine && window.worldbookEngine.buildQuestBlock) 
             ? window.worldbookEngine.buildQuestBlock(gd) 

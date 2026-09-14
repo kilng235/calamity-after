@@ -2043,11 +2043,14 @@
     </div>
   </div>
 
-  <!-- 次要信息条：游戏内时间 / 金币（窄屏始终显示，宽屏与顶栏并列；独立名字避免与登记册 .status-bar 冲突） -->
+  <!-- 次要信息条：游戏内时间 / 节日庆典 / 金币（窄屏始终显示，宽屏与顶栏并列；独立名字避免与登记册 .status-bar 冲突） -->
   <div class="info-bar">
     <div class="status-item" title="游戏内时间">
       <span class="ui-glyph">✦</span>
       <span id="time-text">—</span>
+    </div>
+    <div class="status-item" id="festival-tag" style="display:none; color: var(--gold); border: 1px solid rgba(184,148,42,0.4); padding: 1px 6px; border-radius: 3px; font-size: 12px;">
+      <span>🏮 </span><span id="festival-name">重燃节</span>
     </div>
     <div class="status-item">
       <img src="img/ui/ui-gold.png" class="ui-icon" alt="金币" onerror="this.style.display='none'">
@@ -2578,6 +2581,7 @@ body{padding:0}
 <script src="./module/numeric-contract.js"></script>
 <script src="./module/progression-contract.js"></script>
 <script src="./module/equipment-contract.js"></script>
+<script src="./module/world-events.js"></script>
 <script src="./module/json-repair-helper.js"></script>
 <script src="./module/command-engine.js"></script>
 <script src="./module/command-processor.js"></script>
@@ -5019,6 +5023,21 @@ function clearSTPreset() {
     const pad = n => (n < 10 ? '0' + n : '' + n);
     document.getElementById('time-text').textContent =
       (t.year || 300) + '年' + (t.month || 1) + '月' + (t.day || 1) + '日 ' + pad(t.hour || 0) + ':' + pad(t.minute || 0);
+
+    // 今日节日庆典标签感知
+    const festTag = document.getElementById('festival-tag');
+    const festName = document.getElementById('festival-name');
+    if (festTag && festName && window.worldEventsSystem) {
+      const todayFest = window.worldEventsSystem.getTodayFestival(t);
+      if (todayFest) {
+        festName.textContent = todayFest.name + ' · ' + todayFest.buff.name;
+        festTag.style.display = 'inline-flex';
+        festTag.title = todayFest.theme + '（' + todayFest.buff.effect + '）';
+      } else {
+        festTag.style.display = 'none';
+      }
+    }
+
     const loc = (gd.progress && gd.progress.currentLocation) || '未知';
     const place = gd.progress && gd.progress.currentPlace;
     document.getElementById('char-location').textContent = place ? loc + ' · ' + place : loc;
