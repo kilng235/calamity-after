@@ -48,84 +48,141 @@ export const OPENING_ANCHOR = {
 // ============== 身份差异化 ==============
 
 export const IDENTITY_OPENINGS = {
-  '佣兵': {
-    scene: '来公会报到登记，接待员递上登记表',
-    greeting: '「新面孔。名字、种族、特质，自己填，填完盖手印。」',
-    interaction: '接待员直接递上登记表，引导完成建档'
+  '遗迹猎手': {
+    scene: '正对着便携解码器调试参数，抬头审视公会内的陈设',
+    greeting: '「遗迹猎手？听说你们这行最近都在盯着 09 号废弃避难所的动静。」',
+    interaction: '先交流旧日避难所情报，再引导接任务'
   },
-  '拾荒者': {
-    scene: '顺路兑战利品，顺手接单',
-    greeting: '「又来兑货？正好，昨晚上新贴了个活。」',
-    interaction: '先兑换战利品，再引导接任务'
+  '圣火祭司': {
+    scene: '手抚胸前圣火徽记，低声念诵着晨祷词',
+    greeting: '「愿圣火庇佑你，祭司。风蚀哨站那边近来异端传言四起，教团正需要信使。」',
+    interaction: '先给予教团礼遇，再引导接任务'
   },
-  '学者': {
-    scene: '雇向导查资料，接单作野外保障',
-    greeting: '「要雇向导？灰烬森林那边正好有个委托，顺路。」',
-    interaction: '先谈雇佣向导，再引导接任务'
+  '荒原游侠': {
+    scene: '身上带着沙尘与刺鼻的驱兽草气息，目光警觉扫视四周',
+    greeting: '「游侠，外面的风暴停了？失踪的荒原巡逻队至今还没消息，大家都指望你们探路。」',
+    interaction: '先问候荒原气象与失联巡逻队，再引导接任务'
   },
-  '猎人': {
-    scene: '卖猎物顺带问行情，接单',
-    greeting: '「今天的猎物不错。正好有个材料狩猎的活，接不接？」',
-    interaction: '先卖猎物，再引导接任务'
+  '机械工匠': {
+    scene: '腰间挂满扳手与精密机件，正打量着大厅那台老旧的供暖锅炉',
+    greeting: '「工匠师傅！哨站外围的自卫炮台又瘫痪了两台，正缺懂行的人去看看。」',
+    interaction: '先商讨器械维修委托，再引导接任务'
   },
-  '商贩': {
-    scene: '谈供货押运，接单',
-    greeting: '「要谈押运？正好有个灰烬森林的活，顺路。」',
-    interaction: '先谈押运合作，再引导接任务'
+  '异化行者': {
+    scene: '兜帽压得很低，隐匿斗篷下隐约浮现微弱的能量纹路',
+    greeting: '「……坐吧，别太招摇。听说回声谷深处有些旧时代的生化制剂，兴许对你有用。」',
+    interaction: '保持低调交易，再引导接任务'
   },
-  '工匠': {
-    scene: '交订单修装备，接单',
-    greeting: '「修装备？正好，修完有个活给你看看。」',
-    interaction: '先修装备，再引导接任务'
+  '旧日学者': {
+    scene: '手里捧着炭笔与羊皮纸手记，正仔细辨识公会石柱上的风化铭文',
+    greeting: '「学者阁下，灰烬森林方尖碑的古文字，公会里没人认得，正想请您过目。」',
+    interaction: '先探讨历史文献残卷，再引导接任务'
   },
-  '医师': {
-    scene: '收药材卖药剂，接单',
-    greeting: '「收药材？正好有个灰烬森林的活，需要医师。」',
-    interaction: '先收药材，再引导接任务'
+  '自由人': {
+    scene: '靠在吧台旁要了杯廉价麦酒，神色轻松自若',
+    greeting: '「新面孔。名字、种族、特质，自己填，填完盖手印。荒原很大，全看你自己挑活。」',
+    interaction: '直接递上登记表，引导完成自由建档'
   }
 };
 
-// ============== 初始任务模板 ==============
-
-export const INITIAL_QUEST = {
-  id: 'quest_initial_001',
-  name: '灰烬森林材料狩猎',
-  type: '佣兵委托',
-  issuer: '佣兵公会',
-  targetArea: '灰烬森林',
-  description: '灰烬森林外围材料狩猎，收集灰烬狼皮和焦木蜥鳞片',
-  objectives: [
-    {
-      id: 'obj_1',
-      type: 'collect',
-      target: '灰烬狼皮',
-      required: 3,
-      current: 0,
-      reward: 3
-    },
-    {
-      id: 'obj_2',
-      type: 'collect',
-      target: '焦木蜥鳞片',
-      required: 2,
-      current: 0,
-      reward: 5
-    }
-  ],
-  deadline: {
-    days: 3,
-    display: '3天'
+// 7 大身份专属初始主线任务字典
+export const IDENTITY_QUESTS = {
+  '遗迹猎手': {
+    id: 'quest_identity_relic_hunter',
+    name: '失落避难所的讯号',
+    type: '身份主线',
+    issuer: '先驱者遗物',
+    targetArea: '09号避难所周边',
+    description: '破译随身携带的加密磁盘，寻找 09 号废弃避难所的隐藏入口',
+    objectives: [
+      { id: 'obj_1', type: 'explore', target: '寻找懂得破译磁盘的技师', required: 1, current: 0, reward: 20 }
+    ],
+    deadline: { days: 7, display: '7天' },
+    rewards: { gold: 20, exp: 50, fatePoint: 1 }
   },
-  rewards: {
-    gold: 19, // 3*3 + 2*5 = 19
-    reputation: {
-      faction: '佣兵公会',
-      amount: 5
-    },
-    commission: 0.1 // 公会抽成10%
+  '圣火祭司': {
+    id: 'quest_identity_pyro_priest',
+    name: '圣火教团的密信',
+    type: '身份主线',
+    issuer: '圣火大教堂',
+    targetArea: '风蚀哨站',
+    description: '将神圣密函送达风蚀哨站的主教手中，调查近期渗透的异教徒谣言',
+    objectives: [
+      { id: 'obj_1', type: 'travel', target: '抵达风蚀哨站会见主教', required: 1, current: 0, reward: 20 }
+    ],
+    deadline: { days: 5, display: '5天' },
+    rewards: { gold: 15, exp: 50, fatePoint: 1 }
   },
-  notes: '按市价结算，公会抽一成'
+  '荒原游侠': {
+    id: 'quest_identity_wasteland_ranger',
+    name: '沙暴中的失踪巡逻队',
+    type: '身份主线',
+    issuer: '巡逻队哨卡',
+    targetArea: '风蚀荒原',
+    description: '循着风蚀平原的血迹与残骸，追查荒原失联巡逻分队的下落',
+    objectives: [
+      { id: 'obj_1', type: 'investigate', target: '搜寻失踪巡逻队遗留痕迹', required: 1, current: 0, reward: 20 }
+    ],
+    deadline: { days: 5, display: '5天' },
+    rewards: { gold: 20, exp: 50, fatePoint: 1 }
+  },
+  '机械工匠': {
+    id: 'quest_identity_mech_artisan',
+    name: '动力核心过载之谜',
+    type: '身份主线',
+    issuer: '工匠工坊',
+    targetArea: '哨站外围',
+    description: '收集高纯度动力元件，修复哨站外围报废的自卫炮台',
+    objectives: [
+      { id: 'obj_1', type: 'repair', target: '收集动力核心并修复自卫炮台', required: 1, current: 0, reward: 25 }
+    ],
+    deadline: { days: 5, display: '5天' },
+    rewards: { gold: 25, exp: 50, fatePoint: 1 }
+  },
+  '异化行者': {
+    id: 'quest_identity_mutant_stalker',
+    name: '血脉异动的源头',
+    type: '身份主线',
+    issuer: '自身本能',
+    targetArea: '回声谷废墟',
+    description: '前往回声谷废墟寻找旧时代基因冷冻液，压制体内的血脉异化',
+    objectives: [
+      { id: 'obj_1', type: 'collect', target: '采集回声谷旧科研所冷冻液', required: 1, current: 0, reward: 20 }
+    ],
+    deadline: { days: 7, display: '7天' },
+    rewards: { gold: 10, exp: 50, fatePoint: 1 }
+  },
+  '旧日学者': {
+    id: 'quest_identity_ancient_scholar',
+    name: '灾厄编年史残页',
+    type: '身份主线',
+    issuer: '文明复兴学社',
+    targetArea: '灰烬森林',
+    description: '探访灰烬森林中的古代方尖碑，拓印石碑铭文以拼凑灾厄历史',
+    objectives: [
+      { id: 'obj_1', type: 'investigate', target: '拓印古代方尖碑铭文', required: 1, current: 0, reward: 20 }
+    ],
+    deadline: { days: 5, display: '5天' },
+    rewards: { gold: 15, exp: 50, fatePoint: 1 }
+  },
+  '自由人': {
+    id: 'quest_identity_freeman',
+    name: '荒原的第一桶金',
+    type: '佣兵委托',
+    issuer: '佣兵公会',
+    targetArea: '灰烬森林',
+    description: '灰烬森林外围材料狩猎，收集灰烬狼皮和焦木蜥鳞片，完成初次立足委托',
+    objectives: [
+      { id: 'obj_1', type: 'collect', target: '灰烬狼皮', required: 3, current: 0, reward: 3 },
+      { id: 'obj_2', type: 'collect', target: '焦木蜥鳞片', required: 2, current: 0, reward: 5 }
+    ],
+    deadline: { days: 3, display: '3天' },
+    rewards: { gold: 19, exp: 50, fatePoint: 1 }
+  }
 };
+
+// ============== 默认初始任务 (兼容) ==============
+export const INITIAL_QUEST = IDENTITY_QUESTS['自由人'];
 
 // ============== 主线钩子 ==============
 
@@ -180,7 +237,7 @@ class OpeningSystem {
     const character = this.createInitialCharacter(characterData);
 
     // 创建初始任务
-    const quest = this.createInitialQuest();
+    const quest = this.createInitialQuest(character.identity);
 
     // 生成开局叙事
     const narrative = this.generateOpeningNarrative(character);
@@ -206,9 +263,9 @@ class OpeningSystem {
    */
   createInitialCharacter(data) {
     const defaults = {
-      name: data.name || '无名佣兵',
+      name: data.name || '无名流浪者',
       race: data.race || '人类',
-      identity: data.identity || '佣兵',
+      identity: data.identity || '自由人',
       attributes: data.attributes || {
         力量: 10,
         敏捷: 10,
@@ -227,7 +284,8 @@ class OpeningSystem {
 
     // 计算负重
     const strMod = Math.floor((defaults.attributes.力量 - 10) / 2);
-    defaults.carryCapacity = 15 + strMod * 5;
+    const extraCarry = (defaults.identity === '自由人') ? 10 : 0;
+    defaults.carryCapacity = 15 + strMod * 5 + extraCarry;
 
     // 初始装备
     defaults.equipment = {
@@ -238,8 +296,22 @@ class OpeningSystem {
       accessory: null
     };
 
-    // 初始背包
+    // 初始背包（包含身份专属初始信物）
     defaults.inventory = [];
+    if (typeof window !== 'undefined' && window.identitySystem && window.identitySystem.getEntry) {
+      const idEntry = window.identitySystem.getEntry(defaults.identity);
+      if (idEntry && idEntry.item) {
+        defaults.inventory.push({
+          id: 'item_identity_' + (defaults.identity || 'freeman'),
+          name: idEntry.item.name,
+          type: idEntry.item.type,
+          description: idEntry.item.desc,
+          count: 1,
+          weight: 1,
+          quality: '精良'
+        });
+      }
+    }
 
     // 初始技能
     defaults.skills = [];
@@ -260,17 +332,19 @@ class OpeningSystem {
   }
 
   /**
-   * 创建初始任务
+   * 创建初始任务（根据身份动态匹配）
    */
-  createInitialQuest() {
+  createInitialQuest(identity) {
+    const idKey = identity || '自由人';
+    const questTemplate = IDENTITY_QUESTS[idKey] || IDENTITY_QUESTS['自由人'];
     return {
-      ...INITIAL_QUEST,
+      ...questTemplate,
       status: '进行中',
       acceptedTime: { ...OPENING_ANCHOR.time },
       deadlineTime: {
         year: OPENING_ANCHOR.time.year,
         month: OPENING_ANCHOR.time.month,
-        day: OPENING_ANCHOR.time.day + 3,
+        day: OPENING_ANCHOR.time.day + (questTemplate.deadline ? questTemplate.deadline.days : 3),
         hour: OPENING_ANCHOR.time.hour,
         minute: OPENING_ANCHOR.time.minute
       }
@@ -281,29 +355,30 @@ class OpeningSystem {
    * 生成开局叙事
    */
   generateOpeningNarrative(character) {
-    const identity = character.identity;
-    const opening = IDENTITY_OPENINGS[identity] || IDENTITY_OPENINGS['佣兵'];
+    const identity = character.identity || '自由人';
+    const opening = IDENTITY_OPENINGS[identity] || IDENTITY_OPENINGS['自由人'];
+    const questTemplate = IDENTITY_QUESTS[identity] || IDENTITY_QUESTS['自由人'];
 
     // 基础场景描述
     let narrative = `锈钉镇的清晨比想象中醒得早。天还没全亮，铁匠铺的锤声就隔着两条街传过来，一下一下，像给整座镇子敲着起床的鼓点。你裹着旧斗篷穿过主街，灰烬雾还没散，空气里混着铁锈、隔夜麦酒和木柴烧过的味道。三百年了，这座镇子就这样醒过来，日复一日。\n\n`;
 
     // 身份差异化场景
-    narrative += `佣兵公会在主街尽头，门脸不大，一块铁牌歪歪斜斜钉在门框上，写着「自由佣兵联盟」几个褪色的字。推门进去，炭火盆的暖意扑面而来，大厅里已经坐了三两拨人。柜台后一个矮人女人抬起头，${opening.scene}\n\n`;
+    narrative += `佣兵公会在主街尽头，门脸不大，一块铁牌歪歪斜斜钉在门框上，写着「自由佣兵联盟」几个褪色的字。推门进去，炭火盆的暖意扑面而来，大厅里已经坐了三两拨人。柜台后的办事员抬起头，${opening.scene}。\n\n`;
 
     // 接待员对话
     narrative += `${opening.greeting}\n\n`;
 
     // 任务介绍
-    narrative += `你填完表，她扫了一眼，从柜台下抽出一张皱巴巴的纸：「正好，昨晚上新贴的。灰烬森林材料狩猎，灰烬狼皮三张，焦木蜥鳞片两片，三天限期，按市价收。狼皮一张三金，鳞片一片五金，公会抽一成。接不接？」\n\n`;
+    narrative += `办完登记手续，办事员递过一张专属委托信笺：「这是匹配你身份的当务之急——『${questTemplate.name}』。${questTemplate.description}。接好信物，荒原上多加小心。」\n\n`;
 
     // 主线钩子
     narrative += `告示板的角落里，还钉着一张边角泛黄的旧单子，墨迹被潮气洇开大半，只隐约能认出几个字：老维特，失踪，赏金待定。铁钉已经生锈，像是钉在那里很久了。\n\n`;
 
     // 出城
-    narrative += `你把材料狩猎的单子从木钉上取下来，卷好，塞进斗篷内袋。出城时铁匠铺门口的矮人铁匠看了一眼你腰间的铁剑，咧嘴一笑：「新来的吧，第一单活？」你没答话，他也不再问，回身继续敲他的铁。镇门口的老守门人叼着烟斗，扫过你的登记凭证，摆摆手：「灰烬森林别往深了走，天黑前回来。」\n\n`;
+    narrative += `你把委托单收好塞进斗篷内袋。出城时铁匠铺门口的矮人铁匠看了一眼你腰间的武器，咧嘴一笑：「新面孔，第一单活？」你微微颔首，他也不再多问，回身继续敲他的铁。镇门口的老守门人叼着烟斗，扫过你的登记凭证，摆摆手：「荒原深处近来不太平，天黑前尽量找据点过夜。」\n\n`;
 
     // 结尾
-    narrative += `公会大门在你身后合上，灰烬雾正从镇外漫进来。灰烬森林的方向，天边泛着一层灰白。\n\n接下来，往哪走，是你自己的事了。`;
+    narrative += `公会大门在你身后合上，灰烬雾正从镇外漫进来。地平线的尽头，天边泛着一层肃杀的灰白。\n\n接下来，往哪走，是你自己的事了。`;
 
     return narrative;
   }

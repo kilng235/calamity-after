@@ -1960,13 +1960,13 @@
     <div class="race-hint" id="raceHint">◈ 适应力：跨种族社交/跨势力交涉不劣势</div>
     <label>◈ 身份</label>
     <select id="identity" onchange="generateOutput()">
-      <option value="佣兵">佣兵</option>
-      <option value="拾荒者">拾荒者</option>
-      <option value="学者">学者</option>
-      <option value="猎人">猎人</option>
-      <option value="商贩">商贩</option>
-      <option value="工匠">工匠</option>
-      <option value="医师">医师</option>
+      <option value="遗迹猎手">遗迹猎手 [阵营：先驱者探索队]</option>
+      <option value="圣火祭司">圣火祭司 [阵营：圣火教团]</option>
+      <option value="荒原游侠">荒原游侠 [阵营：荒原巡逻队]</option>
+      <option value="机械工匠">机械工匠 [阵营：工匠同盟]</option>
+      <option value="异化行者">异化行者 [阵营：灰烬浪人]</option>
+      <option value="旧日学者">旧日学者 [阵营：文明复兴学社]</option>
+      <option value="自由人">自由人 [无阵营羁绊 · 自由探索]</option>
     </select>
     <div class="race-hint" id="kit-preview"></div>
     <label>◈ 特质 (最多 2 项，相关检定获优势)</label>
@@ -5543,41 +5543,50 @@ function switchPage(n){
 
 // 身份差异化开场数据
 var IDENTITY_OPENINGS={
-  '佣兵':{scene:'来公会报到登记，接待员递上登记表',greeting:'「新面孔。名字、种族、特质，自己填，填完盖手印。」'},
-  '拾荒者':{scene:'顺路兑战利品，顺手接单',greeting:'「又来兑货？正好，昨晚上新贴了个活。」'},
-  '学者':{scene:'雇向导查资料，接单作野外保障',greeting:'「要雇向导？灰烬森林那边正好有个委托，顺路。」'},
-  '猎人':{scene:'卖猎物顺带问行情，接单',greeting:'「今天的猎物不错。正好有个材料狩猎的活，接不接？」'},
-  '商贩':{scene:'谈供货押运，接单',greeting:'「要谈押运？正好有个灰烬森林的活，顺路。」'},
-  '工匠':{scene:'交订单修装备，接单',greeting:'「修装备？正好，修完有个活给你看看。」'},
-  '医师':{scene:'收药材卖药剂，接单',greeting:'「收药材？正好有个灰烬森林的活，需要医师。」'}
+  '遗迹猎手':{scene:'正对着便携解码器调试参数，抬头审视公会内的陈设',greeting:'「遗迹猎手？听说你们这行最近都在盯着 09 号废弃避难所的动静。」'},
+  '圣火祭司':{scene:'手抚胸前圣火徽记，低声念诵着晨祷词',greeting:'「愿圣火庇佑你，祭司。风蚀哨站那边近来异端传言四起，教团正需要信使。」'},
+  '荒原游侠':{scene:'身上带着沙尘与刺鼻的驱兽草气息，目光警觉扫视四周',greeting:'「游侠，外面的风暴停了？失踪的荒原巡逻队至今还没消息，大家都指望你们探路。」'},
+  '机械工匠':{scene:'腰间挂满扳手与精密机件，正打量着大厅那台老旧的供暖锅炉',greeting:'「工匠师傅！哨站外围的自卫炮台又瘫痪了两台，正缺懂行的人去看看。」'},
+  '异化行者':{scene:'兜帽压得很低，隐匿斗篷下隐约浮现微弱的能量纹路',greeting:'「……坐吧，别太招摇。听说回声谷深处有些旧时代的生化制剂，兴许对你有用。」'},
+  '旧日学者':{scene:'手里捧着炭笔与羊皮纸手记，正仔细辨识公会石柱上的风化铭文',greeting:'「学者阁下，灰烬森林方尖碑的古文字，公会里没人认得，正想请您过目。」'},
+  '自由人':{scene:'靠在吧台旁要了杯廉价麦酒，神色轻松自若',greeting:'「新面孔。名字、种族、特质，自己填，填完盖手印。荒原很大，全看你自己挑活。」'}
 };
 
-// ── 身份开局包：金币/主手/护甲/背包按身份差异化（武器护甲为 equipment-system 真实模板名）──
-// 价值平衡：各身份总资产（金币+装备折价+背包）≈ 40~55 金币区间，差异在形态不在强弱
+// ── 7 大废土身份开局包：金币/主手/护甲/背包信物按身份差异化 ──
 var IDENTITY_KITS = {
-  '佣兵': { gold: 10, mainHand: '废土短刃', body: '废布拼装甲', inventory: [ { name: '磨刀石', type: 'tool' } ] },
-  '拾荒者': { gold: 5, mainHand: '钢管', body: null, inventory: [
-    { name: '麻绳（10米）', type: 'tool' }, { name: '火把', type: 'tool', count: 2 },
-    { name: '灰烬面罩', type: 'tool' }, { name: '旧铁罐', type: 'junk', count: 3 } ] },
-  '学者': { gold: 22, mainHand: '废土匕首', body: null, inventory: [
-    { name: '空白笔记册', type: 'tool' }, { name: '炭笔', type: 'tool', count: 2 },
-    { name: '灰烬森林残页', type: 'book', desc: '研读可触发习得检定（痕迹辨识线索）' } ] },
-  '猎人': { gold: 12, mainHand: '废土猎弓', body: '变异兽皮甲', inventory: [
-    { name: '熏肉', type: 'consumable', effect: 'heal', value: 10, count: 2 },
-    { name: '兽皮水袋', type: 'tool' } ] },
-  '商贩': { gold: 28, mainHand: '废土匕首', body: null, inventory: [
-    { name: '待售小商品', type: 'trade', count: 3 }, { name: '商用账本', type: 'tool' } ] },
-  '工匠': { gold: 15, mainHand: '钢管', body: null, inventory: [
-    { name: '工匠工具包', type: 'tool' }, { name: '铁料', type: 'material', count: 2 },
-    { name: '磨刀石', type: 'tool' } ] },
-  '医师': { gold: 20, mainHand: '废土匕首', body: null, inventory: [
-    { name: '治疗药水', type: 'consumable', effect: 'heal', value: 25, count: 2 },
-    { name: '绷带卷', type: 'tool' }, { name: '药材包', type: 'material' } ] }
+  '遗迹猎手': { gold: 15, mainHand: '废土短刃', body: '废布拼装甲', inventory: [
+    { name: '加密的先驱者磁盘', type: 'quest_item', desc: '记录着旧时代避难所坐标的加密磁盘' },
+    { name: '精密撬棒', type: 'tool', desc: '用于撬开废墟安全门与坚固宝箱' },
+    { name: '火把', type: 'tool', count: 2 } ] },
+  '圣火祭司': { gold: 20, mainHand: '废土短杖', body: '粗麻教袍', inventory: [
+    { name: '受祝福的圣火徽记', type: 'relic', desc: '圣火教团神圣徽记，在教团哨卡可获补给' },
+    { name: '初级圣水', type: 'consumable', effect: 'heal', value: 25, count: 2 },
+    { name: '祈祷油灯', type: 'tool' } ] },
+  '荒原游侠': { gold: 12, mainHand: '废土猎弓', body: '变异兽皮甲', inventory: [
+    { name: '风蚀荒原生存地图', type: 'map', desc: '标记了避风洞与水源的详尽地图，迷路率归零' },
+    { name: '捕兽夹', type: 'tool', count: 2 },
+    { name: '风干肉干', type: 'consumable', effect: 'heal', value: 10, count: 3 } ] },
+  '机械工匠': { gold: 18, mainHand: '重型合金扳手', body: '铆接皮围裙', inventory: [
+    { name: '多功能改装扳手', type: 'tool', desc: '精密工具，锻造与改装费用永久减免 20%' },
+    { name: '高纯度废料', type: 'material', count: 4 },
+    { name: '备用齿轮组', type: 'material', count: 2 } ] },
+  '异化行者': { gold: 10, mainHand: '带刺骨刃', body: '隐匿破斗篷', inventory: [
+    { name: '变异体抑制药剂', type: 'consumable', effect: 'buff', desc: '基因稳定剂，辐射抗性永久+2', count: 2 },
+    { name: '生化滤毒面罩', type: 'tool' },
+    { name: '荧光苔藓囊', type: 'material', count: 2 } ] },
+  '旧日学者': { gold: 25, mainHand: '废土匕首', body: '耐磨学者长袍', inventory: [
+    { name: '古代文献残卷', type: 'book', desc: '旧时代科技文献残卷，古铭文解读必定优势' },
+    { name: '炭笔拓印纸', type: 'tool', count: 3 },
+    { name: '放大镜', type: 'tool' } ] },
+  '自由人': { gold: 20, mainHand: '生锈的铁剑', body: '废布拼装甲', inventory: [
+    { name: '磨损的旅行行囊', type: 'tool', desc: '加厚防水皮质行囊，负重上限永久+10' },
+    { name: '麻绳（10米）', type: 'tool' },
+    { name: '火折子', type: 'tool', count: 2 } ] }
 };
 
 // 按身份构建开局包：装备经 equipment-system 工厂生成真实属性（伤害/AC/耐久），工厂不可用时回退简表
 function buildIdentityKit(identity) {
-  var kit = IDENTITY_KITS[identity] || IDENTITY_KITS['佣兵'];
+  var kit = IDENTITY_KITS[identity] || IDENTITY_KITS['自由人'];
   var equip = { mainHand: null, offHand: null, body: null, head: null, hands: null, legs: null, feet: null, shoulders: null, accessory1: null, accessory2: null };
   var factory = window.equipmentFactory;
   if (factory) {
@@ -5596,12 +5605,12 @@ window.IDENTITY_KITS = IDENTITY_KITS;
 // 生成进入游戏时的开局叙事文本（「启程」页内容搬入游戏叙事区，供 module 块 initGame 调用）
 window.buildOpeningIntro = function(od) {
   if (!od) return '';
-  var identity = (od.character && od.character.identity) || '佣兵';
-  var opening = IDENTITY_OPENINGS[identity] || IDENTITY_OPENINGS['佣兵'];
+  var identity = (od.character && od.character.identity) || '自由人';
+  var opening = IDENTITY_OPENINGS[identity] || IDENTITY_OPENINGS['自由人'];
   var timeStr = ((od.time && od.time.display) || '灾厄300年11月12日 07:10').replace('灾厄纪年', '灾厄');
   var loc = (od.location && od.location.full) ? '　·　' + od.location.full : '';
   var firstPara = '锈钉镇的清晨比想象中醒得早。天还没全亮，铁匠铺的锤声就隔着两条街传过来，一下一下，像给整座镇子敲着起床的鼓点。你裹着旧斗篷穿过主街，灰烬雾还没散，空气里混着铁锈、隔夜麦酒和木柴烧过的味道。三百年了，这座镇子就这样醒过来，日复一日。';
-  var secondPara = '佣兵公会在主街尽头，门脸不大，一块铁牌歪歪斜斜钉在门框上，写着「自由佣兵联盟」几个褪色的字。推门进去，炭火盆的暖意扑面而来，大厅里已经坐了三两拨人。柜台后一个矮人女人抬起头，' + opening.scene + '。';
+  var secondPara = '佣兵公会在主街尽头，门脸不大，一块铁牌歪歪斜斜钉在门框上，写着「自由佣兵联盟」几个褪色的字。推门进去，炭火盆的暖意扑面而来，大厅里已经坐了三两拨人。柜台后的办事员抬起头，' + opening.scene + '。';
 
   var lines = [
     '----- ✦ ' + timeStr + ' ✦ -----',
@@ -5733,6 +5742,24 @@ function createOpeningData(charData){
   var perStr1 = (NC1.负重 && NC1.负重.每点力量) || 2;
   var encBase1 = (NC1.负重 && NC1.负重.基础) || 10;
 
+  var openingSys = window.openingSystem;
+  var matchedQuest = (openingSys && openingSys.IDENTITY_QUESTS && openingSys.IDENTITY_QUESTS[charData.identity])
+    || (window.IDENTITY_QUESTS && window.IDENTITY_QUESTS[charData.identity])
+    || {
+      name:'荒原的第一桶金',
+      type:'佣兵委托',
+      issuer:'佣兵公会',
+      targetArea:'灰烬森林',
+      description:'灰烬森林外围材料狩猎，收集灰烬狼皮和焦木蜥鳞片，完成初次立足委托',
+      objectives:[
+        {id:'obj_1',type:'collect',target:'灰烬狼皮',required:3,current:0,reward:3},
+        {id:'obj_2',type:'collect',target:'焦木蜥鳞片',required:2,current:0,reward:5}
+      ],
+      deadline:{days:3,display:'3天'},
+      rewards:{gold:19,reputation:{faction:'佣兵公会',amount:5}},
+      status:'进行中'
+    };
+
   return {
     time:{year:300,month:11,day:12,hour:7,minute:10,display:'灾厄纪年300年11月12日 07:10'},
     location:{region:'锈钉镇',town:'锈钉',place:'佣兵公会大厅',full:'锈钉镇，佣兵公会大厅'},
@@ -5752,20 +5779,7 @@ function createOpeningData(charData){
       ac:10+Math.floor((dex-10)/2),
       carryCapacity:encBase1+str*perStr1
     },
-    initialQuest:{
-      name:'灰烬森林材料狩猎',
-      type:'佣兵委托',
-      issuer:'佣兵公会',
-      targetArea:'灰烬森林',
-      description:'灰烬森林外围材料狩猎，收集灰烬狼皮和焦木蜥鳞片',
-      objectives:[
-        {id:'obj_1',type:'collect',target:'灰烬狼皮',required:3,current:0,reward:3},
-        {id:'obj_2',type:'collect',target:'焦木蜥鳞片',required:2,current:0,reward:5}
-      ],
-      deadline:{days:3,display:'3天'},
-      rewards:{gold:19,reputation:{faction:'佣兵公会',amount:5}},
-      status:'进行中'
-    },
+    initialQuest: matchedQuest,
     mainPlotHook:{
       name:'老维特失踪',
       location:'告示板角落',
@@ -5843,11 +5857,14 @@ function generateOutput(){
       con=document.getElementById('con').value,wis=document.getElementById('wis').value,
       int=document.getElementById('int').value,cha=document.getElementById('cha').value,
       ac=10+mod(dex),load=10+str*2;
+  if (identity === '自由人') load += 10;
   var kit=buildIdentityKit(identity);
   if(kit.equipment.body&&kit.equipment.body.armor)ac+=kit.equipment.body.armor.acBase-10;
   var invText=kit.inventory.map(function(i){return i.name+(i.count?'×'+i.count:'');}).join('、');
+  var idEntry=(window.identitySystem&&window.identitySystem.getEntry)?window.identitySystem.getEntry(identity):null;
+  var factionText=idEntry?(' ｜ 阵营: '+idEntry.faction):'';
   var out='【登记档案】\n'
-    +'姓名: '+name+' ｜ 种族: '+race+' ｜ 身份: '+identity+' ｜ 性别: '+gender+' ｜ 年龄: '+age+'\n'
+    +'姓名: '+name+' ｜ 种族: '+race+' ｜ 身份: '+identity+factionText+' ｜ 性别: '+gender+' ｜ 年龄: '+age+'\n'
     +'[六维] 力量'+str+'('+modStr(str)+') 敏捷'+dex+'('+modStr(dex)+') 体质'+con+'('+modStr(con)+') 感知'+wis+'('+modStr(wis)+') 智力'+int+'('+modStr(int)+') 魅力'+cha+'('+modStr(cha)+')\n'
     +'HP: 100/100 ｜ MP: '+int*5+' ｜ AC: '+ac+' ｜ 负重: '+load+'kg ｜ 金币: '+kit.gold+'\n'
     +(traits?'[特质] '+traits+'\n':'')
@@ -5856,7 +5873,10 @@ function generateOutput(){
   document.getElementById('out').value=out;
   var preview=document.getElementById('kit-preview');
   if(!preview){var sel=document.getElementById('identity');if(sel&&sel.parentNode){preview=document.createElement('div');preview.id='kit-preview';preview.className='race-hint';sel.parentNode.insertBefore(preview,sel.nextSibling);}}
-  if(preview)preview.textContent='◈ 开局包：'+kit.gold+' 金币 ｜ '+(kit.equipment.mainHand?kit.equipment.mainHand.name:'空手')+(kit.equipment.body?' + '+kit.equipment.body.name:'')+' ｜ '+invText;
+  if(preview){
+    var advText=idEntry?(' ｜ ◈ 优势领域：'+idEntry.advantage):'';
+    preview.textContent='◈ 开局包：'+kit.gold+' 金币 ｜ '+(kit.equipment.mainHand?kit.equipment.mainHand.name:'空手')+(kit.equipment.body?' + '+kit.equipment.body.name:'')+' ｜ '+invText+advText;
+  }
 }
 
 function copyOutput(){
