@@ -2619,8 +2619,8 @@ body{padding:0}
 </div>
 
 
-  <section id="view-settings" class="view active">
-    <div class="page active">
+  <section id="view-settings" class="view">
+    <div class="page">
       <div class="candle-glow"></div>
       <div class="manuscript-border"></div>
       <div class="corner-ornament tl">✦</div><div class="corner-ornament tr">✦</div>
@@ -5551,13 +5551,15 @@ var raceHints={人类:'适应力：跨种族社交/跨势力交涉不劣势',矮
 
 function switchPage(n){
   var pages=['p1','p2'];
-  var currentPage=document.querySelector('.page.active');
-  var nextPage=document.getElementById(pages[n-1]);
+  var createView = document.getElementById('view-create');
+  var currentPage = createView ? createView.querySelector('.page.active') : document.querySelector('.page.active');
+  var nextPage = document.getElementById(pages[n-1]);
   if(!nextPage) return;
-  if(currentPage)currentPage.classList.remove('active');
+  if(currentPage) currentPage.classList.remove('active');
   nextPage.classList.add('active');
   nextPage.style.animation='none';void nextPage.offsetWidth;
   nextPage.style.animation='pageOpen .6s ease-out';
+  if(typeof generateOutput === 'function') generateOutput();
 }
 
 // 身份差异化开场数据
